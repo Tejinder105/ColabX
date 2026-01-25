@@ -1,18 +1,36 @@
 
 import { createBrowserRouter } from "react-router";
-import { RouterProvider } from "react-router/dom";
+import { RouterProvider } from "react-router-dom";
 import LandingPage from "./pages/public/landing";
 
+import { LoginForm } from "./components/login-form";
+import { SignupForm } from "./components/signup-form";
+import AuthPage from "./pages/public/auth";
 const router = createBrowserRouter([
   {
     path: "/",
-    element:<LandingPage/>,
+    element: <LandingPage />,
+
+  },
+  {
+    path: "/auth",
+    element: <AuthPage />,
+    children: [
+      {
+        path: "login",
+        element: <LoginForm />,
+      },
+      {
+        path: "signup",
+        element: <SignupForm />,
+      },
+    ],
   },
 ]);
 function App() {
 
   return (
-      <RouterProvider router={router} />
+    <RouterProvider router={router} />
   )
 }
 

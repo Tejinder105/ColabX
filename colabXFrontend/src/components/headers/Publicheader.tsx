@@ -187,10 +187,10 @@ function Publicheader() {
         <NavMenu />
       </div>
       <div className="gap-4 flex">
-        <Link to="/login">
+        <Link to="/auth/login">
           <Button variant="outline">Login</Button>
         </Link>
-        <Link to="/signup">
+        <Link to="/auth/signup">
           <Button>Sign Up</Button>
         </Link>
       </div>

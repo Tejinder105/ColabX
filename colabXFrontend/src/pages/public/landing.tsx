@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import Publicheader from "@/components/headers/Publicheader";
-import Publicfooter from "@/components/footer/publicfooter";
+import Publicfooter from "@/components/footer/Publicfooter";
 import { Button } from "@/components/ui/button";
 import { Spotlight } from "@/components/ui/spotlight";
 import { useEffect } from "react";
