@@ -93,7 +93,7 @@ export function SignupForm({
                 </Button>
               </Field>
               <FieldDescription className="text-center">
-                Already have an account? <Link to="/login">Sign in</Link>
+                Already have an account? <Link to="/auth/login">Sign in</Link>
               </FieldDescription>
             </FieldGroup>
           </form>
@@ -107,8 +107,8 @@ export function SignupForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        By clicking continue, you agree to our <Link to="#">Terms of Service</Link>{" "}
+        and <Link to="#">Privacy Policy</Link>.
       </FieldDescription>
     </div>
   )
