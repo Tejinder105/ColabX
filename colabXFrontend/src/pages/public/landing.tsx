@@ -44,9 +44,21 @@ function HeroSection() {
 }
 
 function LandingPage() {
-  // Scroll to top on mount to prevent browser scroll restoration from hiding the hero
   useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    
+   
     window.scrollTo(0, 0);
+    
+    const timeoutId = setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   return (

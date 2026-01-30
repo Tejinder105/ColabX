@@ -1,5 +1,5 @@
 
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, ScrollRestoration } from "react-router";
 import { RouterProvider } from "react-router-dom";
 import LandingPage from "./pages/public/landing";
 
@@ -26,7 +26,12 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  }
+});
 function App() {
 
   return (
