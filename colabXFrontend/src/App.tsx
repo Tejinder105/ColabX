@@ -2,6 +2,7 @@
 import { createBrowserRouter, ScrollRestoration } from "react-router";
 import { RouterProvider } from "react-router-dom";
 import LandingPage from "./pages/public/landing";
+import OnboardingPage from "./pages/public/onboarding";
 
 import { LoginForm } from "./components/login-form";
 import { SignupForm } from "./components/signup-form";
@@ -26,6 +27,11 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/onboarding",
+    element: <OnboardingPage />,
+  }
+ 
 ], {
   future: {
     v7_startTransition: true,
