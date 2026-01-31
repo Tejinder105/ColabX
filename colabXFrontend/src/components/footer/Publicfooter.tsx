@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Github, Linkedin, Twitter } from "lucide-react";
+import { Logo } from "../logo";
 
 function Publicfooter() {
     return (
@@ -10,8 +11,8 @@ function Publicfooter() {
                     {/* 1. Brand Column */}
                     <div className="flex flex-col gap-4">
                         <Link to="/" className="flex items-center gap-2">
-                            <span className="font-bold text-2xl tracking-tight">
-                                Colab<span className="text-primary">X</span>
+                            <span className=" flex items-center font-bold text-2xl tracking-tight">
+                                Colab<span className="text-primary"><Logo className="h-8 w-8" /></span>
                             </span>
                         </Link>
                         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">

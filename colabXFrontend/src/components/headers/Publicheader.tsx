@@ -6,7 +6,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu";
 import {
   BookOpen,
   Handshake,
@@ -19,11 +19,17 @@ import {
   Globe,
   Phone,
   Laptop,
-  Mail
+  Mail,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { Logo } from "../logo";
 
-const productComponents: { title: string; href: string; description: string; icon: React.ElementType }[] = [
+const productComponents: {
+  title: string;
+  href: string;
+  description: string;
+  icon: React.ElementType;
+}[] = [
   {
     title: "How CollabX Works",
     href: "/how-it-works",
@@ -48,22 +54,70 @@ const productComponents: { title: string; href: string; description: string; ico
     description: "Ensure compliance with automated audits.",
     icon: ShieldCheck,
   },
-]
-
-const solutions: { title: string; href: string; description: string; icon: React.ElementType }[] = [
-  { title: "For Startups", href: "/solutions/startups", description: "Tailored for startups.", icon: Rocket },
-  { title: "For Accelerators", href: "/solutions/accelerators", description: "Optimized for accelerators.", icon: Zap },
-  { title: "For Investors", href: "/solutions/investors", description: "Insights for investors.", icon: Briefcase },
-  { title: "For Agencies", href: "/solutions/agencies", description: "Tools for agencies.", icon: Building2 },
-  { title: "For Enterprises", href: "/solutions/enterprises", description: "Scalable enterprise solutions.", icon: Globe },
 ];
 
+const solutions: {
+  title: string;
+  href: string;
+  description: string;
+  icon: React.ElementType;
+}[] = [
+  {
+    title: "For Startups",
+    href: "/solutions/startups",
+    description: "Tailored for startups.",
+    icon: Rocket,
+  },
+  {
+    title: "For Accelerators",
+    href: "/solutions/accelerators",
+    description: "Optimized for accelerators.",
+    icon: Zap,
+  },
+  {
+    title: "For Investors",
+    href: "/solutions/investors",
+    description: "Insights for investors.",
+    icon: Briefcase,
+  },
+  {
+    title: "For Agencies",
+    href: "/solutions/agencies",
+    description: "Tools for agencies.",
+    icon: Building2,
+  },
+  {
+    title: "For Enterprises",
+    href: "/solutions/enterprises",
+    description: "Scalable enterprise solutions.",
+    icon: Globe,
+  },
+];
 
-
-const contact: { title: string; href: string; description: string; icon: React.ElementType }[] = [
-  { title: "Contact Sales", href: "/contact/sales", description: "Talk to our sales team.", icon: Phone },
-  { title: "Request Demo", href: "/contact/demo", description: "See CollabX in action.", icon: Laptop },
-  { title: "Support Email", href: "/contact/support", description: "Get help when you need it.", icon: Mail },
+const contact: {
+  title: string;
+  href: string;
+  description: string;
+  icon: React.ElementType;
+}[] = [
+  {
+    title: "Contact Sales",
+    href: "/contact/sales",
+    description: "Talk to our sales team.",
+    icon: Phone,
+  },
+  {
+    title: "Request Demo",
+    href: "/contact/demo",
+    description: "See CollabX in action.",
+    icon: Laptop,
+  },
+  {
+    title: "Support Email",
+    href: "/contact/support",
+    description: "Get help when you need it.",
+    icon: Mail,
+  },
 ];
 
 function NavMenu() {
@@ -71,20 +125,23 @@ function NavMenu() {
     <NavigationMenu>
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">Product</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">
+            Product
+          </NavigationMenuTrigger>
           <NavigationMenuContent>
             <div className="grid gap-3 p-6 md:w-[400px] lg:w-[600px] lg:grid-cols-[.75fr_1fr]  rounded-xl">
               <div className="row-span-3">
                 <NavigationMenuLink asChild>
                   <Link
-                    className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-neutral-800 to-neutral-900 p-6 no-underline outline-none focus:shadow-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                    className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-neutral-800 to-neutral-900 p-6 no-underline outline-none focus:shadow-md border border-neutral-700 hover:border-neutral-600 transition-colors"
                     to="/"
                   >
                     <div className="mb-2 mt-4 text-lg font-medium text-white">
                       Overview
                     </div>
                     <p className="text-sm leading-tight text-neutral-400">
-                      A unified platform to manage all your collaborative needs seamlessly.
+                      A unified platform to manage all your collaborative needs
+                      seamlessly.
                     </p>
                   </Link>
                 </NavigationMenuLink>
@@ -112,11 +169,18 @@ function NavMenu() {
         </NavigationMenuItem>
 
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">Solutions</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">
+            Solutions
+          </NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
               {solutions.map((item) => (
-                <ListItem key={item.title} title={item.title} href={item.href} icon={item.icon}>
+                <ListItem
+                  key={item.title}
+                  title={item.title}
+                  href={item.href}
+                  icon={item.icon}
+                >
                   {item.description}
                 </ListItem>
               ))}
@@ -135,27 +199,41 @@ function NavMenu() {
           </NavigationMenuLink>
         </NavigationMenuItem>
 
-
-
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">Contact</NavigationMenuTrigger>
+          <NavigationMenuTrigger className="text-white px-2 text-xs h-7">
+            Contact
+          </NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
               {contact.map((item) => (
-                <ListItem key={item.title} title={item.title} href={item.href} icon={item.icon}>
+                <ListItem
+                  key={item.title}
+                  title={item.title}
+                  href={item.href}
+                  icon={item.icon}
+                >
                   {item.description}
                 </ListItem>
               ))}
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
-
       </NavigationMenuList>
     </NavigationMenu>
-  )
+  );
 }
 
-const ListItem = ({ title, href, children, icon: Icon }: { title: string; href: string; children: React.ReactNode; icon: React.ElementType }) => {
+const ListItem = ({
+  title,
+  href,
+  children,
+  icon: Icon,
+}: {
+  title: string;
+  href: string;
+  children: React.ReactNode;
+  icon: React.ElementType;
+}) => {
   return (
     <li>
       <NavigationMenuLink asChild>
@@ -173,16 +251,20 @@ const ListItem = ({ title, href, children, icon: Icon }: { title: string; href: 
         </Link>
       </NavigationMenuLink>
     </li>
-  )
-}
+  );
+};
 
 function Publicheader() {
   return (
-
     <div className="w-full h-16 flex items-center justify-between px-12 border-b border-white/5 sticky top-0 z-50 bg-background/70 backdrop-blur-xl shadow-sm">
       <div className="flex gap-4">
         <Link to="/">
-          <h1 className="text-2xl font-bold text-white">Colab<span className="text-primary">X</span></h1>
+          <h1 className="flex items-center text-2xl font-bold text-white">
+            Colab
+            <span>
+              <Logo className="h-8 w-8" />
+            </span>
+          </h1>
         </Link>
         <NavMenu />
       </div>
