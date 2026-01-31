@@ -1,5 +1,5 @@
 
-import { createBrowserRouter, ScrollRestoration } from "react-router";
+import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router-dom";
 import LandingPage from "./pages/public/landing";
 import OnboardingPage from "./pages/public/onboarding";
@@ -31,7 +31,7 @@ const router = createBrowserRouter([
     path: "/onboarding",
     element: <OnboardingPage />,
   }
- 
+
 ], {
   future: {
     v7_startTransition: true,
