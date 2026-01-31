@@ -5,60 +5,142 @@ import { Card, CardContent } from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { useForm, type SubmitHandler } from "react-hook-form"
+import { useSignupMutation } from "@/hooks/use-auth-mutations"
+
+
+type Inputs = {
+  email: string;
+  username: string; // Added username field
+  password: string;
+  confirmPassword: string;
+}
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+
+  const {
+    register,
+    handleSubmit,
+
+    getValues,
+    formState: { errors },
+  } = useForm<Inputs>({
+    defaultValues: {
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+    },
+  })
+
+  const signupMutation = useSignupMutation();
+
+  const onSubmit: SubmitHandler<Inputs> = (data) => {
+    signupMutation.mutate({
+      email: data.email,
+      username: data.username,
+      password: data.password,
+    });
+  };
+
+
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8">
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Create your account</h1>
-                <p className="text-muted-foreground text-sm text-balance">
-                  Enter your email below to create your account
-                </p>
               </div>
+              <Field>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  required
+                  {...register("username", {
+                    required: "Username is required",
+                    minLength: {
+                      value: 3,
+                      message: "Username must be at least 3 characters long",
+                    },
+                    pattern: {
+                      value: /^[a-zA-Z0-9_]+$/,
+                      message: "Username can only contain letters, numbers, and underscores",
+                    },
+                  })}
+                />
+                <FieldError errors={[errors.username]} />
+              </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="name@example.com"
                   required
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+                      message: "Email address must be a valid address",
+                    },
+                  })}
                 />
-                <FieldDescription>
-                  We&apos;ll use this to contact you. We will not share your
-                  email with anyone else.
-                </FieldDescription>
+                <FieldError errors={[errors.email]} />
               </Field>
               <Field>
                 <Field className="grid grid-cols-2 gap-4">
                   <Field>
                     <FieldLabel htmlFor="password">Password</FieldLabel>
-                    <Input id="password" type="password" required />
+                    <Input id="password" type="password" required
+                      placeholder="Enter your password"
+                      {...register("password", {
+                        required: "Password is required",
+                        minLength: {
+                          value: 8,
+                          message: "Password must be at least 8 characters long",
+                        },
+                      })}
+                    />
+                    <FieldError errors={[errors.password]} />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="confirm-password">
                       Confirm Password
                     </FieldLabel>
-                    <Input id="confirm-password" type="password" required />
+                    <Input id="confirm-password" type="password" required placeholder="Enter your password"
+                      {...register("confirmPassword", {
+                        required: "Confirm Password is required",
+                        validate: (value) =>
+                          value === getValues("password") || "Passwords do not match",
+                      })}
+                    />
+                    <FieldError errors={[errors.confirmPassword]} />
                   </Field>
                 </Field>
-                <FieldDescription>
-                  Must be at least 8 characters long.
-                </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit">Create Account</Button>
+                <Button type="submit" disabled={signupMutation.isPending}>
+                  {signupMutation.isPending ? "Creating Account..." : "Create Account"}
+                </Button>
+                {signupMutation.isError && (
+                  <p className="text-destructive text-sm mt-2">
+                    {signupMutation.error?.message || "Signup failed. Please try again."}
+                  </p>
+                )}
               </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or continue with
