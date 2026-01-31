@@ -2,6 +2,8 @@
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router-dom";
 import LandingPage from "./pages/public/landing";
+import OnboardingPage from "./pages/public/onboarding";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginForm } from "./components/login-form";
 import { SignupForm } from "./components/signup-form";
@@ -26,7 +28,17 @@ const router = createBrowserRouter([
       },
     ],
   },
-]);
+  {
+    path: "/onboarding",
+    element: <OnboardingPage />,
+  }
+
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  }
+});
 function App() {
 const queryClient = new QueryClient()
   return (
