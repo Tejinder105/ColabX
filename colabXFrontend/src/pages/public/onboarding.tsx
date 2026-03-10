@@ -2,27 +2,21 @@ import * as React from "react"
 import { CreateOrganizationCard } from "@/components/onboarding/CreateOrganizationCard"
 import { JoinOrganizationCard } from "@/components/onboarding/JoinOrganizationCard"
 import { Button } from "@/components/ui/button"
-import { Users } from "lucide-react"
+
 
 type ActiveView = "create" | "join"
 
+import { Logo } from "@/components/logo"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import avatar1 from "@/assets/avatar1.jpeg"
+import avatar2 from "@/assets/avatar2.jpeg"
+import avatar3 from "@/assets/avatar.jpeg"
+
 function CollabXLogo() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="h-5 w-5 text-primary-foreground"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
-        </svg>
-      </div>
-      <span className="text-xl font-bold text-foreground">CollabX</span>
+    <div className="flex items-center">
+      <span className="text-xl font-bold text-foreground">Colab</span>
+      <Logo className="h-6 w-6" />
     </div>
   )
 }
@@ -39,14 +33,24 @@ function CreateBrandingPanel() {
           digital workspace.
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
-          Join thousands of organizations that use CollabX to streamline their workflow, boost productivity, and foster innovation.
+          Join thousands of organizations that use Collab <span className="text-primary">X</span> to streamline their workflow, boost productivity, and foster innovation.
         </p>
 
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
-            <div className="h-10 w-10 rounded-full border-2 border-border bg-gradient-to-br from-chart-1 to-chart-5" />
-            <div className="h-10 w-10 rounded-full border-2 border-border bg-gradient-to-br from-chart-2 to-chart-3" />
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-border bg-primary text-xs font-medium text-primary-foreground">
+            <Avatar className="h-10 w-10 border-2 border-border">
+              <AvatarImage src={avatar1} alt="Avatar 1" />
+              <AvatarFallback className="bg-gradient-to-br from-chart-1 to-chart-5 text-transparent">A1</AvatarFallback>
+            </Avatar>
+            <Avatar className="h-10 w-10 border-2 border-border">
+              <AvatarImage src={avatar2} alt="Avatar 2" />
+              <AvatarFallback className="bg-gradient-to-br from-chart-2 to-chart-3 text-transparent">A2</AvatarFallback>
+            </Avatar>
+            <Avatar className="h-10 w-10 border-2 border-border">
+              <AvatarImage src={avatar3} alt="Avatar 3" />
+              <AvatarFallback className="bg-gradient-to-br from-chart-3 to-chart-4 text-transparent">A3</AvatarFallback>
+            </Avatar>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-border bg-primary text-xs font-bold text-primary-foreground">
               +
             </div>
           </div>
@@ -59,12 +63,19 @@ function CreateBrandingPanel() {
   )
 }
 
+import collaborationSvg from "@/assets/collaboration.svg"
+
 function JoinBrandingPanel() {
   return (
     <div className="flex h-full flex-col items-center justify-center p-8 lg:p-12">
-      <div className="space-y-8 text-center">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20">
-          <Users className="h-10 w-10 text-primary" />
+      <div className="space-y-4 text-center">
+        <div className="mx-auto flex h-54 w-54 items-center justify-center relative">
+          <div className="absolute inset-0" />
+          <img
+            src={collaborationSvg}
+            alt="Collaboration Illustration"
+            className="w-full h-full object-contain relative z-10"
+          />
         </div>
 
         <div className="space-y-4">
@@ -105,20 +116,18 @@ function OnboardingPage() {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Left Panel */}
       <div
-        className={`hidden w-1/2 transition-all duration-500 ease-in-out lg:block ${
-          activeView === "create"
-            ? "bg-muted"
-            : "bg-background"
-        }`}
+        className={`hidden w-1/2 transition-all duration-500 ease-in-out lg:block ${activeView === "create"
+          ? "bg-muted"
+          : "bg-background"
+          }`}
       >
         <div className="relative h-full overflow-hidden">
-          {/* Create Organization Form (Left side for Join view) */}
+          {/* Create Organization Form*/}
           <div
-            className={`absolute inset-0 flex flex-col transition-all duration-500 ease-in-out ${
-              activeView === "join"
-                ? "translate-x-0 opacity-100"
-                : "-translate-x-full opacity-0"
-            }`}
+            className={`absolute inset-0 flex flex-col transition-all duration-500 ease-in-out ${activeView === "join"
+              ? "translate-x-0 opacity-100"
+              : "-translate-x-full opacity-0"
+              }`}
           >
             <div className="flex items-center justify-between p-8 lg:p-12">
               <CollabXLogo />
@@ -133,13 +142,12 @@ function OnboardingPage() {
             </div>
           </div>
 
-          {/* Branding Panel (Left side for Create view) */}
+          {/* Branding Panel */}
           <div
-            className={`absolute inset-0 transition-all duration-500 ease-in-out ${
-              activeView === "create"
-                ? "translate-x-0 opacity-100"
-                : "translate-x-full opacity-0"
-            }`}
+            className={`absolute inset-0 transition-all duration-500 ease-in-out ${activeView === "create"
+              ? "translate-x-0 opacity-100"
+              : "translate-x-full opacity-0"
+              }`}
           >
             <CreateBrandingPanel />
           </div>
@@ -148,11 +156,10 @@ function OnboardingPage() {
 
       {/* Right Panel */}
       <div
-        className={`flex w-full flex-col lg:w-1/2 ${
-          activeView === "create"
-            ? "bg-background"
-            : "bg-muted"
-        }`}
+        className={`flex w-full flex-col lg:w-1/2 ${activeView === "create"
+          ? "bg-background"
+          : "bg-muted"
+          }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 lg:p-8">
@@ -175,24 +182,21 @@ function OnboardingPage() {
 
         {/* Main Content */}
         <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 lg:px-16">
-          {/* Create Organization Card */}
           <div
-            className={`w-full max-w-md transition-all duration-500 ease-in-out ${
-              activeView === "create"
-                ? "translate-x-0 opacity-100"
-                : "-translate-x-full opacity-0 absolute pointer-events-none"
-            }`}
+            className={`w-full max-w-md transition-all duration-500 ease-in-out ${activeView === "create"
+              ? "translate-x-0 opacity-100"
+              : "-translate-x-full opacity-0 absolute pointer-events-none"
+              }`}
           >
             <CreateOrganizationCard />
           </div>
 
-          {/* Join Branding Panel (Right side) */}
+          {/* Join Branding Panel*/}
           <div
-            className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
-              activeView === "join"
-                ? "translate-x-0 opacity-100"
-                : "translate-x-full opacity-0 pointer-events-none"
-            }`}
+            className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${activeView === "join"
+              ? "translate-x-0 opacity-100"
+              : "translate-x-full opacity-0 pointer-events-none"
+              }`}
           >
             <JoinBrandingPanel />
           </div>
