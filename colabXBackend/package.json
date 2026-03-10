@@ -8,7 +8,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "db:generate": "npx tsx node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "npx tsx node_modules/drizzle-kit/bin.cjs migrate",
+    "db:push": "npx tsx node_modules/drizzle-kit/bin.cjs push",
+    "db:studio": "npx tsx node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.10",
@@ -18,7 +22,8 @@
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.1",
     "express": "^5.2.1",
-    "pg": "^8.17.2"
+    "pg": "^8.17.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
