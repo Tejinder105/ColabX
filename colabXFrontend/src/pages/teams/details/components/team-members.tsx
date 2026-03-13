@@ -17,7 +17,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function TeamMembers({ members }: { members: TeamMember[] }) {
+interface TeamMembersProps {
+    members: TeamMember[];
+    onRemove?: (memberId: string) => void;
+    onChangeRole?: (memberId: string, newRole: 'lead' | 'member') => void;
+}
+
+export function TeamMembers({ members, onRemove, onChangeRole }: TeamMembersProps) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -59,9 +65,22 @@ export function TeamMembers({ members }: { members: TeamMember[] }) {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem>Change role</DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onSelect={() => onChangeRole?.(member.id, member.role === 'Team Lead' ? 'member' : 'lead')}
+                                                >
+                                                    {member.role === 'Team Lead' ? 'Set as Member' : 'Set as Team Lead'}
+                                                </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive">Remove member</DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    className="text-destructive"
+                                                    onSelect={() => {
+                                                        if (window.confirm(`Remove ${member.name} from this team?`)) {
+                                                            onRemove?.(member.id);
+                                                        }
+                                                    }}
+                                                >
+                                                    Remove member
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

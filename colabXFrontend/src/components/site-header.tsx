@@ -32,11 +32,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
+import { useAuthStore } from "@/stores/authStore"
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar()
   const [open, setOpen] = React.useState(false)
   const location = useLocation()
+  const activeOrg = useAuthStore((state) => state.activeOrg)
 
   const pathSegments = location.pathname.split('/').filter(Boolean);
 
@@ -88,7 +90,7 @@ export function SiteHeader() {
                   <div className="flex aspect-square size-6 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                     <SidebarIcon className="size-4" />
                   </div>
-                  Tejinder105's Org
+                  {activeOrg?.name ?? "Organization"}
                   <span className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase font-medium text-muted-foreground bg-muted">
                     Free
                   </span>

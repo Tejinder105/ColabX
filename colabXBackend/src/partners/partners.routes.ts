@@ -6,9 +6,6 @@ import { requirePartner } from "./partners.middleware.js";
 import {
     createPartnerSchema,
     updatePartnerSchema,
-    assignTeamSchema,
-    addPartnerUserSchema,
-    updatePartnerUserRoleSchema,
 } from "./partners.validation.js";
 import {
     createPartnerHandler,
@@ -16,13 +13,6 @@ import {
     getPartnerByIdHandler,
     updatePartnerHandler,
     deletePartnerHandler,
-    assignTeamHandler,
-    getPartnerTeamsHandler,
-    removeTeamFromPartnerHandler,
-    addPartnerUserHandler,
-    getPartnerUsersHandler,
-    updatePartnerUserRoleHandler,
-    removePartnerUserHandler,
 } from "./partners.controller.js";
 
 const router = Router();
@@ -59,67 +49,6 @@ router.delete(
     requirePartner,
     requireRole("admin", "manager"),
     deletePartnerHandler
-);
-
-// ── Partner–Team Assignment ──────────────────────────────────────────────────
-
-router.post(
-    "/:partnerId/teams",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    validate(assignTeamSchema),
-    assignTeamHandler
-);
-
-router.get(
-    "/:partnerId/teams",
-    requireOrganization,
-    requirePartner,
-    getPartnerTeamsHandler
-);
-
-router.delete(
-    "/:partnerId/teams/:teamId",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    removeTeamFromPartnerHandler
-);
-
-// ── Partner Users ─────────────────────────────────────────────────────────────
-
-router.post(
-    "/:partnerId/users",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    validate(addPartnerUserSchema),
-    addPartnerUserHandler
-);
-
-router.get(
-    "/:partnerId/users",
-    requireOrganization,
-    requirePartner,
-    getPartnerUsersHandler
-);
-
-router.patch(
-    "/:partnerId/users/:userId/role",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    validate(updatePartnerUserRoleSchema),
-    updatePartnerUserRoleHandler
-);
-
-router.delete(
-    "/:partnerId/users/:userId",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    removePartnerUserHandler
 );
 
 export default router;

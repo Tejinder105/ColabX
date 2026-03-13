@@ -16,16 +16,3 @@ export const updatePartnerSchema = z.object({
     industry: z.string().max(200).trim().nullish(),
     onboardingDate: z.string().datetime().nullish(),
 });
-
-export const assignTeamSchema = z.object({
-    teamId: z.string().min(1),
-});
-
-export const addPartnerUserSchema = z.object({
-    userId: z.string().min(1),
-    role: z.enum(["partner_admin", "partner_member"]).default("partner_member"),
-});
-
-export const updatePartnerUserRoleSchema = z.object({
-    role: z.enum(["partner_admin", "partner_member"]),
-});

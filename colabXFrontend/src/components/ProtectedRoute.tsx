@@ -32,7 +32,9 @@ export function ProtectedRoute({ children, requireOrg = true }: ProtectedRoutePr
     }
 
     // If no orgs, redirect to onboarding
-    if (requireOrg && data.orgCount === 0) {
+    // Also check activeOrgId: the create-org mutation sets it synchronously
+    // before the currentUser query refetches, so trust the store
+    if (requireOrg && data.orgCount === 0 && !activeOrgId) {
         return <Navigate to="/onboarding" replace />
     }
 

@@ -20,13 +20,9 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar"
+import { useCurrentUser } from "@/hooks/useAuth"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -84,13 +80,21 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: currentUser } = useCurrentUser()
+
+  const user = {
+    name: currentUser?.user?.name ?? "",
+    email: currentUser?.user?.email ?? "",
+    avatar: currentUser?.user?.image ?? "",
+  }
+
   return (
     <Sidebar
       className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
       {...props}
     >
       <SidebarHeader>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

@@ -6,8 +6,11 @@ export default defineConfig({
   schema: [
     './src/schemas/authSchema.ts',
     './src/schemas/orgSchema.ts',
+    './src/schemas/collaborationSchema.ts',
     './src/teams/teams.schema.ts',
     './src/partners/partners.schema.ts',
+    './src/deals/deals.schema.ts',
+    './src/okr/okr.schema.ts',
   ],
   dialect: 'postgresql',
   dbCredentials: {

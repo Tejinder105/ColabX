@@ -1,38 +1,103 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockKpis, mockPartners } from '@/lib/mock-partners';
+import { usePartners } from '@/hooks/usePartners';
 import { PartnersHeader } from './components/partners-header';
 import { KpiStrip } from './components/kpi-strip';
 import { PartnersTable } from './components/partners-table';
-import type { Partner } from '@/types/partner';
+import type { Partner, PartnerType, Industry, PartnerStage, UIStatus, HealthStatus } from '@/types/partner';
+import type { ApiPartner } from '@/services/partnersService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
+// Map backend partner type to UI PartnerType
+function mapType(type: string): PartnerType {
+    switch (type) {
+        case 'reseller': return 'Reseller';
+        case 'agent': return 'Agency';
+        case 'technology': return 'Technology';
+        case 'distributor': return 'Strategic';
+        default: return 'Technology';
+    }
+}
+
+// Map backend status to PartnerStage
+function mapStage(status: string): PartnerStage {
+    switch (status?.toLowerCase()) {
+        case 'active': return 'Active';
+        case 'inactive': return 'Churned';
+        case 'onboarding': return 'Onboarding';
+        default: return 'Prospect';
+    }
+}
+
+// Map backend status to UI badge color
+function mapUiStatus(status: string): UIStatus {
+    switch (status?.toLowerCase()) {
+        case 'active': return 'Green';
+        case 'inactive': return 'Red';
+        default: return 'Yellow';
+    }
+}
+
+function mapHealthStatus(status: string): HealthStatus {
+    switch (status?.toLowerCase()) {
+        case 'active': return 'Good';
+        case 'inactive': return 'Poor';
+        default: return 'Average';
+    }
+}
+
+const VALID_INDUSTRIES: Industry[] = ['Finance', 'Healthcare', 'Retail', 'Manufacturing', 'Software', 'Defense', 'Other'];
+
+function mapIndustry(industry: string | null): Industry {
+    if (!industry) return 'Other';
+    const match = VALID_INDUSTRIES.find(i => i.toLowerCase() === industry.toLowerCase());
+    return match ?? 'Other';
+}
+
+function toUiPartner(p: ApiPartner): Partner {
+    return {
+        id: p.id,
+        name: p.name,
+        type: mapType(p.type),
+        industry: mapIndustry(p.industry),
+        ownerName: '—',
+        stage: mapStage(p.status),
+        healthScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
+        healthStatus: mapHealthStatus(p.status),
+        uiStatus: mapUiStatus(p.status),
+        performanceScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
+        openDealsCount: 0,
+        openDealsValue: 0,
+        lastActivityDate: p.updatedAt,
+        nextActionDue: null,
+        region: '',
+        tags: [],
+        contacts: [],
+        activities: [],
+        activeDeals: [],
+    };
+}
+
 export default function PartnersPage() {
     const [activeTab, setActiveTab] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-
-    // State for demonstrating UI states
-    const [isLoading, setIsLoading] = useState(true);
-    const [isError, setIsError] = useState(false);
-
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // Simulate network request
-        const timer = setTimeout(() => {
-            setIsLoading(false);
-        }, 1500);
-        return () => clearTimeout(timer);
-    }, []);
+    const { data, isLoading, isError, refetch } = usePartners();
+    const partners = (data?.partners ?? []).map(toUiPartner);
 
-    const handleRetry = () => {
-        setIsLoading(true);
-        setIsError(false);
-        setTimeout(() => {
-            setIsLoading(false);
-        }, 1500);
+    // Compute KPIs from real data
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const kpis = {
+        totalPartners: partners.length,
+        activePartners: (data?.partners ?? []).filter(p => p.status?.toLowerCase() === 'active').length,
+        atRiskPartners: (data?.partners ?? []).filter(p => p.status?.toLowerCase() === 'inactive').length,
+        newPartnersThisMonth: (data?.partners ?? []).filter(p => new Date(p.createdAt) >= startOfMonth).length,
+        pipelineDealsValue: 0,
     };
 
     const handleRowClick = (partner: Partner) => {
@@ -49,7 +114,7 @@ export default function PartnersPage() {
                     <p className="text-muted-foreground mb-6 max-w-sm text-center">
                         There was a problem connecting to the server. Please try again.
                     </p>
-                    <Button onClick={handleRetry}>
+                    <Button onClick={() => refetch()}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Retry
                     </Button>
@@ -61,21 +126,15 @@ export default function PartnersPage() {
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <PartnersHeader />
-
-            {/* Demo controls for states (would be removed in prod) */}
-            <div className="flex items-center gap-2 text-xs bg-muted p-2 rounded-md mb-4 hidden">
-                <span className="font-semibold px-2">Dev Tools:</span>
-                <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => setIsLoading(!isLoading)}>Toggle Loading</Button>
-                <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => setIsError(!isError)}>Toggle Error</Button>
-            </div>
-
             {isLoading ? (
                 <div className="space-y-4 mt-6">
+                    {/* KPI skeleton */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                         {Array.from({ length: 5 }).map((_, i) => (
                             <Skeleton key={i} className="h-24 w-full rounded-xl" />
                         ))}
                     </div>
+                    {/* Table skeleton */}
                     <div className="space-y-4 mt-8">
                         <div className="flex justify-between">
                             <Skeleton className="h-10 w-64" />
@@ -94,11 +153,10 @@ export default function PartnersPage() {
                 </div>
             ) : (
                 <>
-                    <KpiStrip data={mockKpis} />
-
+                    <KpiStrip data={kpis} />
                     <div className="space-y-4">
                         <PartnersTable
-                            partners={mockPartners}
+                            partners={partners}
                             activeTab={activeTab}
                             onTabChange={setActiveTab}
                             searchQuery={searchQuery}

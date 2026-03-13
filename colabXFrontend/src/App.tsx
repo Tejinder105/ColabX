@@ -4,6 +4,7 @@ import LandingPage from "./pages/public/landing";
 import OnboardingPage from "./pages/public/onboarding";
 import DashboardPage from "./pages/dashboard";
 import PartnersPage from "./pages/dashboard/partners";
+import PartnerDetailsPage from "./pages/dashboard/partners/details";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginForm } from "./components/login-form";
@@ -73,6 +74,10 @@ const router = createBrowserRouter([
       {
         path: "/partners",
         element: <PartnersPage />,
+      },
+      {
+        path: "/partners/:id",
+        element: <PartnerDetailsPage />,
       },
       {
         path: "/teams",

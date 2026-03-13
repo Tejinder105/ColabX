@@ -21,6 +21,7 @@ export interface User {
     id: string;
     email: string;
     name: string;
+    image: string | null;
 }
 
 export interface CurrentUserResponse {
@@ -274,6 +275,44 @@ export async function createInvite(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create invitation');
+    }
+
+    return response.json();
+}
+
+// Update organization (admin only)
+export async function updateOrganization(
+    orgId: string,
+    input: { name: string }
+): Promise<{ organization: OrgDetails }> {
+    const response = await fetch(`${API_BASE}/org/${orgId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update organization');
+    }
+
+    return response.json();
+}
+
+// Delete organization (admin only)
+export async function deleteOrganization(
+    orgId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/org/${orgId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete organization');
     }
 
     return response.json();

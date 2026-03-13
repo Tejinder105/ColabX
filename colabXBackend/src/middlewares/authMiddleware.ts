@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
         id: string;
         email: string;
         name: string;
+        image?: string | null | undefined;
     };
     session?: {
         id: string;
@@ -36,6 +37,27 @@ export interface AuthRequest extends Request {
         status: "active" | "inactive" | "suspended";
         orgId: string;
         createdBy: string | null;
+    };
+    deal?: {
+        id: string;
+        title: string;
+        partnerId: string;
+        stage: "lead" | "proposal" | "negotiation" | "won" | "lost";
+        orgId: string;
+        createdBy: string | null;
+    };
+    objective?: {
+        id: string;
+        title: string;
+        partnerId: string;
+        orgId: string;
+    };
+    keyResult?: {
+        id: string;
+        objectiveId: string;
+        targetValue: number;
+        currentValue: number;
+        status: "on_track" | "at_risk" | "off_track";
     };
 }
 

@@ -10,7 +10,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, Plus, Search } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { MoreHorizontal, Plus, Search, X, Loader2 } from 'lucide-react';
 import type { OrgUser, UserRole, UserStatus } from '@/types/settings';
 import {
     DropdownMenu,
@@ -20,16 +21,42 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useState } from 'react';
 
-export function UserManagement({ users }: { users: OrgUser[] }) {
+interface UserManagementProps {
+    users: OrgUser[];
+    onRemove?: (userId: string) => void;
+    onChangeRole?: (userId: string, role: 'admin' | 'manager' | 'partner') => void;
+    onInvite?: (email: string, role: string) => void;
+    isRemoving?: boolean;
+    isInviting?: boolean;
+}
+
+export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isInviting }: UserManagementProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [showInviteForm, setShowInviteForm] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'partner'>('manager');
 
     const filteredUsers = users.filter((u) =>
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.role.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleSendInvite = () => {
+        if (!inviteEmail.trim()) return;
+        onInvite?.(inviteEmail.trim(), inviteRole);
+        setInviteEmail('');
+        setShowInviteForm(false);
+    };
 
     const getRoleBadge = (role: UserRole) => {
         switch (role) {
@@ -66,11 +93,54 @@ export function UserManagement({ users }: { users: OrgUser[] }) {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" /> Invite User
+                    <Button onClick={() => setShowInviteForm(!showInviteForm)}>
+                        {showInviteForm ? <X className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                        {showInviteForm ? 'Cancel' : 'Invite User'}
                     </Button>
                 </div>
             </CardHeader>
+
+            {/* Inline invite form */}
+            {showInviteForm && (
+                <div className="px-6 py-3 border-t bg-muted/20">
+                    <div className="flex flex-col sm:flex-row items-end gap-3">
+                        <div className="flex-1 grid gap-1.5">
+                            <Label htmlFor="inviteEmail" className="text-xs text-muted-foreground">Email address</Label>
+                            <Input
+                                id="inviteEmail"
+                                type="email"
+                                placeholder="user@example.com"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                className="h-9"
+                            />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label className="text-xs text-muted-foreground">Role</Label>
+                            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as typeof inviteRole)}>
+                                <SelectTrigger className="h-9 w-32">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="manager">Manager</SelectItem>
+                                    <SelectItem value="partner">Partner</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button
+                            size="sm"
+                            className="h-9"
+                            onClick={handleSendInvite}
+                            disabled={!inviteEmail.trim() || isInviting}
+                        >
+                            {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Send Invite
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <CardContent className="p-0 border-t">
                 <Table>
                     <TableHeader>
@@ -95,20 +165,39 @@ export function UserManagement({ users }: { users: OrgUser[] }) {
                                 <TableCell>{getStatusIndicator(user.status)}</TableCell>
                                 <TableCell className="text-muted-foreground">{user.lastActive || '-'}</TableCell>
                                 <TableCell className="text-right pr-4">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem>Change specific role</DropdownMenuItem>
-                                            <DropdownMenuItem>Reset password</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-destructive font-medium">Remove account</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {user.status !== 'Invited' && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'admin')}>
+                                                    Set as Admin
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'manager')}>
+                                                    Set as Manager
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'partner')}>
+                                                    Set as Partner
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive font-medium"
+                                                    disabled={isRemoving}
+                                                    onSelect={() => {
+                                                        if (window.confirm(`Remove ${user.name} from the organization?`)) {
+                                                            onRemove?.(user.id);
+                                                        }
+                                                    }}
+                                                >
+                                                    Remove account
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}

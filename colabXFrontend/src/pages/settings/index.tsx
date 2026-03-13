@@ -5,10 +5,120 @@ import { UserManagement } from './components/user-management';
 import { TeamManagement } from './components/team-management';
 import { PermissionsSettings } from './components/permissions-settings';
 import { AuditLogs } from './components/audit-logs';
-import { mockOrgProfile, mockUsers, mockTeamsSettings, mockPermissions, mockAuditLogs } from '@/lib/mock-settings';
+import { mockPermissions, mockAuditLogs } from '@/lib/mock-settings';
 import { Building2, Users, ShieldCheck, FileClock, Network } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
+import {
+    useOrgDetails,
+    useOrgMembers,
+    usePendingInvitations,
+    useUpdateOrgMutation,
+    useDeleteOrgMutation,
+    useChangeMemberRoleMutation,
+    useRemoveMemberMutation,
+    useCreateInviteMutation,
+} from '@/hooks/useOrg';
+import { useTeams } from '@/hooks/useTeams';
+import type { OrgProfile, OrgUser, UserRole, UserStatus, OrgTeamData } from '@/types/settings';
+import { useNavigate } from 'react-router-dom';
+
+// Map backend role to UI Role
+function mapRole(role: string): UserRole {
+    switch (role?.toLowerCase()) {
+        case 'admin': return 'Admin';
+        case 'manager': return 'Manager';
+        case 'partner': return 'Partner';
+        default: return 'User';
+    }
+}
 
 export default function SettingsPage() {
+    const navigate = useNavigate();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const activeOrg = useAuthStore((state) => state.activeOrg);
+
+    // Data fetching
+    const { data: orgData } = useOrgDetails(activeOrgId);
+    const { data: membersData } = useOrgMembers(activeOrgId);
+    const { data: invitesData } = usePendingInvitations(activeOrgId);
+    const { data: teamsData } = useTeams();
+
+    // Mutations
+    const updateOrg = useUpdateOrgMutation();
+    const deleteOrg = useDeleteOrgMutation();
+    const changeMemberRole = useChangeMemberRoleMutation();
+    const removeMember = useRemoveMemberMutation();
+    const createInvite = useCreateInviteMutation();
+
+    // Build OrgProfile from real data
+    const orgProfile: OrgProfile = {
+        name: orgData?.organization?.name ?? activeOrg?.name ?? '',
+        industry: '',
+        domain: orgData?.organization?.slug ?? activeOrg?.slug ?? '',
+        employeeCount: '',
+        establishedYear: new Date().getFullYear(),
+    };
+
+    // Build OrgUser[] from real members + pending invitations
+    const orgUsers: OrgUser[] = [
+        ...(membersData?.members ?? []).map((m) => ({
+            id: m.id,  // orgUser row id — required for changeMemberRole and removeMember API calls
+            name: m.userName,
+            email: m.userEmail,
+            role: mapRole(m.role),
+            status: 'Active' as UserStatus,
+        })),
+        ...(invitesData?.invitations ?? []).map((inv) => ({
+            id: inv.id,
+            name: inv.email,
+            email: inv.email,
+            role: mapRole(inv.role),
+            status: 'Invited' as UserStatus,
+        })),
+    ];
+
+    // Build OrgTeamData[] from real teams
+    const orgTeams: OrgTeamData[] = (teamsData?.teams ?? []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        leadName: '—',
+        memberCount: t.memberCount,
+        department: t.description ?? '',
+    }));
+
+    // Callbacks
+    const handleSaveProfile = (name: string) => {
+        if (!activeOrgId) return;
+        updateOrg.mutate({ orgId: activeOrgId, name });
+    };
+
+    const handleDeleteOrg = () => {
+        if (!activeOrgId) return;
+        if (!window.confirm('Are you sure you want to delete this organization? This action cannot be undone.')) return;
+        deleteOrg.mutate(activeOrgId, {
+            onSuccess: () => navigate('/onboarding'),
+        });
+    };
+
+    const handleRemoveMember = (userId: string) => {
+        if (!activeOrgId) return;
+        removeMember.mutate({ orgId: activeOrgId, memberId: userId });
+    };
+
+    const handleChangeRole = (userId: string, role: 'admin' | 'manager' | 'partner') => {
+        if (!activeOrgId) return;
+        changeMemberRole.mutate({ orgId: activeOrgId, memberId: userId, role });
+    };
+
+    const handleInvite = (email: string, role: string) => {
+        if (!activeOrgId) return;
+        createInvite.mutate({
+            orgId: activeOrgId,
+            email,
+            role: role as 'admin' | 'manager' | 'partner',
+        });
+    };
+
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
             <SettingsHeader />
@@ -39,15 +149,28 @@ export default function SettingsPage() {
 
                 <div className="flex-1 w-full min-w-0">
                     <TabsContent value="profile" className="m-0 border-none p-0 outline-none">
-                        <ProfileSettings profile={mockOrgProfile} />
+                        <ProfileSettings
+                            profile={orgProfile}
+                            onSave={handleSaveProfile}
+                            onDelete={handleDeleteOrg}
+                            isSaving={updateOrg.isPending}
+                            isDeleting={deleteOrg.isPending}
+                        />
                     </TabsContent>
 
                     <TabsContent value="users" className="m-0 border-none p-0 outline-none">
-                        <UserManagement users={mockUsers} />
+                        <UserManagement
+                            users={orgUsers}
+                            onRemove={handleRemoveMember}
+                            onChangeRole={handleChangeRole}
+                            onInvite={handleInvite}
+                            isRemoving={removeMember.isPending}
+                            isInviting={createInvite.isPending}
+                        />
                     </TabsContent>
 
                     <TabsContent value="teams" className="m-0 border-none p-0 outline-none">
-                        <TeamManagement teams={mockTeamsSettings} />
+                        <TeamManagement teams={orgTeams} />
                     </TabsContent>
 
                     <TabsContent value="permissions" className="m-0 border-none p-0 outline-none">
