@@ -10,6 +10,8 @@ import {
     changeMemberRole,
     removeMember,
     getPendingInvitations,
+    getOrganizationPermissions,
+    getOrganizationAuditLogs,
     createInvite,
     type CreateOrgInput,
     type InviteInput,
@@ -95,6 +97,26 @@ export function usePendingInvitations(orgId: string | null | undefined) {
         queryFn: () => getPendingInvitations(orgId!),
         enabled: !!orgId,
         staleTime: 1000 * 60 * 2,
+    });
+}
+
+// Hook to fetch role permissions matrix
+export function useOrgPermissions(orgId: string | null | undefined) {
+    return useQuery({
+        queryKey: ['org', orgId, 'permissions'],
+        queryFn: () => getOrganizationPermissions(orgId!),
+        enabled: !!orgId,
+        staleTime: 1000 * 60 * 5,
+    });
+}
+
+// Hook to fetch organization audit logs
+export function useOrgAuditLogs(orgId: string | null | undefined, limit = 200) {
+    return useQuery({
+        queryKey: ['org', orgId, 'audit-logs', limit],
+        queryFn: () => getOrganizationAuditLogs(orgId!, limit),
+        enabled: !!orgId,
+        staleTime: 1000 * 60 * 1,
     });
 }
 

@@ -1,12 +1,21 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Mail, ExternalLink, FileText, Download, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PerformanceCharts } from './components/performance-charts';
-import { usePartner } from '@/hooks/usePartners';
-import type { Partner, PartnerType, Industry, PartnerStage, UIStatus, HealthStatus } from '@/types/partner';
-import type { ApiPartnerDetail } from '@/services/partnersService';
+import { usePartner, usePartnerDeals } from '@/hooks/usePartners';
+import { usePartnerContacts } from '@/hooks/useContacts';
+import { usePartnerCommunications, usePartnerDocuments, usePartnerActivities } from '@/hooks/useCollaboration';
+import { EditPartnerDialog } from '../components/edit-partner-dialog';
+import { AddContactDialog } from '../components/add-contact-dialog';
+import { NewMessageDialog } from '../components/new-message-dialog';
+import { UploadDocumentDialog } from '../components/upload-document-dialog';
+import type { Partner, PartnerType, Industry, PartnerStage, UIStatus, HealthStatus, PartnerDeal, PartnerContact, PartnerDocument, PartnerCommunication, PartnerActivity } from '@/types/partner';
+import type { ApiPartnerDetail, ApiPartnerDeal, ApiDealStage } from '@/services/partnersService';
+import type { ApiContact } from '@/services/contactsService';
+import type { ApiCommunication, ApiDocument, ApiActivity } from '@/services/collaborationService';
 
 // --- Mapping helpers (same as PartnersPage) ---
 
@@ -53,7 +62,80 @@ function mapIndustry(industry: string | null): Industry {
     return match ?? 'Other';
 }
 
-function toUiPartner(p: ApiPartnerDetail): Partner {
+function mapDealStage(stage: ApiDealStage): PartnerDeal['stage'] {
+    switch (stage) {
+        case 'lead': return 'Discovery';
+        case 'proposal': return 'Proposal';
+        case 'negotiation': return 'Negotiation';
+        case 'won': return 'Closed Won';
+        case 'lost': return 'Closed Lost';
+        default: return 'Discovery';
+    }
+}
+
+function mapApiDealToPartnerDeal(deal: ApiPartnerDeal): PartnerDeal {
+    return {
+        id: deal.id,
+        name: deal.title,
+        amount: deal.value ?? 0,
+        stage: mapDealStage(deal.stage),
+        expectedCloseDate: deal.updatedAt,
+    };
+}
+
+function mapApiContactToPartnerContact(contact: ApiContact): PartnerContact {
+    return {
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        role: contact.role ?? '',
+        phone: contact.phone ?? undefined,
+    };
+}
+
+function mapApiCommunicationToPartnerCommunication(comm: ApiCommunication): PartnerCommunication {
+    return {
+        id: comm.id,
+        sender: comm.senderName ?? 'Unknown',
+        subject: '',
+        snippet: comm.message,
+        date: comm.createdAt,
+        isUnread: false,
+    };
+}
+
+function mapApiDocumentToPartnerDocument(doc: ApiDocument): PartnerDocument {
+    return {
+        id: doc.id,
+        name: doc.fileName,
+        type: doc.visibility,
+        size: '',
+        uploadDate: doc.uploadedAt,
+    };
+}
+
+function mapApiActivityToPartnerActivity(activity: ApiActivity): PartnerActivity {
+    return {
+        id: activity.id,
+        type: 'Note',
+        description: activity.action,
+        date: activity.createdAt,
+    };
+}
+
+interface PartnerCollaborationData {
+    contacts: ApiContact[];
+    communications: ApiCommunication[];
+    documents: ApiDocument[];
+    activities: ApiActivity[];
+}
+
+function toUiPartner(
+    p: ApiPartnerDetail,
+    deals: ApiPartnerDeal[] = [],
+    collab: PartnerCollaborationData = { contacts: [], communications: [], documents: [], activities: [] }
+): Partner {
+    const openDeals = deals.filter(d => d.stage !== 'won' && d.stage !== 'lost');
     return {
         id: p.id,
         name: p.name,
@@ -65,18 +147,18 @@ function toUiPartner(p: ApiPartnerDetail): Partner {
         healthStatus: mapHealthStatus(p.status),
         uiStatus: mapUiStatus(p.status),
         performanceScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
-        openDealsCount: 0,
-        openDealsValue: 0,
+        openDealsCount: openDeals.length,
+        openDealsValue: openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0),
         lastActivityDate: p.updatedAt,
         nextActionDue: null,
         region: '',
         tags: [],
-        contacts: [],
-        activities: [],
-        activeDeals: [],
+        contacts: collab.contacts.map(mapApiContactToPartnerContact),
+        activities: collab.activities.map(mapApiActivityToPartnerActivity),
+        activeDeals: openDeals.map(mapApiDealToPartnerDeal),
         okrs: [],
-        documents: [],
-        communications: [],
+        documents: collab.documents.map(mapApiDocumentToPartnerDocument),
+        communications: collab.communications.map(mapApiCommunicationToPartnerCommunication),
         performanceHistory: [],
         revenueHistory: [],
         notes: '',
@@ -97,10 +179,18 @@ const getUIStatusBadge = (uiStatus: string) => {
 export default function PartnerDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [editOpen, setEditOpen] = useState(false);
 
     const { data, isLoading, isError } = usePartner(id);
+    const { data: dealsData, isLoading: dealsLoading } = usePartnerDeals(id);
+    const { data: contactsData, isLoading: contactsLoading } = usePartnerContacts(id);
+    const { data: communicationsData, isLoading: communicationsLoading } = usePartnerCommunications(id);
+    const { data: documentsData, isLoading: documentsLoading } = usePartnerDocuments(id);
+    const { data: activitiesData, isLoading: activitiesLoading } = usePartnerActivities(id);
 
-    if (isLoading) {
+    const loading = isLoading || dealsLoading || contactsLoading || communicationsLoading || documentsLoading || activitiesLoading;
+
+    if (loading) {
         return (
             <div className="flex min-h-[400px] items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -120,7 +210,12 @@ export default function PartnerDetailsPage() {
         );
     }
 
-    const partner = toUiPartner(data.partner);
+    const partner = toUiPartner(data.partner, dealsData?.deals ?? [], {
+        contacts: contactsData?.contacts ?? [],
+        communications: communicationsData?.communications ?? [],
+        documents: documentsData?.documents ?? [],
+        activities: activitiesData?.activities ?? [],
+    });
 
     return (
         <div className="flex-1 space-y-6 p-8 pt-6 max-w-[1600px] mx-auto">
@@ -141,12 +236,19 @@ export default function PartnerDetailsPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline"><Mail className="mr-2 h-4 w-4" /> Message</Button>
-                        <Button variant="outline"><ExternalLink className="mr-2 h-4 w-4" /> Website</Button>
-                        <Button><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
+                        <NewMessageDialog
+                            partnerId={id!}
+                            trigger={<Button variant="outline"><Mail className="mr-2 h-4 w-4" /> Message</Button>}
+                        />
+                        <Button variant="outline" onClick={() => window.open(`mailto:${data.partner.contactEmail}`, '_blank')}>
+                            <ExternalLink className="mr-2 h-4 w-4" /> Contact
+                        </Button>
+                        <Button onClick={() => setEditOpen(true)}><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
                     </div>
                 </div>
             </div>
+
+            <EditPartnerDialog partner={data.partner} open={editOpen} onOpenChange={setEditOpen} />
 
             {/* Main Content Tabs */}
             <Tabs defaultValue="overview" className="space-y-4">
@@ -165,8 +267,36 @@ export default function PartnerDetailsPage() {
                             <PerformanceCharts partner={partner} />
                         </div>
 
-                        {/* OKRs */}
+                        {/* Contacts */}
                         <div className="border rounded-lg p-6 space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-semibold text-lg">Key Contacts</h3>
+                                <AddContactDialog partnerId={id!} />
+                            </div>
+                            {partner.contacts && partner.contacts.length > 0 ? (
+                                <div className="space-y-3">
+                                    {partner.contacts.slice(0, 3).map((contact) => (
+                                        <div key={contact.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
+                                            <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-medium">
+                                                {contact.name.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-sm truncate">{contact.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{contact.role || contact.email}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {partner.contacts.length > 3 && (
+                                        <p className="text-xs text-muted-foreground text-center">+{partner.contacts.length - 3} more contacts</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground text-sm">No contacts added yet.</p>
+                            )}
+                        </div>
+
+                        {/* OKRs */}
+                        <div className="border rounded-lg p-6 space-y-4 lg:col-span-2">
                             <h3 className="font-semibold text-lg">Current OKRs</h3>
                             {partner.okrs && partner.okrs.length > 0 ? (
                                 partner.okrs.map((okr, idx) => (
@@ -183,6 +313,26 @@ export default function PartnerDetailsPage() {
                                 ))
                             ) : (
                                 <p className="text-muted-foreground text-sm">No OKRs configured yet.</p>
+                            )}
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="border rounded-lg p-6 space-y-4">
+                            <h3 className="font-semibold text-lg">Recent Activity</h3>
+                            {partner.activities && partner.activities.length > 0 ? (
+                                <div className="space-y-3">
+                                    {partner.activities.slice(0, 5).map((activity) => (
+                                        <div key={activity.id} className="flex items-start gap-3 text-sm">
+                                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                                            <div>
+                                                <p className="text-muted-foreground">{activity.description}</p>
+                                                <p className="text-xs text-muted-foreground">{new Date(activity.date).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground text-sm">No recent activity.</p>
                             )}
                         </div>
                     </div>
@@ -213,7 +363,7 @@ export default function PartnerDetailsPage() {
                 <TabsContent value="communications" className="border rounded-lg p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-semibold text-lg">Communication Thread</h3>
-                        <Button variant="outline" size="sm">New Message</Button>
+                        <NewMessageDialog partnerId={id!} />
                     </div>
                     {partner.communications && partner.communications.length > 0 ? (
                         <div className="space-y-4">
@@ -227,8 +377,7 @@ export default function PartnerDetailsPage() {
                                             <h4 className="font-medium">{msg.sender}</h4>
                                             <span className="text-xs text-muted-foreground">{new Date(msg.date).toLocaleDateString()}</span>
                                         </div>
-                                        <p className="text-sm font-medium">{msg.subject}</p>
-                                        <p className="text-sm text-muted-foreground line-clamp-2">{msg.snippet}</p>
+                                        <p className="text-sm text-muted-foreground">{msg.snippet}</p>
                                     </div>
                                 </div>
                             ))}
@@ -241,7 +390,7 @@ export default function PartnerDetailsPage() {
                 <TabsContent value="documents" className="border rounded-lg p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-semibold text-lg">Shared Documents</h3>
-                        <Button variant="outline" size="sm">Upload Document</Button>
+                        <UploadDocumentDialog partnerId={id!} />
                     </div>
                     {partner.documents && partner.documents.length > 0 ? (
                         <div className="space-y-2">

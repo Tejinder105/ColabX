@@ -32,9 +32,9 @@ export function ProfileSettings({ profile, onSave, onDelete, isSaving, isDeletin
                             <div className="h-24 w-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted hover:bg-muted/80 cursor-pointer transition-colors">
                                 <Building2 className="h-8 w-8 text-muted-foreground" />
                             </div>
-                            <Button variant="outline" size="sm" className="w-full">
+                            <Button variant="outline" size="sm" className="w-full" disabled>
                                 <Upload className="mr-2 h-4 w-4" />
-                                Upload Logo
+                                Logo Upload (Not Configured)
                             </Button>
                         </div>
 
@@ -49,7 +49,7 @@ export function ProfileSettings({ profile, onSave, onDelete, isSaving, isDeletin
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="domain">Primary Domain</Label>
-                                <Input id="domain" defaultValue={profile.domain} />
+                                <Input id="domain" defaultValue={profile.domain} disabled />
                             </div>
                         </div>
                     </div>
@@ -57,17 +57,20 @@ export function ProfileSettings({ profile, onSave, onDelete, isSaving, isDeletin
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="industry">Industry</Label>
-                            <Input id="industry" defaultValue={profile.industry} />
+                            <Input id="industry" defaultValue={profile.industry} disabled />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="employees">Employee Count Size</Label>
-                            <Input id="employees" defaultValue={profile.employeeCount} />
+                            <Input id="employees" defaultValue={profile.employeeCount} disabled />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="year">Established Year</Label>
-                            <Input id="year" type="number" defaultValue={profile.establishedYear.toString()} />
+                            <Input id="year" type="number" defaultValue={profile.establishedYear.toString()} disabled />
                         </div>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                        Backend currently supports updating organization name only. Additional profile fields are read-only.
+                    </p>
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4">
                     <Button

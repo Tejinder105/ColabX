@@ -3,6 +3,7 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 import db from "../db/index.js";
 import { invitation, orgUser, organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
+import { createActivity } from "../collaboration/collaboration.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
 function generateId(): string {
@@ -91,7 +92,7 @@ export async function createInvitation(
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    const [newInvite] = await db
+    const insertedInvites = await db
       .insert(invitation)
       .values({
         id: generateId(),
@@ -102,6 +103,25 @@ export async function createInvitation(
         expiresAt,
       })
       .returning();
+
+    const newInvite = insertedInvites[0];
+
+    if (!newInvite) {
+      res.status(500).json({ error: "Failed to create invitation" });
+      return;
+    }
+
+    try {
+      await createActivity(
+        orgId,
+        userId,
+        "invitation",
+        newInvite.id,
+        `invited ${email} as ${role}`,
+      );
+    } catch (activityError) {
+      console.error("Activity log write failed:", activityError);
+    }
 
     res.status(201).json({ invitation: { ...newInvite, token } });
   } catch (error) {

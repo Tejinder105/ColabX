@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/chart"
 import { ArrowUpRight } from "lucide-react"
 
-const chartData = [
-    { status: "active", partners: 32, fill: "var(--color-active)" },
-    { status: "atRisk", partners: 8, fill: "var(--color-atRisk)" },
-    { status: "onboarding", partners: 7, fill: "var(--color-onboarding)" },
-]
+interface PartnershipOverviewProps {
+    activePartners: number
+    atRiskPartners: number
+    onboardingPartners: number
+    tiers: Array<{ name: string; count: number; max: number; color: string }>
+}
 
 const chartConfig = {
     partners: {
@@ -41,17 +42,16 @@ const chartConfig = {
     },
 } satisfies ChartConfig
 
-const tiers = [
-    { name: "Platinum", count: 8, max: 20, color: "bg-chart-2" }, // Purple
-    { name: "Gold", count: 15, max: 20, color: "bg-chart-4" }, // Yellow/Orange
-    { name: "Silver", count: 14, max: 20, color: "bg-muted-foreground/30" }, // Grey
-    { name: "Bronze", count: 10, max: 20, color: "bg-chart-3" }, // Magenta
-]
+export function PartnershipOverview({ activePartners, atRiskPartners, onboardingPartners, tiers }: PartnershipOverviewProps) {
+    const chartData = [
+        { status: "active", partners: activePartners, fill: "var(--color-active)" },
+        { status: "atRisk", partners: atRiskPartners, fill: "var(--color-atRisk)" },
+        { status: "onboarding", partners: onboardingPartners, fill: "var(--color-onboarding)" },
+    ]
 
-export function PartnershipOverview() {
     const totalPartners = React.useMemo(() => {
         return chartData.reduce((acc, curr) => acc + curr.partners, 0)
-    }, [])
+    }, [chartData])
 
     return (
         <Card className="flex flex-col h-full">
@@ -146,7 +146,7 @@ export function PartnershipOverview() {
                             <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
                                 <div
                                     className={`h-full flex-1 transition-all ${tier.color}`}
-                                    style={{ width: `${(tier.count / tier.max) * 100}%` }}
+                                    style={{ width: `${tier.max > 0 ? (tier.count / tier.max) * 100 : 0}%` }}
                                 />
                             </div>
                         </div>
@@ -154,7 +154,7 @@ export function PartnershipOverview() {
                     <div className="pt-2">
                         <div className="flex items-center text-xs text-muted-foreground">
                             <ArrowUpRight className="mr-1 h-3 w-3" />
-                            <span><span className="text-primary font-medium">+12%</span> growth in Gold Tier</span>
+                            <span>Live partner distribution by health and tier.</span>
                         </div>
                     </div>
                 </div>

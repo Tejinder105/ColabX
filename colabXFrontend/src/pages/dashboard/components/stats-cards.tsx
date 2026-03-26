@@ -5,8 +5,6 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import {
-    ArrowDownRight,
-    ArrowUpRight,
     Briefcase,
     DollarSign,
     Target,
@@ -14,7 +12,30 @@ import {
     Wallet,
 } from "lucide-react"
 
-export function StatsCards() {
+interface StatsCardsProps {
+    partnersCount: number
+    pipelineValue: number
+    revenueValue: number
+    okrProgress: number
+    activeDealsCount: number
+}
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 1,
+    }).format(value)
+}
+
+export function StatsCards({
+    partnersCount,
+    pipelineValue,
+    revenueValue,
+    okrProgress,
+    activeDealsCount,
+}: StatsCardsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>
@@ -23,14 +44,8 @@ export function StatsCards() {
                     <CardTitle className="text-sm font-medium">Partners</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">47</div>
-                    <p className="text-muted-foreground text-xs">
-                        <span className="text-primary flex items-center">
-                            <ArrowUpRight className="mr-1 h-3 w-3" />
-                            12%
-                        </span>{" "}
-                        vs last month
-                    </p>
+                    <div className="text-2xl font-bold">{partnersCount}</div>
+                    <p className="text-muted-foreground text-xs">Total partner records</p>
                 </CardContent>
             </Card>
             <Card>
@@ -39,14 +54,8 @@ export function StatsCards() {
                     <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">$2.4M</div>
-                    <p className="text-muted-foreground text-xs">
-                        <span className="text-primary flex items-center">
-                            <ArrowUpRight className="mr-1 h-3 w-3" />
-                            8%
-                        </span>{" "}
-                        vs last month
-                    </p>
+                    <div className="text-2xl font-bold">{formatCurrency(pipelineValue)}</div>
+                    <p className="text-muted-foreground text-xs">Open deals value</p>
                 </CardContent>
             </Card>
             <Card>
@@ -55,14 +64,8 @@ export function StatsCards() {
                     <CardTitle className="text-sm font-medium">Revenue</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">$890K</div>
-                    <p className="text-muted-foreground text-xs">
-                        <span className="text-primary flex items-center">
-                            <ArrowUpRight className="mr-1 h-3 w-3" />
-                            15%
-                        </span>{" "}
-                        vs last quarter
-                    </p>
+                    <div className="text-2xl font-bold">{formatCurrency(revenueValue)}</div>
+                    <p className="text-muted-foreground text-xs">Won deals value</p>
                 </CardContent>
             </Card>
             <Card>
@@ -71,14 +74,8 @@ export function StatsCards() {
                     <CardTitle className="text-sm font-medium">OKR Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">73%</div>
-                    <p className="text-muted-foreground text-xs">
-                        <span className="text-primary flex items-center">
-                            <ArrowUpRight className="mr-1 h-3 w-3" />
-                            5%
-                        </span>{" "}
-                        vs last month
-                    </p>
+                    <div className="text-2xl font-bold">{okrProgress}%</div>
+                    <p className="text-muted-foreground text-xs">Average team performance</p>
                 </CardContent>
             </Card>
             <Card>
@@ -87,14 +84,8 @@ export function StatsCards() {
                     <CardTitle className="text-sm font-medium">Active Deals</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">24</div>
-                    <p className="text-muted-foreground text-xs">
-                        <span className="text-destructive flex items-center">
-                            <ArrowDownRight className="mr-1 h-3 w-3" />
-                            3
-                        </span>{" "}
-                        vs last week
-                    </p>
+                    <div className="text-2xl font-bold">{activeDealsCount}</div>
+                    <p className="text-muted-foreground text-xs">Lead, proposal, negotiation</p>
                 </CardContent>
             </Card>
         </div>

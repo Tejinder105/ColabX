@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/lib/api';
 
 // Types matching backend responses
 export interface ApiPartner {
@@ -149,6 +149,44 @@ export async function deletePartner(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to delete partner');
+    }
+
+    return response.json();
+}
+
+// ── Partner Deals ─────────────────────────────────────────────────────────────
+
+export type ApiDealStage = 'lead' | 'proposal' | 'negotiation' | 'won' | 'lost';
+
+export interface ApiPartnerDeal {
+    id: string;
+    orgId: string;
+    partnerId: string;
+    partnerName: string | null;
+    title: string;
+    description: string | null;
+    value: number | null;
+    stage: ApiDealStage;
+    createdBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+    assigneeCount: number;
+}
+
+// GET /api/deals?partnerId=:partnerId
+export async function getPartnerDeals(
+    orgId: string,
+    partnerId: string
+): Promise<{ deals: ApiPartnerDeal[] }> {
+    const response = await fetch(`${API_BASE}/deals?partnerId=${partnerId}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch partner deals');
     }
 
     return response.json();

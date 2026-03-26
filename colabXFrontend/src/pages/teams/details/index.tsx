@@ -5,12 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Edit, Loader2, Trash2, Check, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    mockTeamPartners,
-    mockTeamDeals,
-    mockTeamObjectives,
-    mockTeamActivity
-} from '@/lib/mock-teams';
 
 import { TeamMembers } from './components/team-members';
 import { TeamPartners } from './components/team-partners';
@@ -20,15 +14,28 @@ import { TeamActivity } from './components/team-activity';
 import { Badge } from '@/components/ui/badge';
 import {
     useTeam,
+    useAddTeamMemberMutation,
     useUpdateTeamMutation,
     useDeleteTeamMutation,
     useUpdateTeamMemberRoleMutation,
     useRemoveTeamMemberMutation,
+    useTeamPartners,
+    useTeamDeals,
+    useTeamObjectives,
+    useTeamActivity,
 } from '@/hooks/useTeams';
-import type { TeamMember } from '@/types/team';
-import type { ApiTeamMember } from '@/services/teamsService';
+import { useOrgMembers } from '@/hooks/useOrg';
+import { useAuthStore } from '@/stores/authStore';
+import type { TeamMember, TeamPartner, TeamDeal, TeamObjective, TeamActivity as TeamActivityType } from '@/types/team';
+import type {
+    ApiTeamMember,
+    ApiTeamPartner,
+    ApiTeamDeal,
+    ApiTeamObjective,
+    ApiTeamActivity,
+} from '@/services/teamsService';
 
-// Use userId so mutation callbacks have the correct ID for API calls
+// Map API member to UI member
 function toUiMember(m: ApiTeamMember): TeamMember {
     return {
         id: m.userId,
@@ -39,10 +46,85 @@ function toUiMember(m: ApiTeamMember): TeamMember {
     };
 }
 
+// Map API partner to UI partner
+function toUiPartner(p: ApiTeamPartner): TeamPartner {
+    const statusMap: Record<string, 'Active' | 'Inactive' | 'Pending'> = {
+        active: 'Active',
+        inactive: 'Inactive',
+        suspended: 'Pending',
+    };
+    return {
+        id: p.id,
+        name: p.name,
+        type: p.type.charAt(0).toUpperCase() + p.type.slice(1),
+        status: statusMap[p.status] ?? 'Active',
+    };
+}
+
+// Map API deal to UI deal
+function toUiDeal(d: ApiTeamDeal): TeamDeal {
+    const formatValue = (val: number | null) => {
+        if (val === null) return '—';
+        return `$${val.toLocaleString()}`;
+    };
+    return {
+        id: d.id,
+        name: d.title,
+        value: formatValue(d.value),
+        stage: d.stage.charAt(0).toUpperCase() + d.stage.slice(1),
+    };
+}
+
+// Map API objective to UI objective
+function toUiObjective(o: ApiTeamObjective): TeamObjective {
+    const statusMap: Record<string, 'On Track' | 'At Risk' | 'Behind'> = {
+        on_track: 'On Track',
+        at_risk: 'At Risk',
+        off_track: 'Behind',
+    };
+    return {
+        id: o.id,
+        title: o.title,
+        progress: o.progress,
+        status: statusMap[o.status] ?? 'On Track',
+    };
+}
+
+// Map API activity to UI activity
+function toUiActivity(a: ApiTeamActivity): TeamActivityType {
+    const formatTimestamp = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffHours < 1) return 'Just now';
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        return date.toLocaleDateString();
+    };
+
+    return {
+        id: a.id,
+        action: a.action,
+        user: a.userName ?? 'Unknown',
+        timestamp: formatTimestamp(a.createdAt),
+    };
+}
+
 export default function TeamDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
     const { data, isLoading, isError } = useTeam(id);
+
+    // Fetch team-related data
+    const { data: partnersData } = useTeamPartners(id);
+    const { data: dealsData } = useTeamDeals(id);
+    const { data: objectivesData } = useTeamObjectives(id);
+    const { data: activityData } = useTeamActivity(id);
+    const { data: orgMembersData } = useOrgMembers(activeOrgId);
 
     // Edit state
     const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +134,7 @@ export default function TeamDetailsPage() {
     // Mutations
     const updateTeam = useUpdateTeamMutation(id ?? '');
     const deleteTeam = useDeleteTeamMutation();
+    const addMember = useAddTeamMemberMutation(id ?? '');
     const updateMemberRole = useUpdateTeamMemberRoleMutation(id ?? '');
     const removeMember = useRemoveTeamMemberMutation(id ?? '');
 
@@ -77,6 +160,19 @@ export default function TeamDetailsPage() {
 
     const team = data.team;
     const members = (data.members ?? []).map(toUiMember);
+    const memberIds = new Set(members.map((member) => member.id));
+    const availableMembers = (orgMembersData?.members ?? [])
+        .filter((member) => !memberIds.has(member.userId))
+        .map((member) => ({
+            id: member.userId,
+            name: member.userName,
+            email: member.userEmail,
+        }));
+    const partners = (partnersData?.partners ?? []).map(toUiPartner);
+    const deals = (dealsData?.deals ?? []).map(toUiDeal);
+    const objectives = (objectivesData?.objectives ?? []).map(toUiObjective);
+    const activities = (activityData?.activities ?? []).map(toUiActivity);
+
     const lead = data.members?.find((m) => m.role === 'lead');
     const leadName = lead?.userName ?? '—';
     const createdAt = team.createdAt ? new Date(team.createdAt).toLocaleDateString() : '—';
@@ -103,6 +199,18 @@ export default function TeamDetailsPage() {
 
     const handleRemoveMember = (userId: string) => {
         removeMember.mutate(userId);
+    };
+
+    const handleAddMember = (userId: string, role: 'lead' | 'member') => {
+        addMember.mutate(
+            { userId, role },
+            {
+                onError: (error) => {
+                    const message = error instanceof Error ? error.message : 'Failed to add member';
+                    window.alert(message);
+                },
+            }
+        );
     };
 
     const handleChangeRole = (userId: string, newRole: 'lead' | 'member') => {
@@ -220,25 +328,28 @@ export default function TeamDetailsPage() {
                     <TabsContent value="members" className="m-0">
                         <TeamMembers
                             members={members}
+                            availableMembers={availableMembers}
+                            onAdd={handleAddMember}
+                            isAdding={addMember.isPending}
                             onRemove={handleRemoveMember}
                             onChangeRole={handleChangeRole}
                         />
                     </TabsContent>
 
                     <TabsContent value="partners" className="m-0">
-                        <TeamPartners partners={mockTeamPartners} />
+                        <TeamPartners partners={partners} />
                     </TabsContent>
 
                     <TabsContent value="deals" className="m-0">
-                        <TeamDeals deals={mockTeamDeals} />
+                        <TeamDeals deals={deals} />
                     </TabsContent>
 
                     <TabsContent value="objectives" className="m-0">
-                        <TeamObjectives objectives={mockTeamObjectives} />
+                        <TeamObjectives objectives={objectives} />
                     </TabsContent>
 
                     <TabsContent value="activity" className="m-0">
-                        <TeamActivity activities={mockTeamActivity} />
+                        <TeamActivity activities={activities} />
                     </TabsContent>
                 </div>
             </Tabs>

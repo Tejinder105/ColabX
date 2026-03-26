@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/lib/api';
 
 // Types matching backend responses
 export interface ApiTeam {
@@ -31,6 +31,42 @@ export interface CreateTeamInput {
 export interface UpdateTeamInput {
     name?: string;
     description?: string;
+}
+
+// Team-related data types
+export interface ApiTeamPartner {
+    id: string;
+    name: string;
+    type: 'reseller' | 'agent' | 'technology' | 'distributor';
+    status: 'active' | 'inactive' | 'suspended';
+}
+
+export interface ApiTeamDeal {
+    id: string;
+    title: string;
+    value: number | null;
+    stage: 'lead' | 'proposal' | 'negotiation' | 'won' | 'lost';
+    partnerName: string | null;
+}
+
+export interface ApiTeamObjective {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    partnerName: string | null;
+    progress: number;
+    status: 'on_track' | 'at_risk' | 'off_track';
+}
+
+export interface ApiTeamActivity {
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    userId: string;
+    userName: string | null;
 }
 
 // Build headers with mandatory x-org-id
@@ -214,6 +250,82 @@ export async function removeTeamMember(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to remove team member');
+    }
+
+    return response.json();
+}
+
+// GET /api/teams/:teamId/partners
+export async function getTeamPartners(
+    orgId: string,
+    teamId: string
+): Promise<{ partners: ApiTeamPartner[] }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/partners`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch team partners');
+    }
+
+    return response.json();
+}
+
+// GET /api/teams/:teamId/deals
+export async function getTeamDeals(
+    orgId: string,
+    teamId: string
+): Promise<{ deals: ApiTeamDeal[] }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/deals`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch team deals');
+    }
+
+    return response.json();
+}
+
+// GET /api/teams/:teamId/objectives
+export async function getTeamObjectives(
+    orgId: string,
+    teamId: string
+): Promise<{ objectives: ApiTeamObjective[] }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/objectives`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch team objectives');
+    }
+
+    return response.json();
+}
+
+// GET /api/teams/:teamId/activity
+export async function getTeamActivity(
+    orgId: string,
+    teamId: string
+): Promise<{ activities: ApiTeamActivity[] }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/activity`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch team activity');
     }
 
     return response.json();

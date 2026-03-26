@@ -13,56 +13,33 @@ import {
     MessageSquare,
     TrendingUp,
     UserPlus,
+    type LucideIcon,
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-export function RecentActivity() {
-    const activities = [
-        {
-            user: "Sarah",
-            action: "added new deal with TechVentures",
-            details: "$250K opportunity",
-            time: "2 mins ago",
-            icon: UserPlus,
-            color: "text-chart-2",
-            bg: "bg-chart-2/10",
-        },
-        {
-            user: "DataSync Inc.",
-            action: "Partnership Agreement uploaded",
-            details: "Agreement.pdf",
-            time: "15 mins ago",
-            icon: FileText,
-            color: "text-chart-4",
-            bg: "bg-chart-4/10",
-        },
-        {
-            user: "System",
-            action: "OKR Key Result completed",
-            details: '"Onboard 5 new APAC partners"',
-            time: "1 hr ago",
-            icon: CheckCircle2,
-            color: "text-primary",
-            bg: "bg-primary/10",
-        },
-        {
-            user: "Mike",
-            action: "New message in #acme-partnership",
-            details: '"Contract terms approved"',
-            time: "2 hrs ago",
-            icon: MessageSquare,
-            color: "text-chart-3",
-            bg: "bg-chart-3/10",
-        },
-        {
-            user: "System",
-            action: "Deal stage updated",
-            details: "CloudNet → Negotiation",
-            time: "4 hrs ago",
-            icon: TrendingUp,
-            color: "text-chart-5",
-            bg: "bg-chart-5/10",
-        },
-    ]
+interface RecentActivityItem {
+    user: string
+    action: string
+    details: string
+    time: string
+    icon: "member" | "document" | "objective" | "message" | "deal" | "info"
+}
+
+interface RecentActivityProps {
+    activities: RecentActivityItem[]
+}
+
+function iconMeta(icon: RecentActivityItem["icon"]): { Icon: LucideIcon; color: string; bg: string } {
+    if (icon === "member") return { Icon: UserPlus, color: "text-chart-2", bg: "bg-chart-2/10" }
+    if (icon === "document") return { Icon: FileText, color: "text-chart-4", bg: "bg-chart-4/10" }
+    if (icon === "objective") return { Icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10" }
+    if (icon === "message") return { Icon: MessageSquare, color: "text-chart-3", bg: "bg-chart-3/10" }
+    if (icon === "deal") return { Icon: TrendingUp, color: "text-chart-5", bg: "bg-chart-5/10" }
+    return { Icon: CheckCircle2, color: "text-muted-foreground", bg: "bg-muted" }
+}
+
+export function RecentActivity({ activities }: RecentActivityProps) {
+    const navigate = useNavigate()
 
     return (
         <Card className="col-span-1 lg:col-span-3"> {/* Span 3 cols */}
@@ -70,11 +47,20 @@ export function RecentActivity() {
                 <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+                {activities.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No recent activity available yet.</p>
+                )}
                 {activities.map((item, i) => (
-                    <div key={i} className="flex gap-4">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${item.bg} ${item.color}`}>
-                            <item.icon className="h-4 w-4" />
-                        </div>
+                    <div key={`${item.user}-${item.time}-${i}`} className="flex gap-4">
+                        {(() => {
+                            const meta = iconMeta(item.icon)
+                            const Icon = meta.Icon
+                            return (
+                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.bg} ${meta.color}`}>
+                                    <Icon className="h-4 w-4" />
+                                </div>
+                            )
+                        })()}
                         <div className="space-y-1">
                             <p className="text-sm font-medium leading-none">
                                 <span className="font-bold">{item.user}</span> {item.action}
@@ -87,7 +73,7 @@ export function RecentActivity() {
                 ))}
             </CardContent>
             <CardFooter>
-                <Button variant="ghost" className="w-full text-sm text-muted-foreground">
+                <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate("/settings?tab=audit") }>
                     View All Activity <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardFooter>

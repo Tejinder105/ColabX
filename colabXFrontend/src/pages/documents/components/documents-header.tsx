@@ -1,7 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { UploadCloud } from 'lucide-react';
 
-export function DocumentsHeader() {
+interface DocumentsHeaderProps {
+    onUploadClick?: () => void;
+    isUploadDisabled?: boolean;
+}
+
+export function DocumentsHeader({ onUploadClick, isUploadDisabled }: DocumentsHeaderProps) {
     return (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
@@ -11,7 +16,7 @@ export function DocumentsHeader() {
                 </p>
             </div>
             <div className="flex items-center gap-2">
-                <Button>
+                <Button onClick={onUploadClick} disabled={isUploadDisabled}>
                     <UploadCloud className="mr-2 h-4 w-4" />
                     Upload File
                 </Button>

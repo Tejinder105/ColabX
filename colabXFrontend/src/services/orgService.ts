@@ -1,6 +1,5 @@
 import { authClient } from '@/utils/auth-client';
-
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/lib/api';
 
 // Types
 export interface Organization {
@@ -46,6 +45,24 @@ export interface Invitation {
     role: string;
     expiresAt: string;
     createdAt: string;
+}
+
+export interface OrgPermission {
+    feature: string;
+    admin: boolean;
+    manager: boolean;
+    partner: boolean;
+}
+
+export interface OrgAuditLog {
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    userId: string;
+    userName: string | null;
+    userEmail: string | null;
 }
 
 export interface CreateOrgInput {
@@ -220,6 +237,43 @@ export async function getPendingInvitations(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to fetch invitations');
+    }
+
+    return response.json();
+}
+
+// Get role permissions matrix (requires x-org-id header)
+export async function getOrganizationPermissions(
+    orgId: string
+): Promise<{ permissions: OrgPermission[] }> {
+    const response = await fetch(`${API_BASE}/org/${orgId}/permissions`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch permissions');
+    }
+
+    return response.json();
+}
+
+// Get organization audit logs (requires x-org-id header)
+export async function getOrganizationAuditLogs(
+    orgId: string,
+    limit = 200
+): Promise<{ logs: OrgAuditLog[] }> {
+    const response = await fetch(`${API_BASE}/org/${orgId}/audit-logs?limit=${limit}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch audit logs');
     }
 
     return response.json();

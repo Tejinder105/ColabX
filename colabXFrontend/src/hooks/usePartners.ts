@@ -5,6 +5,7 @@ import {
     createPartner,
     updatePartner,
     deletePartner,
+    getPartnerDeals,
     type CreatePartnerInput,
     type UpdatePartnerInput,
 } from '@/services/partnersService';
@@ -64,5 +65,15 @@ export function useDeletePartnerMutation() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['partners', activeOrgId] });
         },
+    });
+}
+
+export function usePartnerDeals(partnerId: string | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    return useQuery({
+        queryKey: ['partnerDeals', activeOrgId, partnerId],
+        queryFn: () => getPartnerDeals(activeOrgId!, partnerId!),
+        enabled: !!activeOrgId && !!partnerId,
+        staleTime: 1000 * 60 * 2,
     });
 }

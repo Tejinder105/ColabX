@@ -7,21 +7,34 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Medal, Trophy } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-export function TopPerformers() {
-    const partners = [
-        { name: "Acme Corp", revenue: "$245K", rank: 1 },
-        { name: "GlobalTech", revenue: "$198K", rank: 2 },
-        { name: "CloudNet", revenue: "$156K", rank: 3 },
-        { name: "FinanceHub", revenue: "$134K", rank: 4 },
-        { name: "TeleServe", revenue: "$122K", rank: 5 },
-    ]
+interface TopPartnerItem {
+    name: string
+    revenue: number
+}
 
-    const teams = [
-        { name: "APAC Team", score: "92% 🔥" },
-        { name: "Enterprise Team", score: "87%" },
-        { name: "SMB Team", score: "81%" },
-    ]
+interface TopTeamItem {
+    name: string
+    score: string
+}
+
+interface TopPerformersProps {
+    partners: TopPartnerItem[]
+    teams: TopTeamItem[]
+}
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 1,
+    }).format(value)
+}
+
+export function TopPerformers({ partners, teams }: TopPerformersProps) {
+    const navigate = useNavigate()
 
     return (
         <Card className="col-span-1 lg:col-span-2"> {/* Span 2 cols */}
@@ -34,17 +47,20 @@ export function TopPerformers() {
             <CardContent className="space-y-6">
                 <div>
                     <h4 className="text-sm font-semibold mb-3">Partners by Revenue (Q1)</h4>
+                    {partners.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No partner revenue data yet.</p>
+                    )}
                     <div className="space-y-2">
-                        {partners.map((p) => (
+                        {partners.map((p, idx) => (
                             <div key={p.name} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-mono text-muted-foreground w-4">{p.rank}.</span>
-                                    {p.rank === 1 && <Medal className="h-3 w-3 text-chart-4" />}
-                                    {p.rank === 2 && <Medal className="h-3 w-3 text-muted" />}
-                                    {p.rank === 3 && <Medal className="h-3 w-3 text-chart-3" />}
+                                    <span className="font-mono text-muted-foreground w-4">{idx + 1}.</span>
+                                    {idx + 1 === 1 && <Medal className="h-3 w-3 text-chart-4" />}
+                                    {idx + 1 === 2 && <Medal className="h-3 w-3 text-muted" />}
+                                    {idx + 1 === 3 && <Medal className="h-3 w-3 text-chart-3" />}
                                     <span>{p.name}</span>
                                 </div>
-                                <span className="font-mono font-medium">{p.revenue}</span>
+                                <span className="font-mono font-medium">{formatCurrency(p.revenue)}</span>
                             </div>
                         ))}
                     </div>
@@ -52,6 +68,9 @@ export function TopPerformers() {
 
                 <div className="border-t pt-4">
                     <h4 className="text-sm font-semibold mb-3">Top Performing Teams</h4>
+                    {teams.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No team performance data yet.</p>
+                    )}
                     <div className="space-y-2">
                         {teams.map((t, i) => (
                             <div key={t.name} className="flex items-center justify-between text-sm">
@@ -66,7 +85,7 @@ export function TopPerformers() {
                 </div>
             </CardContent>
             <CardFooter>
-                <Button variant="ghost" className="w-full text-sm text-muted-foreground">
+                <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate("/reports")}>
                     View Full Leaderboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardFooter>

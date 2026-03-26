@@ -21,7 +21,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from 'react';
 
-export function DocumentsTable({ documents }: { documents: AppDocument[] }) {
+type DocumentVisibility = 'public' | 'private' | 'team';
+
+interface DocumentsTableProps {
+    documents: AppDocument[];
+    isMutating?: boolean;
+    onViewDocument?: (doc: AppDocument) => void;
+    onDownloadDocument?: (doc: AppDocument) => void;
+    onDeleteDocument?: (doc: AppDocument) => void;
+    onUpdateVisibility?: (doc: AppDocument, visibility: DocumentVisibility) => void;
+}
+
+export function DocumentsTable({
+    documents,
+    isMutating,
+    onViewDocument,
+    onDownloadDocument,
+    onDeleteDocument,
+    onUpdateVisibility,
+}: DocumentsTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredDocs = documents.filter(doc =>
@@ -105,23 +123,33 @@ export function DocumentsTable({ documents }: { documents: AppDocument[] }) {
                                     <TableCell className="text-muted-foreground">{doc.uploadDate}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2 text-muted-foreground">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => onDownloadDocument?.(doc)}
+                                                disabled={isMutating}
+                                            >
                                                 <Download className="h-4 w-4" />
                                             </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <Button variant="ghost" className="h-8 w-8 p-0" disabled={isMutating}>
                                                         <span className="sr-only">Open menu</span>
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem>View document</DropdownMenuItem>
-                                                    <DropdownMenuItem>Download</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onViewDocument?.(doc)}>View document</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onDownloadDocument?.(doc)}>Download</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem>Manage access</DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                    <DropdownMenuLabel>Manage access</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => onUpdateVisibility?.(doc, 'public')}>Organization</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onUpdateVisibility?.(doc, 'team')}>Team</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onUpdateVisibility?.(doc, 'private')}>Partner</DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => onDeleteDocument?.(doc)}>Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>

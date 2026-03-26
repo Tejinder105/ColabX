@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePartners } from '@/hooks/usePartners';
+import { useDealsDashboard } from '@/hooks/useDeals';
 import { PartnersHeader } from './components/partners-header';
 import { KpiStrip } from './components/kpi-strip';
 import { PartnersTable } from './components/partners-table';
@@ -10,7 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
-// Map backend partner type to UI PartnerType
 function mapType(type: string): PartnerType {
     switch (type) {
         case 'reseller': return 'Reseller';
@@ -21,7 +21,6 @@ function mapType(type: string): PartnerType {
     }
 }
 
-// Map backend status to PartnerStage
 function mapStage(status: string): PartnerStage {
     switch (status?.toLowerCase()) {
         case 'active': return 'Active';
@@ -31,7 +30,6 @@ function mapStage(status: string): PartnerStage {
     }
 }
 
-// Map backend status to UI badge color
 function mapUiStatus(status: string): UIStatus {
     switch (status?.toLowerCase()) {
         case 'active': return 'Green';
@@ -56,7 +54,12 @@ function mapIndustry(industry: string | null): Industry {
     return match ?? 'Other';
 }
 
-function toUiPartner(p: ApiPartner): Partner {
+interface PartnerDealStats {
+    openDealsCount: number;
+    openDealsValue: number;
+}
+
+function toUiPartner(p: ApiPartner, dealStats?: PartnerDealStats): Partner {
     return {
         id: p.id,
         name: p.name,
@@ -68,8 +71,8 @@ function toUiPartner(p: ApiPartner): Partner {
         healthStatus: mapHealthStatus(p.status),
         uiStatus: mapUiStatus(p.status),
         performanceScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
-        openDealsCount: 0,
-        openDealsValue: 0,
+        openDealsCount: dealStats?.openDealsCount ?? 0,
+        openDealsValue: dealStats?.openDealsValue ?? 0,
         lastActivityDate: p.updatedAt,
         nextActionDue: null,
         region: '',
@@ -86,9 +89,37 @@ export default function PartnersPage() {
     const navigate = useNavigate();
 
     const { data, isLoading, isError, refetch } = usePartners();
-    const partners = (data?.partners ?? []).map(toUiPartner);
+    const { data: dealsData, isLoading: dealsLoading } = useDealsDashboard();
 
-    // Compute KPIs from real data
+    // Compute deal stats per partner
+    const partnerDealStats = useMemo(() => {
+        const stats = new Map<string, PartnerDealStats>();
+        const rawDeals = dealsData?.rawDeals ?? [];
+
+        for (const deal of rawDeals) {
+            // Only count open deals (not won/lost)
+            if (deal.stage === 'won' || deal.stage === 'lost') continue;
+
+            const existing = stats.get(deal.partnerId) ?? { openDealsCount: 0, openDealsValue: 0 };
+            existing.openDealsCount += 1;
+            existing.openDealsValue += deal.value ?? 0;
+            stats.set(deal.partnerId, existing);
+        }
+        return stats;
+    }, [dealsData?.rawDeals]);
+
+    const partners = useMemo(() => {
+        return (data?.partners ?? []).map(p => toUiPartner(p, partnerDealStats.get(p.id)));
+    }, [data?.partners, partnerDealStats]);
+
+    // Compute total pipeline value from all open deals
+    const totalPipelineValue = useMemo(() => {
+        const rawDeals = dealsData?.rawDeals ?? [];
+        return rawDeals
+            .filter(d => d.stage !== 'won' && d.stage !== 'lost')
+            .reduce((sum, d) => sum + (d.value ?? 0), 0);
+    }, [dealsData?.rawDeals]);
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -97,12 +128,14 @@ export default function PartnersPage() {
         activePartners: (data?.partners ?? []).filter(p => p.status?.toLowerCase() === 'active').length,
         atRiskPartners: (data?.partners ?? []).filter(p => p.status?.toLowerCase() === 'inactive').length,
         newPartnersThisMonth: (data?.partners ?? []).filter(p => new Date(p.createdAt) >= startOfMonth).length,
-        pipelineDealsValue: 0,
+        pipelineDealsValue: totalPipelineValue,
     };
 
     const handleRowClick = (partner: Partner) => {
         navigate(`/partners/${partner.id}`);
     };
+
+    const loading = isLoading || dealsLoading;
 
     if (isError) {
         return (
@@ -126,7 +159,7 @@ export default function PartnersPage() {
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <PartnersHeader />
-            {isLoading ? (
+            {loading ? (
                 <div className="space-y-4 mt-6">
                     {/* KPI skeleton */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">

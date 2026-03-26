@@ -8,6 +8,10 @@ import {
     addTeamMember,
     updateTeamMemberRole,
     removeTeamMember,
+    getTeamPartners,
+    getTeamDeals,
+    getTeamObjectives,
+    getTeamActivity,
     type CreateTeamInput,
     type UpdateTeamInput,
 } from '@/services/teamsService';
@@ -115,5 +119,53 @@ export function useRemoveTeamMemberMutation(teamId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId, teamId] });
         },
+    });
+}
+
+// Hook to get team partners
+export function useTeamPartners(teamId: string | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['teams', activeOrgId, teamId, 'partners'],
+        queryFn: () => getTeamPartners(activeOrgId!, teamId!),
+        enabled: !!activeOrgId && !!teamId,
+        staleTime: 1000 * 60 * 2,
+    });
+}
+
+// Hook to get team deals
+export function useTeamDeals(teamId: string | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['teams', activeOrgId, teamId, 'deals'],
+        queryFn: () => getTeamDeals(activeOrgId!, teamId!),
+        enabled: !!activeOrgId && !!teamId,
+        staleTime: 1000 * 60 * 2,
+    });
+}
+
+// Hook to get team objectives
+export function useTeamObjectives(teamId: string | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['teams', activeOrgId, teamId, 'objectives'],
+        queryFn: () => getTeamObjectives(activeOrgId!, teamId!),
+        enabled: !!activeOrgId && !!teamId,
+        staleTime: 1000 * 60 * 2,
+    });
+}
+
+// Hook to get team activity
+export function useTeamActivity(teamId: string | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['teams', activeOrgId, teamId, 'activity'],
+        queryFn: () => getTeamActivity(activeOrgId!, teamId!),
+        enabled: !!activeOrgId && !!teamId,
+        staleTime: 1000 * 60 * 2,
     });
 }

@@ -5,20 +5,21 @@ import { UserManagement } from './components/user-management';
 import { TeamManagement } from './components/team-management';
 import { PermissionsSettings } from './components/permissions-settings';
 import { AuditLogs } from './components/audit-logs';
-import { mockPermissions, mockAuditLogs } from '@/lib/mock-settings';
 import { Building2, Users, ShieldCheck, FileClock, Network } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
     useOrgDetails,
     useOrgMembers,
     usePendingInvitations,
+    useOrgPermissions,
+    useOrgAuditLogs,
     useUpdateOrgMutation,
     useDeleteOrgMutation,
     useChangeMemberRoleMutation,
     useRemoveMemberMutation,
     useCreateInviteMutation,
 } from '@/hooks/useOrg';
-import { useTeams } from '@/hooks/useTeams';
+import { useCreateTeamMutation, useTeams } from '@/hooks/useTeams';
 import type { OrgProfile, OrgUser, UserRole, UserStatus, OrgTeamData } from '@/types/settings';
 import { useNavigate } from 'react-router-dom';
 
@@ -41,6 +42,8 @@ export default function SettingsPage() {
     const { data: orgData } = useOrgDetails(activeOrgId);
     const { data: membersData } = useOrgMembers(activeOrgId);
     const { data: invitesData } = usePendingInvitations(activeOrgId);
+    const { data: permissionsData, isLoading: isPermissionsLoading } = useOrgPermissions(activeOrgId);
+    const { data: auditData, isLoading: isAuditLoading } = useOrgAuditLogs(activeOrgId);
     const { data: teamsData } = useTeams();
 
     // Mutations
@@ -49,6 +52,7 @@ export default function SettingsPage() {
     const changeMemberRole = useChangeMemberRoleMutation();
     const removeMember = useRemoveMemberMutation();
     const createInvite = useCreateInviteMutation();
+    const createTeam = useCreateTeamMutation();
 
     // Build OrgProfile from real data
     const orgProfile: OrgProfile = {
@@ -86,6 +90,16 @@ export default function SettingsPage() {
         department: t.description ?? '',
     }));
 
+    const permissions = permissionsData?.permissions ?? [];
+
+    const auditLogs = (auditData?.logs ?? []).map((log) => ({
+        id: log.id,
+        timestamp: new Date(log.createdAt).toLocaleString(),
+        user: log.userName ?? log.userEmail ?? 'Unknown',
+        action: log.action,
+        target: `${log.entityType}:${log.entityId}`,
+    }));
+
     // Callbacks
     const handleSaveProfile = (name: string) => {
         if (!activeOrgId) return;
@@ -117,6 +131,10 @@ export default function SettingsPage() {
             email,
             role: role as 'admin' | 'manager' | 'partner',
         });
+    };
+
+    const handleCreateTeam = (name: string, description: string) => {
+        createTeam.mutate({ name, description });
     };
 
     return (
@@ -170,15 +188,19 @@ export default function SettingsPage() {
                     </TabsContent>
 
                     <TabsContent value="teams" className="m-0 border-none p-0 outline-none">
-                        <TeamManagement teams={orgTeams} />
+                        <TeamManagement
+                            teams={orgTeams}
+                            onCreateTeam={handleCreateTeam}
+                            isCreating={createTeam.isPending}
+                        />
                     </TabsContent>
 
                     <TabsContent value="permissions" className="m-0 border-none p-0 outline-none">
-                        <PermissionsSettings permissions={mockPermissions} />
+                        <PermissionsSettings permissions={permissions} isLoading={isPermissionsLoading} />
                     </TabsContent>
 
                     <TabsContent value="audit" className="m-0 border-none p-0 outline-none">
-                        <AuditLogs logs={mockAuditLogs} />
+                        <AuditLogs logs={auditLogs} isLoading={isAuditLoading} />
                     </TabsContent>
                 </div>
             </Tabs>

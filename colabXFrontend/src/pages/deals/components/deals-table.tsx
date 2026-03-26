@@ -23,9 +23,12 @@ import {
 interface DealsTableProps {
     deals: Deal[];
     onRowClick: (deal: Deal) => void;
+    onUpdateStage: (dealId: string, stage: DealStage) => void;
 }
 
-export function DealsTable({ deals, onRowClick }: DealsTableProps) {
+const STAGE_OPTIONS: DealStage[] = ['Lead', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+
+export function DealsTable({ deals, onRowClick, onUpdateStage }: DealsTableProps) {
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
@@ -96,9 +99,19 @@ export function DealsTable({ deals, onRowClick }: DealsTableProps) {
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRowClick(deal); }}>
                                                 View details
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Edit deal</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Update stage</DropdownMenuItem>
+                                            {STAGE_OPTIONS.map((stageOption) => (
+                                                <DropdownMenuItem
+                                                    key={stageOption}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onUpdateStage(deal.id, stageOption);
+                                                    }}
+                                                    disabled={deal.stage === stageOption}
+                                                >
+                                                    Move to {stageOption}
+                                                </DropdownMenuItem>
+                                            ))}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>

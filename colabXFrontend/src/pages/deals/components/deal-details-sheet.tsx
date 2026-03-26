@@ -4,9 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Send, FileText, Download, Activity, MessageSquare } from "lucide-react";
+import { FileText, Download, Activity, MessageSquare } from "lucide-react";
 import type { Deal } from "@/types/deal";
+import { useDealDetails } from "@/hooks/useDeals";
 
 interface DealDetailsSheetProps {
     deal: Deal | null;
@@ -15,7 +15,12 @@ interface DealDetailsSheetProps {
 }
 
 export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetProps) {
+    const { data: dealDetails } = useDealDetails(deal?.id, open && !!deal?.id);
+
     if (!deal) return null;
+
+    const assignments = dealDetails?.assignments ?? [];
+    const activities = dealDetails?.activities ?? deal.activity ?? [];
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -29,7 +34,11 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                 <div className="p-6 border-b border-white/5">
                     <SheetHeader className="text-left space-y-2">
                         <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-muted-foreground">{deal.assignedTeam}</Badge>
+                            <Badge variant="outline" className="text-muted-foreground">
+                                {assignments.length > 0
+                                    ? `${assignments.length} assignee${assignments.length === 1 ? '' : 's'}`
+                                    : deal.assignedTeam}
+                            </Badge>
                             <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">{deal.stage}</Badge>
                         </div>
                         <SheetTitle className="text-2xl font-bold">{deal.name}</SheetTitle>
@@ -106,8 +115,19 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon">
+                                                <Button variant="ghost" size="icon" asChild disabled={!doc.url}>
+                                                    <a
+                                                        href={doc.url ?? '#'}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        onClick={(event) => {
+                                                            if (!doc.url) {
+                                                                event.preventDefault();
+                                                            }
+                                                        }}
+                                                    >
                                                     <Download className="w-4 h-4 text-muted-foreground" />
+                                                    </a>
                                                 </Button>
                                             </div>
                                         ))}
@@ -119,10 +139,10 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
 
                             {/* ACTIVITY TAB */}
                             <TabsContent value="activity" className="m-0 space-y-4">
-                                {deal.activity && deal.activity.length > 0 ? (
+                                {activities.length > 0 ? (
                                     <div className="space-y-6 relative pl-3">
                                         <div className="absolute left-[15px] top-2 bottom-0 w-px bg-border"></div>
-                                        {deal.activity.map((act) => (
+                                        {activities.map((act) => (
                                             <div key={act.id} className="relative flex gap-4 text-sm">
                                                 <div className="bg-background rounded-full p-1 mt-0.5 z-10 border shadow-sm h-min">
                                                     <div className="w-2 h-2 rounded-full bg-primary" />
@@ -143,20 +163,6 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                 )}
                             </TabsContent>
                         </ScrollArea>
-
-                        {/* Message Input pinned at bottom, only shown on messages tab via css peer or logic - we'll keep it simple and just show it when messages is active but since we use Tabs component, we can extract state out if we need to conditionally render this. For now, a CSS hack or conditional render based on value. 
-                        We will put it permanently but use CSS to hide it if focus is needed elsewhere, or just let users type notes from any tab. */}
-                        <div className="p-4 border-t border-white/5 bg-background">
-                            <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
-                                <Input
-                                    placeholder="Type a message or add a note..."
-                                    className="flex-1 bg-muted/50 border-white/10"
-                                />
-                                <Button type="submit" size="icon" className="shrink-0">
-                                    <Send className="w-4 h-4" />
-                                </Button>
-                            </form>
-                        </div>
 
                     </Tabs>
                 </div>

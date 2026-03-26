@@ -10,6 +10,7 @@ export interface AppDocument {
     uploadedBy: string;
     uploadDate: string;
     accessLevel: AccessLevel;
+    url?: string;
 }
 
 export interface AppFolder {

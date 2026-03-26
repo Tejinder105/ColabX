@@ -14,15 +14,30 @@ import {
     StickyNote,
 } from "lucide-react"
 import { AlertsNotifications } from "@/pages/dashboard/components/alerts-notifications"
+import { useNavigate } from "react-router-dom"
 
-export function QuickActions() {
+interface QuickActionAlert {
+    title: string
+    description: string
+    action: string
+    severity: "critical" | "warning" | "info" | "neutral"
+    onAction?: () => void
+}
+
+interface QuickActionsProps {
+    alerts: QuickActionAlert[]
+}
+
+export function QuickActions({ alerts }: QuickActionsProps) {
+    const navigate = useNavigate()
+
     const actions = [
-        { label: "Add Partner", icon: Plus },
-        { label: "Create Deal", icon: StickyNote },
-        { label: "Schedule Meeting", icon: Calendar },
-        { label: "Upload Document", icon: FileText },
-        { label: "Create Report", icon: PieChart },
-        { label: "Start Chat", icon: MessageSquare },
+        { label: "Add Partner", icon: Plus, onClick: () => navigate("/partners") },
+        { label: "Create Deal", icon: StickyNote, onClick: () => navigate("/deals") },
+        { label: "Plan OKR Check-in", icon: Calendar, onClick: () => navigate("/okrs") },
+        { label: "Upload Document", icon: FileText, onClick: () => navigate("/documents") },
+        { label: "Create Report", icon: PieChart, onClick: () => navigate("/reports") },
+        { label: "Start Chat", icon: MessageSquare, onClick: () => navigate("/support") },
     ]
 
     return (
@@ -37,6 +52,7 @@ export function QuickActions() {
                             key={action.label}
                             variant="outline"
                             className="flex h-20 flex-col items-center justify-center gap-2 text-xs"
+                            onClick={action.onClick}
                         >
                             <action.icon className="h-5 w-5" />
                             <span className="text-center leading-none">{action.label}</span>
@@ -46,7 +62,7 @@ export function QuickActions() {
             </Card>
 
             <div className="flex-1">
-                <AlertsNotifications />
+                <AlertsNotifications alerts={alerts} />
             </div>
         </div>
     )

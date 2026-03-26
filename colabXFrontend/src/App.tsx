@@ -21,6 +21,7 @@ import ReportsPage from "./pages/reports";
 import SettingsPage from "./pages/settings";
 import SupportPage from "./pages/support";
 import FeedbackPage from "./pages/feedback";
+import { Toaster } from "sonner";
 
 const router = createBrowserRouter([
   {
@@ -130,6 +131,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   )
 }

@@ -12,6 +12,8 @@ import {
     getUserOrganizations,
     getOrganizationById,
     getOrganizationMembers,
+    getOrganizationPermissions,
+    getOrganizationAuditLogs,
     updateOrganization,
     deleteOrganization,
     changeMemberRole,
@@ -30,6 +32,8 @@ router.get("/", getUserOrganizations);
 
 // Routes that require org context (x-org-id header)
 router.get("/:id", requireOrganization, getOrganizationById);
+router.get("/:id/permissions", requireOrganization, getOrganizationPermissions);
+router.get("/:id/audit-logs", requireOrganization, getOrganizationAuditLogs);
 router.patch("/:id", requireOrganization, requireRole("admin"), validate(updateOrgSchema), updateOrganization);
 router.delete("/:id", requireOrganization, requireRole("admin"), deleteOrganization);
 

@@ -7,15 +7,34 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-export function DealPipeline() {
-    const stages = [
-        { name: "Discovery", count: 8, value: "$480K", width: "w-full", color: "bg-chart-1" },
-        { name: "Qualification", count: 6, value: "$520K", width: "w-[85%]", color: "bg-chart-2" },
-        { name: "Proposal", count: 5, value: "$680K", width: "w-[70%]", color: "bg-chart-3" },
-        { name: "Negotiation", count: 3, value: "$420K", width: "w-[55%]", color: "bg-chart-4" },
-        { name: "Closing", count: 2, value: "$300K", width: "w-[40%]", color: "bg-chart-5" },
-    ]
+interface StageMetric {
+    name: string
+    count: number
+    value: number
+    color: string
+}
+
+interface DealPipelineProps {
+    stages: StageMetric[]
+    avgDealSize: number
+    winRate: number
+    avgDealAgeDays: number
+}
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 1,
+    }).format(value)
+}
+
+export function DealPipeline({ stages, avgDealSize, winRate, avgDealAgeDays }: DealPipelineProps) {
+    const navigate = useNavigate()
+    const maxCount = Math.max(1, ...stages.map((stage) => stage.count))
 
     return (
         <Card className="h-full flex flex-col">
@@ -27,7 +46,10 @@ export function DealPipeline() {
                     {stages.map((stage, index) => (
                         <div key={stage.name} className="flex flex-col items-center">
                             {/* Funnel Bar */}
-                            <div className={`${stage.width} relative group transition-all duration-300`}>
+                            <div
+                                className="relative group transition-all duration-300 w-full"
+                                style={{ maxWidth: `${(stage.count / maxCount) * 100}%` }}
+                            >
                                 <div
                                     className={`h-10 mx-auto rounded-md ${stage.color} flex items-center justify-between px-4 text-primary-foreground shadow-sm relative z-10`}
                                 >
@@ -35,13 +57,13 @@ export function DealPipeline() {
                                         <span className="font-semibold text-sm">{stage.name}</span>
                                         <span className="text-xs opacity-80">({stage.count})</span>
                                     </div>
-                                    <span className="font-bold text-sm">{stage.value}</span>
+                                    <span className="font-bold text-sm">{formatCurrency(stage.value)}</span>
                                 </div>
 
                                 {/* Connecting Line Effect (Visual only, behind bars) */}
                                 {index < stages.length - 1 && (
                                     <div
-                                        className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-[2px] h-4 bg-border -z-0"
+                                        className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-[2px] h-4 bg-border z-0"
                                     />
                                 )}
                             </div>
@@ -52,20 +74,20 @@ export function DealPipeline() {
                 <div className="mt-8 grid grid-cols-3 gap-4 border-t pt-4">
                     <div className="text-center">
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Avg. Deal Size</p>
-                        <p className="font-bold text-lg">$100K</p>
+                        <p className="font-bold text-lg">{formatCurrency(avgDealSize)}</p>
                     </div>
                     <div className="text-center border-l">
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Win Rate</p>
-                        <p className="font-bold text-lg">42%</p>
+                        <p className="font-bold text-lg">{winRate}%</p>
                     </div>
                     <div className="text-center border-l">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Avg. Cycle</p>
-                        <p className="font-bold text-lg">45 Days</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Avg. Deal Age</p>
+                        <p className="font-bold text-lg">{avgDealAgeDays} Days</p>
                     </div>
                 </div>
             </CardContent>
             <CardFooter>
-                <Button variant="ghost" className="w-full text-sm text-muted-foreground">
+                <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate("/deals")}>
                     View All Deals <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardFooter>

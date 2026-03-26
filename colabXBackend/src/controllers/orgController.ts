@@ -1,8 +1,10 @@
 import type { Response } from "express";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, desc } from "drizzle-orm";
 import db from "../db/index.js";
 import { organization, orgUser } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
+import { activityLog } from "../schemas/collaborationSchema.js";
+import { createActivity } from "../collaboration/collaboration.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
 // Generate slug from name
@@ -16,6 +18,20 @@ function generateSlug(name: string): string {
 // Generate unique ID
 function generateId(): string {
   return crypto.randomUUID();
+}
+
+async function logActivitySafe(
+  orgId: string,
+  userId: string,
+  entityType: string,
+  entityId: string,
+  action: string,
+): Promise<void> {
+  try {
+    await createActivity(orgId, userId, entityType, entityId, action);
+  } catch (error) {
+    console.error("Activity log write failed:", error);
+  }
 }
 
 // Create organization
@@ -208,6 +224,16 @@ export async function updateOrganization(
       .where(eq(organization.id, req.org.id))
       .returning();
 
+    if (updated && req.user) {
+      await logActivitySafe(
+        req.org.id,
+        req.user.id,
+        "organization",
+        req.org.id,
+        "updated organization profile",
+      );
+    }
+
     res.json({ organization: updated });
   } catch (error) {
     console.error("Update organization error:", error);
@@ -231,6 +257,16 @@ export async function deleteOrganization(
         .status(403)
         .json({ error: "Only admins can delete the organization" });
       return;
+    }
+
+    if (req.user) {
+      await logActivitySafe(
+        req.org.id,
+        req.user.id,
+        "organization",
+        req.org.id,
+        "deleted organization",
+      );
     }
 
     await db.delete(organization).where(eq(organization.id, req.org.id));
@@ -278,6 +314,16 @@ export async function changeMemberRole(
       return;
     }
 
+    if (req.user) {
+      await logActivitySafe(
+        req.org.id,
+        req.user.id,
+        "organization_member",
+        memberId,
+        `changed member role to ${role}`,
+      );
+    }
+
     res.json({ member: updated });
   } catch (error) {
     console.error("Change member role error:", error);
@@ -321,9 +367,85 @@ export async function removeMember(
       return;
     }
 
+    if (req.user) {
+      await logActivitySafe(
+        req.org.id,
+        req.user.id,
+        "organization_member",
+        memberId,
+        "removed member from organization",
+      );
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error("Remove member error:", error);
     res.status(500).json({ error: "Failed to remove member" });
+  }
+}
+
+export async function getOrganizationPermissions(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    if (!req.org) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    // Role capabilities are derived from existing backend route policies.
+    const permissions = [
+      { feature: "Manage Organization Profile", admin: true, manager: false, partner: false },
+      { feature: "Invite New Users", admin: true, manager: true, partner: false },
+      { feature: "Manage Teams", admin: true, manager: true, partner: false },
+      { feature: "View All Deals", admin: true, manager: true, partner: false },
+      { feature: "View Assigned Deals", admin: true, manager: true, partner: true },
+      { feature: "Upload Documents", admin: true, manager: true, partner: false },
+      { feature: "Delete Documents", admin: true, manager: true, partner: false },
+      { feature: "Access Audit Logs", admin: true, manager: true, partner: false },
+    ];
+
+    res.json({ permissions });
+  } catch (error) {
+    console.error("Get organization permissions error:", error);
+    res.status(500).json({ error: "Failed to fetch organization permissions" });
+  }
+}
+
+export async function getOrganizationAuditLogs(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    if (!req.org) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const limitQuery = Number.parseInt((req.query.limit as string) ?? "200", 10);
+    const limit = Number.isNaN(limitQuery) ? 200 : Math.min(Math.max(limitQuery, 1), 500);
+
+    const logs = await db
+      .select({
+        id: activityLog.id,
+        action: activityLog.action,
+        entityType: activityLog.entityType,
+        entityId: activityLog.entityId,
+        createdAt: activityLog.createdAt,
+        userId: activityLog.userId,
+        userName: user.name,
+        userEmail: user.email,
+      })
+      .from(activityLog)
+      .leftJoin(user, eq(activityLog.userId, user.id))
+      .where(eq(activityLog.orgId, req.org.id))
+      .orderBy(desc(activityLog.createdAt))
+      .limit(limit);
+
+    res.json({ logs });
+  } catch (error) {
+    console.error("Get organization audit logs error:", error);
+    res.status(500).json({ error: "Failed to fetch organization audit logs" });
   }
 }

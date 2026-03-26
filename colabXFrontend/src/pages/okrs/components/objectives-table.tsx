@@ -10,12 +10,36 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Target } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronRight, Loader2, Pencil, Plus, Save, Target, Trash2, X } from 'lucide-react';
 import type { Objective } from '@/types/okr';
 
-export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
+interface ObjectivesTableProps {
+    objectives: Objective[];
+    onUpdateObjective?: (objectiveId: string, input: { title?: string; endDate?: string }) => void;
+    onDeleteObjective?: (objectiveId: string) => void;
+    onCreateKeyResult?: (objectiveId: string, targetValue: number, currentValue: number) => void;
+    onUpdateKeyResult?: (keyResultId: string, currentValue: number) => void;
+    isMutating?: boolean;
+}
+
+export function ObjectivesTable({
+    objectives,
+    onUpdateObjective,
+    onDeleteObjective,
+    onCreateKeyResult,
+    onUpdateKeyResult,
+    isMutating,
+}: ObjectivesTableProps) {
     // Array of expanded Objective IDs
     const [expandedRows, setExpandedRows] = useState<string[]>([]);
+    const [editingObjectiveId, setEditingObjectiveId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editDeadline, setEditDeadline] = useState('');
+    const [keyResultDrafts, setKeyResultDrafts] = useState<Record<string, string>>({});
+    const [newKeyResultDrafts, setNewKeyResultDrafts] = useState<
+        Record<string, { targetValue: string; currentValue: string }>
+    >({});
 
     const toggleRow = (id: string) => {
         setExpandedRows((prev) =>
@@ -33,6 +57,52 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
         }
     };
 
+    const handleEditStart = (objective: Objective) => {
+        setEditingObjectiveId(objective.id);
+        setEditTitle(objective.title);
+        setEditDeadline(objective.deadline);
+    };
+
+    const handleObjectiveSave = (objectiveId: string) => {
+        if (!editTitle.trim() || !editDeadline) return;
+        onUpdateObjective?.(objectiveId, { title: editTitle.trim(), endDate: editDeadline });
+        setEditingObjectiveId(null);
+    };
+
+    const setNewKeyResultField = (objectiveId: string, field: 'targetValue' | 'currentValue', value: string) => {
+        setNewKeyResultDrafts((prev) => ({
+            ...prev,
+            [objectiveId]: {
+                targetValue: prev[objectiveId]?.targetValue ?? '',
+                currentValue: prev[objectiveId]?.currentValue ?? '',
+                [field]: value,
+            },
+        }));
+    };
+
+    const handleCreateKeyResult = (objectiveId: string) => {
+        const draft = newKeyResultDrafts[objectiveId];
+        const targetValue = Number(draft?.targetValue ?? NaN);
+        const currentValue = Number(draft?.currentValue ?? NaN);
+
+        if (!Number.isFinite(targetValue) || targetValue <= 0) return;
+        if (!Number.isFinite(currentValue) || currentValue < 0) return;
+
+        onCreateKeyResult?.(objectiveId, targetValue, currentValue);
+        setNewKeyResultDrafts((prev) => ({
+            ...prev,
+            [objectiveId]: { targetValue: '', currentValue: '' },
+        }));
+    };
+
+    const handleUpdateExistingKeyResult = (keyResultId: string, fallbackCurrentValue: number | string) => {
+        const draftValue = keyResultDrafts[keyResultId];
+        const resolved = draftValue !== undefined ? Number(draftValue) : Number(fallbackCurrentValue);
+        if (!Number.isFinite(resolved) || resolved < 0) return;
+
+        onUpdateKeyResult?.(keyResultId, resolved);
+    };
+
     return (
         <div className="border rounded-md mt-4 bg-card">
             <Table>
@@ -44,12 +114,13 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
                         <TableHead className="w-[200px]">Progress</TableHead>
                         <TableHead>Deadline</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {objectives.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
+                            <TableCell colSpan={7} className="h-48 text-center text-muted-foreground">
                                 No objectives found.
                             </TableCell>
                         </TableRow>
@@ -66,7 +137,18 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
                                             )}
                                         </Button>
                                     </TableCell>
-                                    <TableCell className="font-medium text-base">{objective.title}</TableCell>
+                                    <TableCell className="font-medium text-base">
+                                        {editingObjectiveId === objective.id ? (
+                                            <Input
+                                                value={editTitle}
+                                                onChange={(e) => setEditTitle(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="h-8"
+                                            />
+                                        ) : (
+                                            objective.title
+                                        )}
+                                    </TableCell>
                                     <TableCell>{objective.owner}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -74,13 +156,72 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
                                             <span className="text-sm font-medium w-9">{objective.progress}%</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">{objective.deadline}</TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                        {editingObjectiveId === objective.id ? (
+                                            <Input
+                                                type="date"
+                                                value={editDeadline}
+                                                onChange={(e) => setEditDeadline(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="h-8"
+                                            />
+                                        ) : (
+                                            objective.deadline
+                                        )}
+                                    </TableCell>
                                     <TableCell>{getStatusBadge(objective.status)}</TableCell>
+                                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex justify-end gap-1">
+                                            {editingObjectiveId === objective.id ? (
+                                                <>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="outline"
+                                                        className="h-8 w-8"
+                                                        onClick={() => handleObjectiveSave(objective.id)}
+                                                        disabled={isMutating || !editTitle.trim() || !editDeadline}
+                                                    >
+                                                        {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                                    </Button>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8"
+                                                        onClick={() => setEditingObjectiveId(null)}
+                                                        disabled={isMutating}
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="outline"
+                                                        className="h-8 w-8"
+                                                        onClick={() => handleEditStart(objective)}
+                                                        disabled={isMutating}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="destructive"
+                                                        className="h-8 w-8"
+                                                        onClick={() => onDeleteObjective?.(objective.id)}
+                                                        disabled={isMutating}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
 
                                 {expandedRows.includes(objective.id) && (
                                     <TableRow className="bg-muted/10 hover:bg-muted/10">
-                                        <TableCell colSpan={6} className="p-0 border-b-0">
+                                        <TableCell colSpan={7} className="p-0 border-b-0">
                                             <div className="pl-14 pr-6 py-4 border-l-2 border-emerald-500 ml-4 mb-4 mt-2 bg-background rounded-r-md shadow-sm">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <Target className="h-4 w-4 text-emerald-500" />
@@ -88,17 +229,68 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
                                                 </div>
                                                 <div className="space-y-4">
                                                     {objective.keyResults.map((kr) => (
-                                                        <div key={kr.id} className="grid grid-cols-[1fr_200px_minmax(120px,auto)] items-center gap-6">
+                                                        <div key={kr.id} className="grid grid-cols-[1fr_200px_170px_auto] items-center gap-6">
                                                             <span className="text-sm text-muted-foreground font-medium">{kr.title}</span>
                                                             <div className="flex items-center gap-3">
                                                                 <Progress value={kr.progress} className="h-1.5 flex-1" />
                                                                 <span className="text-xs font-semibold w-8 text-right">{kr.progress}%</span>
                                                             </div>
-                                                            <div className="text-xs text-right text-muted-foreground">
-                                                                <span className="font-medium text-foreground">{kr.currentValue}</span> / {kr.targetValue}
+                                                            <div className="flex items-center justify-end gap-2 text-xs text-right text-muted-foreground">
+                                                                <Input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={keyResultDrafts[kr.id] ?? String(kr.currentValue)}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        setKeyResultDrafts((prev) => ({ ...prev, [kr.id]: value }));
+                                                                    }}
+                                                                    className="h-8 w-24 text-right"
+                                                                />
+                                                                <span>/ {kr.targetValue}</span>
+                                                            </div>
+                                                            <div className="flex justify-end">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleUpdateExistingKeyResult(kr.id, kr.currentValue)}
+                                                                    disabled={isMutating}
+                                                                >
+                                                                    {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                                    Save
+                                                                </Button>
                                                             </div>
                                                         </div>
                                                     ))}
+
+                                                    <div className="grid grid-cols-[1fr_200px_170px_auto] items-center gap-6 pt-2 border-t">
+                                                        <span className="text-sm text-muted-foreground font-medium">New Key Result</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            placeholder="Target"
+                                                            value={newKeyResultDrafts[objective.id]?.targetValue ?? ''}
+                                                            onChange={(e) => setNewKeyResultField(objective.id, 'targetValue', e.target.value)}
+                                                            className="h-8"
+                                                        />
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            placeholder="Current"
+                                                            value={newKeyResultDrafts[objective.id]?.currentValue ?? ''}
+                                                            onChange={(e) => setNewKeyResultField(objective.id, 'currentValue', e.target.value)}
+                                                            className="h-8"
+                                                        />
+                                                        <div className="flex justify-end">
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleCreateKeyResult(objective.id)}
+                                                                disabled={isMutating}
+                                                            >
+                                                                {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                                                                Add KR
+                                                            </Button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -112,5 +304,3 @@ export function ObjectivesTable({ objectives }: { objectives: Objective[] }) {
         </div>
     );
 }
-
-// Adding React import for Fragment in a separate logic step to avoid inline import mess.

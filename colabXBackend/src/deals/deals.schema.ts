@@ -20,7 +20,6 @@ export const dealStageEnum = pgEnum("dealStage", [
     "lost",
 ]);
 
-// Deal table — a business opportunity linked to a partner within an org
 export const deal = pgTable(
     "deal",
     {

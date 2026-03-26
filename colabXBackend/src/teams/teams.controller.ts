@@ -12,6 +12,10 @@ import {
     getTeamMembers,
     updateTeamMemberRole,
     removeTeamMember,
+    getTeamPartners,
+    getTeamDeals,
+    getTeamObjectives,
+    getTeamActivity,
 } from "./teams.service.js";
 
 // POST /api/teams
@@ -227,5 +231,81 @@ export async function removeTeamMemberHandler(
     } catch (error) {
         console.error("Remove team member error:", error);
         res.status(500).json({ error: "Failed to remove team member" });
+    }
+}
+
+// GET /api/teams/:teamId/partners
+export async function getTeamPartnersHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.team || !req.org) {
+            res.status(404).json({ error: "Team not found" });
+            return;
+        }
+
+        const partners = await getTeamPartners(req.team.id, req.org.id);
+        res.json({ partners });
+    } catch (error) {
+        console.error("Get team partners error:", error);
+        res.status(500).json({ error: "Failed to fetch team partners" });
+    }
+}
+
+// GET /api/teams/:teamId/deals
+export async function getTeamDealsHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.team || !req.org) {
+            res.status(404).json({ error: "Team not found" });
+            return;
+        }
+
+        const deals = await getTeamDeals(req.team.id, req.org.id);
+        res.json({ deals });
+    } catch (error) {
+        console.error("Get team deals error:", error);
+        res.status(500).json({ error: "Failed to fetch team deals" });
+    }
+}
+
+// GET /api/teams/:teamId/objectives
+export async function getTeamObjectivesHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.team || !req.org) {
+            res.status(404).json({ error: "Team not found" });
+            return;
+        }
+
+        const objectives = await getTeamObjectives(req.team.id, req.org.id);
+        res.json({ objectives });
+    } catch (error) {
+        console.error("Get team objectives error:", error);
+        res.status(500).json({ error: "Failed to fetch team objectives" });
+    }
+}
+
+// GET /api/teams/:teamId/activity
+export async function getTeamActivityHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.team || !req.org) {
+            res.status(404).json({ error: "Team not found" });
+            return;
+        }
+
+        const activities = await getTeamActivity(req.team.id, req.org.id);
+        res.json({ activities });
+    } catch (error) {
+        console.error("Get team activity error:", error);
+        res.status(500).json({ error: "Failed to fetch team activity" });
     }
 }

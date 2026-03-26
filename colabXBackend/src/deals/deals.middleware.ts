@@ -2,9 +2,7 @@ import type { Response, NextFunction } from "express";
 import { getDealById } from "./deals.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
-// Verifies the deal exists and belongs to the current org.
-// Must run AFTER requireOrganization (requires req.org to be set).
-// Attaches req.deal on success.
+
 export async function requireDeal(
     req: AuthRequest,
     res: Response,
@@ -23,7 +21,6 @@ export async function requireDeal(
             return;
         }
 
-        // orgId filter enforces cross-tenant isolation
         const dealRow = await getDealById(dealId, req.org.id);
 
         if (!dealRow) {

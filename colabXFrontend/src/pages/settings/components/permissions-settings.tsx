@@ -7,12 +7,11 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ShieldCheck } from 'lucide-react';
 import type { PermissionMatrix } from '@/types/settings';
 
-export function PermissionsSettings({ permissions }: { permissions: PermissionMatrix[] }) {
+export function PermissionsSettings({ permissions, isLoading }: { permissions: PermissionMatrix[]; isLoading?: boolean }) {
     return (
         <Card>
             <CardHeader className="py-4 pb-2 border-b">
@@ -33,25 +32,39 @@ export function PermissionsSettings({ permissions }: { permissions: PermissionMa
                         </TableRow>
                     </TableHeader>
                     <TableBody>
+                        {isLoading && (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
+                                    Loading permissions...
+                                </TableCell>
+                            </TableRow>
+                        )}
                         {permissions.map((p, i) => (
                             <TableRow key={i} className="hover:bg-muted/30">
                                 <TableCell className="pl-6 font-medium text-foreground/80">{p.feature}</TableCell>
                                 <TableCell className="text-center">
-                                    <Switch checked={p.admin} />
+                                    <Switch checked={p.admin} disabled />
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    <Switch checked={p.manager} />
+                                    <Switch checked={p.manager} disabled />
                                 </TableCell>
                                 <TableCell className="text-center pr-6">
-                                    <Switch checked={p.partner} />
+                                    <Switch checked={p.partner} disabled />
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {!isLoading && permissions.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
+                                    No permissions available.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
             <CardFooter className="border-t px-6 py-4 justify-end bg-muted/20">
-                <Button>Save Permissions</Button>
+                <p className="text-sm text-muted-foreground">Permissions are derived from backend role policies.</p>
             </CardFooter>
         </Card>
     );

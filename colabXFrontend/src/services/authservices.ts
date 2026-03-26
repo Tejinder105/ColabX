@@ -1,4 +1,5 @@
 import { signUp, signIn } from "@/utils/auth-client";
+import { getAppBaseUrl } from "@/lib/api";
 
 export interface SignupData {
     email: string;
@@ -42,7 +43,7 @@ export async function googleSignIn() {
     try {
         const result = await signIn.social({
             provider: "google",
-            callbackURL: "http://localhost:5173/dashboard",
+            callbackURL: `${getAppBaseUrl()}/dashboard`,
         });
         console.log("Google sign-in result:", result);
         if (result.error) {

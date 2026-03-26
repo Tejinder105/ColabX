@@ -19,6 +19,10 @@ import {
     getTeamMembersHandler,
     updateTeamMemberRoleHandler,
     removeTeamMemberHandler,
+    getTeamPartnersHandler,
+    getTeamDealsHandler,
+    getTeamObjectivesHandler,
+    getTeamActivityHandler,
 } from "./teams.controller.js";
 
 const router = Router();
@@ -88,6 +92,35 @@ router.delete(
     requireTeam,
     requireRole("admin", "manager"),
     removeTeamMemberHandler
+);
+
+// Team-related data (partners, deals, objectives, activity)
+router.get(
+    "/:teamId/partners",
+    requireOrganization,
+    requireTeam,
+    getTeamPartnersHandler
+);
+
+router.get(
+    "/:teamId/deals",
+    requireOrganization,
+    requireTeam,
+    getTeamDealsHandler
+);
+
+router.get(
+    "/:teamId/objectives",
+    requireOrganization,
+    requireTeam,
+    getTeamObjectivesHandler
+);
+
+router.get(
+    "/:teamId/activity",
+    requireOrganization,
+    requireTeam,
+    getTeamActivityHandler
 );
 
 export default router;

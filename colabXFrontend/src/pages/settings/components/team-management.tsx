@@ -9,10 +9,32 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Plus, Users, X, Loader2 } from 'lucide-react';
 import type { OrgTeamData } from '@/types/settings';
+import { useState } from 'react';
 
-export function TeamManagement({ teams }: { teams: OrgTeamData[] }) {
+interface TeamManagementProps {
+    teams: OrgTeamData[];
+    onCreateTeam?: (name: string, description: string) => void;
+    isCreating?: boolean;
+}
+
+export function TeamManagement({ teams, onCreateTeam, isCreating }: TeamManagementProps) {
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [teamName, setTeamName] = useState('');
+    const [teamDescription, setTeamDescription] = useState('');
+
+    const handleCreateTeam = () => {
+        const name = teamName.trim();
+        if (!name) return;
+        onCreateTeam?.(name, teamDescription.trim());
+        setTeamName('');
+        setTeamDescription('');
+        setShowCreateForm(false);
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 pb-2 border-b">
@@ -21,11 +43,41 @@ export function TeamManagement({ teams }: { teams: OrgTeamData[] }) {
                     <CardDescription>Configure organizational group mappings and assign leads.</CardDescription>
                 </div>
                 <div className="mt-4 sm:mt-0">
-                    <Button variant="outline">
-                        <Plus className="mr-2 h-4 w-4" /> Create Team
+                    <Button variant="outline" onClick={() => setShowCreateForm((v) => !v)}>
+                        {showCreateForm ? <X className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />} {showCreateForm ? 'Cancel' : 'Create Team'}
                     </Button>
                 </div>
             </CardHeader>
+
+            {showCreateForm && (
+                <div className="px-6 py-3 border-b bg-muted/20 grid gap-3">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="teamName" className="text-xs text-muted-foreground">Team Name</Label>
+                        <Input
+                            id="teamName"
+                            value={teamName}
+                            onChange={(e) => setTeamName(e.target.value)}
+                            placeholder="e.g. Enterprise Sales"
+                        />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="teamDescription" className="text-xs text-muted-foreground">Description (optional)</Label>
+                        <Input
+                            id="teamDescription"
+                            value={teamDescription}
+                            onChange={(e) => setTeamDescription(e.target.value)}
+                            placeholder="Department or focus area"
+                        />
+                    </div>
+                    <div>
+                        <Button onClick={handleCreateTeam} disabled={!teamName.trim() || isCreating}>
+                            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Team
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>

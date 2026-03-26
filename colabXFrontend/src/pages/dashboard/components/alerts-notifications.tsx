@@ -7,33 +7,19 @@ import {
 import { Button } from "@/components/ui/button"
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 
-export function AlertsNotifications() {
-    const alerts = [
-        {
-            title: "TechCorp partnership at risk",
-            description: "Engagement dropped 40% this month",
-            action: "Take Action",
-            severity: "critical",
-        },
-        {
-            title: "Contract renewal in 15 days",
-            description: "GlobalFinance Inc. - Premium Tier",
-            action: "Review",
-            severity: "warning",
-        },
-        {
-            title: "New milestone achieved!",
-            description: "DataSync reached Gold tier",
-            action: "Send Congrats",
-            severity: "info",
-        },
-        {
-            title: "System Maintenance",
-            description: "Scheduled for Feb 10, 2:00 AM",
-            action: "Details",
-            severity: "neutral",
-        }
-    ]
+interface DashboardAlert {
+    title: string
+    description: string
+    action: string
+    severity: "critical" | "warning" | "info" | "neutral"
+    onAction?: () => void
+}
+
+interface AlertsNotificationsProps {
+    alerts: DashboardAlert[]
+}
+
+export function AlertsNotifications({ alerts }: AlertsNotificationsProps) {
 
     const getSeverityStyles = (severity: string) => {
         switch (severity) {
@@ -55,6 +41,9 @@ export function AlertsNotifications() {
                 <CardTitle>Alerts & Notifications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+                {alerts.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No active alerts right now.</p>
+                )}
                 {alerts.map((alert, index) => {
                     const styles = getSeverityStyles(alert.severity)
                     const Icon = styles.icon
@@ -74,6 +63,7 @@ export function AlertsNotifications() {
                                 size="sm"
                                 variant="outline"
                                 className="h-7 text-xs px-2 shrink-0"
+                                onClick={alert.onAction}
                             >
                                 {alert.action}
                             </Button>
