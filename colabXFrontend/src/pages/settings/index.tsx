@@ -22,7 +22,7 @@ import {
 import { useCreateTeamMutation, useTeams } from '@/hooks/useTeams';
 import type { OrgProfile, OrgUser, UserRole, UserStatus, OrgTeamData } from '@/types/settings';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 // Map backend role to UI Role
 function mapRole(role: string): UserRole {
