@@ -1,9 +1,17 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const SENDER_EMAIL = process.env.SENDER_EMAIL || 'noreply@colabx.io';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+
+// Create transporter using SMTP configuration
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 interface SendInvitationEmailInput {
   to: string;
@@ -98,8 +106,8 @@ If you didn't expect this invitation, you can safely ignore this email.
   `.trim();
 
   try {
-    await resend.emails.send({
-      from: SENDER_EMAIL,
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
       to,
       subject,
       html: htmlContent,
@@ -109,7 +117,6 @@ If you didn't expect this invitation, you can safely ignore this email.
     console.log(`Invitation email sent to ${to}`);
   } catch (error) {
     console.error('Failed to send invitation email:', error);
-    // Don't throw - email failure shouldn't break invitation creation
-    // Log for monitoring but allow invitation to be created
   }
 }
+
