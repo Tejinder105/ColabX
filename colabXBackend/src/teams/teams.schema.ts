@@ -7,8 +7,8 @@ import {
     uniqueIndex,
     pgEnum,
 } from "drizzle-orm/pg-core";
-import { organization } from "../schemas/orgSchema";
-import { user } from "../schemas/authSchema";
+import { organization } from "../schemas/orgSchema.js";
+import { user } from "../schemas/authSchema.js";
 
 export const teamRoleEnum = pgEnum("teamRole", ["lead", "member"]);
 

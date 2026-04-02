@@ -6,7 +6,7 @@ import {
     index,
     pgEnum,
 } from "drizzle-orm/pg-core";
-import { user } from "./authSchema";
+import { user } from "./authSchema.js";
 
 export const roleEnum = pgEnum("orgRole", ["admin", "manager", "partner"]);
 
