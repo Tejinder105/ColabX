@@ -22,6 +22,7 @@ import {
 import { useCreateTeamMutation, useTeams } from '@/hooks/useTeams';
 import type { OrgProfile, OrgUser, UserRole, UserStatus, OrgTeamData } from '@/types/settings';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 // Map backend role to UI Role
 function mapRole(role: string): UserRole {
@@ -37,6 +38,7 @@ export default function SettingsPage() {
     const navigate = useNavigate();
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
     const activeOrg = useAuthStore((state) => state.activeOrg);
+    const [invitationToken, setInvitationToken] = useState<string | null>(null);
 
     // Data fetching
     const { data: orgData } = useOrgDetails(activeOrgId);
@@ -126,11 +128,19 @@ export default function SettingsPage() {
 
     const handleInvite = (email: string, role: string) => {
         if (!activeOrgId) return;
-        createInvite.mutate({
-            orgId: activeOrgId,
-            email,
-            role: role as 'admin' | 'manager' | 'partner',
-        });
+        createInvite.mutate(
+            {
+                orgId: activeOrgId,
+                email,
+                role: role as 'admin' | 'manager' | 'partner',
+            },
+            {
+                onSuccess: (data) => {
+                    // Show token to admin
+                    setInvitationToken(data.invitation.token);
+                },
+            }
+        );
     };
 
     const handleCreateTeam = (name: string, description: string) => {
@@ -184,6 +194,8 @@ export default function SettingsPage() {
                             onInvite={handleInvite}
                             isRemoving={removeMember.isPending}
                             isInviting={createInvite.isPending}
+                            invitationToken={invitationToken}
+                            onTokenDismiss={() => setInvitationToken(null)}
                         />
                     </TabsContent>
 

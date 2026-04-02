@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MoreHorizontal, Plus, Search, X, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Plus, Search, X, Loader2, Copy, Check } from 'lucide-react';
 import type { OrgUser, UserRole, UserStatus } from '@/types/settings';
 import {
     DropdownMenu,
@@ -28,6 +28,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { useState } from 'react';
 
 interface UserManagementProps {
@@ -37,13 +45,16 @@ interface UserManagementProps {
     onInvite?: (email: string, role: string) => void;
     isRemoving?: boolean;
     isInviting?: boolean;
+    invitationToken?: string | null;
+    onTokenDismiss?: () => void;
 }
 
-export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isInviting }: UserManagementProps) {
+export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'partner'>('manager');
+    const [copied, setCopied] = useState(false);
 
     const filteredUsers = users.filter((u) =>
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,11 +62,18 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
         u.role.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleSendInvite = () => {
+    const handleSendInvite = (event?: React.MouseEvent) => {
+        event?.preventDefault();
         if (!inviteEmail.trim()) return;
+        // Show token will be handled by the parent component that has the mutation
+        // For now, just pass data and let parent handle - we'll intercept in settings page
         onInvite?.(inviteEmail.trim(), inviteRole);
-        setInviteEmail('');
-        setShowInviteForm(false);
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const getRoleBadge = (role: UserRole) => {
@@ -211,6 +229,63 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                     </TableBody>
                 </Table>
             </CardContent>
+
+            {/* Invitation Token Display Modal */}
+            <Dialog open={!!invitationToken} onOpenChange={(open) => !open && onTokenDismiss?.()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>✅ Invitation Sent!</DialogTitle>
+                        <DialogDescription>
+                            An invitation email has been sent to {inviteEmail}.
+                            You can also share this code with them.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="token" className="text-xs text-muted-foreground mb-2 block">
+                                Invitation Code
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id="token"
+                                    readOnly
+                                    value={invitationToken || ''}
+                                    className="font-mono font-bold text-sm"
+                                />
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => copyToClipboard(invitationToken || '')}
+                                    className="flex-shrink-0"
+                                >
+                                    {copied ? (
+                                        <Check className="h-4 w-4" />
+                                    ) : (
+                                        <Copy className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-900">
+                                <strong>💡 Tip:</strong> Share the code above or the email contains a direct join link.
+                                The invitation expires in 7 days.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            onClick={() => {
+                                onTokenDismiss?.();
+                                setInviteEmail('');
+                                setShowInviteForm(false);
+                            }}
+                        >
+                            Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

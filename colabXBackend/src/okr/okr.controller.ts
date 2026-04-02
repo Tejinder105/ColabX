@@ -15,8 +15,9 @@ import {
     getLatestPartnerScore,
     getPartnerByIdForOrg,
 } from "./okr.service.js";
+import { getOrgPartnersForUser } from "../partners/partners.service.js";
 
-// ── Objective Handlers ─────────────────────────────────────────────────────
+// Objective Handlers ->
 
 // POST /api/okr/objectives
 export async function createObjectiveHandler(
@@ -49,7 +50,7 @@ export async function getOrgObjectivesHandler(
     res: Response
 ): Promise<void> {
     try {
-        if (!req.org) {
+        if (!req.org || !req.user || !req.membership) {
             res.status(403).json({ error: "Access denied" });
             return;
         }
@@ -62,6 +63,34 @@ export async function getOrgObjectivesHandler(
         if (req.query.partnerId) filters.partnerId = req.query.partnerId as string;
         if (req.query.startDate) filters.startDate = req.query.startDate as string;
         if (req.query.endDate) filters.endDate = req.query.endDate as string;
+
+        // Partner role: only see objectives linked to their partner records
+        if (req.membership.role === "partner") {
+            const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
+            const partnerIds = userPartners.map(p => p.id);
+
+            if (partnerIds.length === 0) {
+                res.json({ objectives: [] });
+                return;
+            }
+
+            // If a specific partnerId filter was set, verify it belongs to this user
+            if (filters.partnerId && !partnerIds.includes(filters.partnerId)) {
+                res.json({ objectives: [] });
+                return;
+            }
+
+            // If no partnerId filter, we fetch for each of the user's partners and merge
+            if (!filters.partnerId) {
+                const allObjectives = [];
+                for (const pid of partnerIds) {
+                    const objs = await getOrgObjectives(req.org.id, { ...filters, partnerId: pid });
+                    allObjectives.push(...objs);
+                }
+                res.json({ objectives: allObjectives });
+                return;
+            }
+        }
 
         const objectives = await getOrgObjectives(req.org.id, filters);
         res.json({ objectives });
@@ -132,7 +161,7 @@ export async function updateObjectiveHandler(
     }
 }
 
-// DELETE /api/okr/objectives/:objectiveId (soft delete — archives)
+// DELETE /api/okr/objectives/:objectiveId 
 export async function deleteObjectiveHandler(
     req: AuthRequest,
     res: Response
@@ -151,7 +180,7 @@ export async function deleteObjectiveHandler(
     }
 }
 
-// ── Key Result Handlers ────────────────────────────────────────────────────
+// Key Result Handlers ->
 
 // POST /api/okr/objectives/:objectiveId/key-results
 export async function createKeyResultHandler(
@@ -210,7 +239,7 @@ export async function updateKeyResultHandler(
     }
 }
 
-// ── Partner Performance Handlers ───────────────────────────────────────────
+// Partner Performance Handlers ->
 
 // POST /api/okr/partners/:partnerId/metrics
 export async function recordMetricHandler(

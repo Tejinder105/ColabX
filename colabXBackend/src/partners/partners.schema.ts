@@ -17,6 +17,7 @@ export const partnerTypeEnum = pgEnum("partnerType", [
 ]);
 
 export const partnerStatusEnum = pgEnum("partnerStatus", [
+    "pending",
     "active",
     "inactive",
     "suspended",
@@ -32,8 +33,11 @@ export const partner = pgTable(
             .references(() => organization.id, { onDelete: "cascade" }),
         name: text("name").notNull(),
         type: partnerTypeEnum("type").notNull(),
-        status: partnerStatusEnum("status").notNull().default("active"),
-        contactEmail: text("contactEmail"),
+        status: partnerStatusEnum("status").notNull().default("pending"),
+        contactEmail: text("contactEmail").notNull(),
+        userId: text("userId").references(() => user.id, {
+            onDelete: "set null",
+        }),
         industry: text("industry"),
         onboardingDate: timestamp("onboardingDate"),
         createdBy: text("createdBy").references(() => user.id, {
@@ -48,6 +52,7 @@ export const partner = pgTable(
     (table) => [
         index("partner_orgId_idx").on(table.orgId),
         index("partner_createdBy_idx").on(table.createdBy),
+        index("partner_userId_idx").on(table.userId),
         index("partner_status_idx").on(table.status),
     ]
 );
@@ -58,8 +63,14 @@ export const partnerRelations = relations(partner, ({ one }) => ({
         fields: [partner.orgId],
         references: [organization.id],
     }),
+    linkedUser: one(user, {
+        fields: [partner.userId],
+        references: [user.id],
+        relationName: "partnerUser",
+    }),
     creator: one(user, {
         fields: [partner.createdBy],
         references: [user.id],
+        relationName: "partnerCreator",
     }),
 }));

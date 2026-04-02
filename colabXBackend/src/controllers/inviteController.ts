@@ -3,7 +3,9 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 import db from "../db/index.js";
 import { invitation, orgUser, organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
+import { partner } from "../partners/partners.schema.js";
 import { createActivity } from "../collaboration/collaboration.service.js";
+import { sendInvitationEmail } from "../utils/email.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
 function generateId(): string {
@@ -121,6 +123,30 @@ export async function createInvitation(
       );
     } catch (activityError) {
       console.error("Activity log write failed:", activityError);
+    }
+
+    // Send invitation email
+    try {
+      const orgs = await db
+        .select({ name: organization.name })
+        .from(organization)
+        .where(eq(organization.id, orgId))
+        .limit(1);
+
+      const org = orgs[0];
+      if (org) {
+        const inviterName = req.user?.name || "Someone";
+        await sendInvitationEmail({
+          to: email,
+          orgName: org.name,
+          invitedBy: inviterName,
+          token: newInvite.token,
+          role,
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to send invitation email:", emailError);
+      // Don't fail the whole request if email fails
     }
 
     res.status(201).json({ invitation: { ...newInvite, token } });
@@ -253,6 +279,28 @@ export async function acceptInvitation(
         .update(invitation)
         .set({ usedAt: new Date() })
         .where(eq(invitation.id, invite.id));
+
+      // If partner role, link user to their pending partner record
+      if (invite.role === "partner") {
+        const [pendingPartner] = await tx
+          .select({ id: partner.id })
+          .from(partner)
+          .where(
+            and(
+              eq(partner.orgId, invite.orgId),
+              eq(partner.contactEmail, invite.email),
+              eq(partner.status, "pending")
+            )
+          )
+          .limit(1);
+
+        if (pendingPartner) {
+          await tx
+            .update(partner)
+            .set({ userId, status: "active" })
+            .where(eq(partner.id, pendingPartner.id));
+        }
+      }
 
       const [orgDetails] = await tx
         .select()

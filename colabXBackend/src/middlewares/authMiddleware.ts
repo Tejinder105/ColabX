@@ -34,7 +34,7 @@ export interface AuthRequest extends Request {
         id: string;
         name: string;
         type: "reseller" | "agent" | "technology" | "distributor";
-        status: "active" | "inactive" | "suspended";
+        status: "pending" | "active" | "inactive" | "suspended";
         orgId: string;
         createdBy: string | null;
     };

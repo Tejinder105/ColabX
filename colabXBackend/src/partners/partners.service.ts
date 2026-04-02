@@ -5,11 +5,11 @@ import { orgUser } from "../schemas/orgSchema.js";
 
 export async function createPartner(
     orgId: string,
-    userId: string,
+    createdBy: string,
     data: {
         name: string;
         type: "reseller" | "agent" | "technology" | "distributor";
-        contactEmail?: string;
+        contactEmail: string;
         industry?: string;
         onboardingDate?: string;
     }
@@ -21,16 +21,36 @@ export async function createPartner(
             orgId,
             name: data.name,
             type: data.type,
-            contactEmail: data.contactEmail ?? null,
+            contactEmail: data.contactEmail,
             industry: data.industry ?? null,
             onboardingDate: data.onboardingDate
                 ? new Date(data.onboardingDate)
                 : null,
-            createdBy: userId,
+            createdBy,
         })
         .returning();
 
     return created;
+}
+
+export async function getPartnerByEmail(orgId: string, email: string) {
+    const [result] = await db
+        .select()
+        .from(partner)
+        .where(and(eq(partner.orgId, orgId), eq(partner.contactEmail, email)))
+        .limit(1);
+
+    return result;
+}
+
+export async function linkUserToPartner(partnerId: string, userId: string) {
+    const [updated] = await db
+        .update(partner)
+        .set({ userId, status: "active" })
+        .where(eq(partner.id, partnerId))
+        .returning();
+
+    return updated;
 }
 
 export async function getOrgPartners(orgId: string) {
@@ -38,6 +58,13 @@ export async function getOrgPartners(orgId: string) {
         .select()
         .from(partner)
         .where(eq(partner.orgId, orgId));
+}
+
+export async function getOrgPartnersForUser(orgId: string, userId: string) {
+    return db
+        .select()
+        .from(partner)
+        .where(and(eq(partner.orgId, orgId), eq(partner.userId, userId)));
 }
 
 export async function getPartnerById(partnerId: string, orgId: string) {

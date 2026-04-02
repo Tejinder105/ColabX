@@ -12,9 +12,12 @@ const envSchema = z.object({
     TRUSTED_ORIGINS: z.string().optional(),
     BETTER_AUTH_URL: z.string().url().optional(),
     BACKEND_URL: z.string().url().optional(),
+    APP_URL: z.string().url().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().url().optional(),
+    RESEND_API_KEY: z.string().optional(),
+    SENDER_EMAIL: z.string().email().optional(),
 });
 
 const env = envSchema.parse(process.env);

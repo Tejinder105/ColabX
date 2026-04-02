@@ -4,7 +4,7 @@ import { communication, document, activityLog } from "../schemas/collaborationSc
 import { user } from "../schemas/authSchema.js";
 import { partner } from "../partners/partners.schema.js";
 
-// ── Communications ──────────────────────────────────────────────────────────
+// Communications ->
 
 export async function createCommunication(
     orgId: string,
@@ -42,7 +42,7 @@ export async function getPartnerCommunications(partnerId: string) {
         .orderBy(desc(communication.createdAt));
 }
 
-// ── Documents ───────────────────────────────────────────────────────────────
+// Documents ->
 
 export async function createDocument(
     orgId: string,
@@ -90,7 +90,12 @@ export async function getPartnerDocuments(partnerId: string) {
         .orderBy(desc(document.uploadedAt));
 }
 
-export async function getOrgDocuments(orgId: string) {
+export async function getOrgDocuments(orgId: string, visibilityFilter?: string) {
+    const conditions = [eq(document.orgId, orgId)];
+    if (visibilityFilter) {
+        conditions.push(eq(document.visibility, visibilityFilter));
+    }
+
     return db
         .select({
             id: document.id,
@@ -106,7 +111,7 @@ export async function getOrgDocuments(orgId: string) {
         .from(document)
         .leftJoin(partner, eq(document.partnerId, partner.id))
         .leftJoin(user, eq(document.uploadedBy, user.id))
-        .where(eq(document.orgId, orgId))
+        .where(and(...conditions))
         .orderBy(desc(document.uploadedAt));
 }
 
@@ -142,7 +147,7 @@ export async function updateDocumentVisibility(
     return updated;
 }
 
-// ── Activity Logs ───────────────────────────────────────────────────────────
+// Activity Logs ->
 
 export async function createActivity(
     orgId: string,

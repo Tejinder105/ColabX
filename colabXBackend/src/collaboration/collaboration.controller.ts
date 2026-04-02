@@ -12,7 +12,7 @@ import {
     getPartnerActivities,
 } from "./collaboration.service.js";
 
-// ── Communications ──────────────────────────────────────────────────────────
+// Communications ->
 
 // POST /api/partners/:partnerId/communications
 export async function createCommunicationHandler(
@@ -57,7 +57,7 @@ export async function getPartnerCommunicationsHandler(
     }
 }
 
-// ── Documents ───────────────────────────────────────────────────────────────
+// Documents ->
 
 // POST /api/partners/:partnerId/documents
 export async function createDocumentHandler(
@@ -108,12 +108,14 @@ export async function getOrgDocumentsHandler(
     res: Response
 ): Promise<void> {
     try {
-        if (!req.org) {
+        if (!req.org || !req.membership) {
             res.status(403).json({ error: "Access denied" });
             return;
         }
 
-        const documents = await getOrgDocuments(req.org.id);
+        // Partner role: can only see documents shared with partners
+        const visibilityFilter = req.membership.role === "partner" ? "partner" : undefined;
+        const documents = await getOrgDocuments(req.org.id, visibilityFilter);
         res.json({ documents });
     } catch (error) {
         console.error("Get org documents error:", error);
@@ -175,7 +177,7 @@ export async function deleteDocumentHandler(
     }
 }
 
-// ── Activities ──────────────────────────────────────────────────────────────
+// Activities ->
 
 // GET /api/partners/:partnerId/activities
 export async function getPartnerActivitiesHandler(

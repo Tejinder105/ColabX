@@ -14,7 +14,7 @@ import {
     getPartnerByIdForOrg,
 } from "./deals.service.js";
 
-// ── Deal CRUD ───────────────────────────────────────────────────────────────
+// Deal CRUD ->
 
 // POST /api/deals
 export async function createDealHandler(
@@ -27,7 +27,6 @@ export async function createDealHandler(
             return;
         }
 
-        // Validate that the partner belongs to this org
         const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
         if (!partnerRow) {
             res.status(404).json({ error: "Partner not found in this organization" });
@@ -48,7 +47,7 @@ export async function getOrgDealsHandler(
     res: Response
 ): Promise<void> {
     try {
-        if (!req.org) {
+        if (!req.org || !req.user || !req.membership) {
             res.status(403).json({ error: "Access denied" });
             return;
         }
@@ -57,6 +56,11 @@ export async function getOrgDealsHandler(
         if (req.query.stage) filters.stage = req.query.stage as string;
         if (req.query.partnerId) filters.partnerId = req.query.partnerId as string;
         if (req.query.assignedUser) filters.assignedUser = req.query.assignedUser as string;
+
+        // Partner role: can only see deals assigned to them
+        if (req.membership.role === "partner") {
+            filters.assignedUser = req.user.id;
+        }
 
         const deals = await getOrgDeals(req.org.id, filters);
         res.json({ deals });
@@ -120,7 +124,7 @@ export async function updateDealHandler(
     }
 }
 
-// DELETE /api/deals/:dealId (soft delete — marks as lost)
+// DELETE /api/deals/:dealId 
 export async function deleteDealHandler(
     req: AuthRequest,
     res: Response
@@ -139,7 +143,7 @@ export async function deleteDealHandler(
     }
 }
 
-// ── Deal Assignments ────────────────────────────────────────────────────────
+//  Deal Assignments ->
 
 // POST /api/deals/:dealId/assign
 export async function assignUserHandler(
@@ -154,14 +158,12 @@ export async function assignUserHandler(
 
         const { userId } = req.body;
 
-        // Verify the target user is a member of this organization
         const orgMember = await isOrgMember(req.org.id, userId);
         if (!orgMember) {
             res.status(400).json({ error: "User is not a member of this organization" });
             return;
         }
 
-        // Prevent duplicate assignment
         const existing = await getDealAssignmentRecord(req.deal.id, userId);
         if (existing) {
             res.status(409).json({ error: "User is already assigned to this deal" });

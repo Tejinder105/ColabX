@@ -197,8 +197,10 @@ export function useCreateInviteMutation() {
 
     return useMutation({
         mutationFn: (input: InviteInput) => createInvite(input),
-        onSuccess: (_data, variables) => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['org', variables.orgId, 'invitations'] });
+            // Return token for display
+            return { token: data.invitation.token };
         },
     });
 }

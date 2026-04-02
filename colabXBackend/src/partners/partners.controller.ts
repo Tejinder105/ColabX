@@ -1,8 +1,15 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
+import { eq, and, gt, isNull } from "drizzle-orm";
+import db from "../db/index.js";
+import { invitation, orgUser } from "../schemas/orgSchema.js";
+import { user } from "../schemas/authSchema.js";
 import {
     createPartner,
+    getPartnerByEmail,
+    linkUserToPartner,
     getOrgPartners,
+    getOrgPartnersForUser,
     getPartnerWithTeams,
     updatePartner,
     softDeletePartner,
@@ -18,8 +25,64 @@ export async function createPartnerHandler(
             return;
         }
 
+        const { contactEmail } = req.body;
+
+        // Prevent duplicate partner email within org
+        const existing = await getPartnerByEmail(req.org.id, contactEmail);
+        if (existing) {
+            res.status(409).json({ error: "A partner with this email already exists in this organization" });
+            return;
+        }
+
+        // Create partner with status=pending
         const created = await createPartner(req.org.id, req.user.id, req.body);
-        res.status(201).json({ partner: created });
+
+        if (!created) {
+            res.status(500).json({ error: "Failed to create partner" });
+            return;
+        }
+
+        // Check if user with this email already exists
+        const [existingUser] = await db
+            .select({ id: user.id })
+            .from(user)
+            .where(eq(user.email, contactEmail))
+            .limit(1);
+
+        if (existingUser) {
+            // Check if already an org member
+            const [existingMember] = await db
+                .select()
+                .from(orgUser)
+                .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.userId, existingUser.id)))
+                .limit(1);
+
+            if (existingMember) {
+                // User is already in the org — link directly and activate
+                await linkUserToPartner(created.id, existingUser.id);
+                const linked = { ...created, userId: existingUser.id, status: "active" as const };
+                res.status(201).json({ partner: linked, linked: true });
+                return;
+            }
+        }
+
+        // Create invitation for the partner
+        const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+        await db.insert(invitation).values({
+            id: crypto.randomUUID(),
+            orgId: req.org.id,
+            email: contactEmail,
+            token,
+            role: "partner",
+            expiresAt,
+        });
+
+        res.status(201).json({
+            partner: created,
+            invitation: { token, expiresAt },
+        });
     } catch (error) {
         console.error("Create partner error:", error);
         res.status(500).json({ error: "Failed to create partner" });
@@ -31,12 +94,16 @@ export async function getOrgPartnersHandler(
     res: Response
 ): Promise<void> {
     try {
-        if (!req.org) {
+        if (!req.org || !req.user || !req.membership) {
             res.status(403).json({ error: "Access denied" });
             return;
         }
 
-        const partners = await getOrgPartners(req.org.id);
+        // Partner role: can only see their own partner record
+        const partners = req.membership.role === "partner"
+            ? await getOrgPartnersForUser(req.org.id, req.user.id)
+            : await getOrgPartners(req.org.id);
+
         res.json({ partners });
     } catch (error) {
         console.error("Get partners error:", error);

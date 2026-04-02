@@ -2,9 +2,6 @@ import type { Response, NextFunction } from "express";
 import { getPartnerById } from "./partners.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
-// Verifies the partner exists and belongs to the current org.
-// Must run AFTER requireOrganization (requires req.org to be set).
-// Attaches req.partner on success.
 export async function requirePartner(
     req: AuthRequest,
     res: Response,

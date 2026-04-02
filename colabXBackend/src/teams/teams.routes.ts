@@ -39,9 +39,9 @@ router.post(
     createTeamHandler
 );
 
-router.get("/", requireOrganization, getOrgTeamsHandler);
+router.get("/", requireOrganization, requireRole("admin", "manager"), getOrgTeamsHandler);
 
-router.get("/:teamId", requireOrganization, requireTeam, getTeamByIdHandler);
+router.get("/:teamId", requireOrganization, requireTeam, requireRole("admin", "manager"), getTeamByIdHandler);
 
 router.patch(
     "/:teamId",
@@ -94,7 +94,7 @@ router.delete(
     removeTeamMemberHandler
 );
 
-// Team-related data (partners, deals, objectives, activity)
+// Team-related data
 router.get(
     "/:teamId/partners",
     requireOrganization,
