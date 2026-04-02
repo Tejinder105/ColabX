@@ -6,9 +6,9 @@ import {
     index,
     boolean,
 } from "drizzle-orm/pg-core";
-import { organization } from "../schemas/orgSchema.js";
-import { partner } from "../partners/partners.schema.js";
-import { user } from "../schemas/authSchema.js";
+import { organization } from "../schemas/orgSchema";
+import { partner } from "../partners/partners.schema";
+import { user } from "../schemas/authSchema";
 
 // Contact table — contacts belong to a partner
 export const contact = pgTable(

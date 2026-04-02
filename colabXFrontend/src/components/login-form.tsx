@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,8 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginInputs>();
   const signinMutation = useSigninMutation();
+  const [searchParams] = useSearchParams();
+  const authError = searchParams.get("error");
 
   const onSubmit = (data: LoginInputs) => {
     signinMutation.mutate(data);
@@ -48,6 +50,12 @@ export function LoginForm({
                   Login to your Colab <span className="text-primary"><Logo className="w-5 h-5" /></span> account
                 </p>
               </div>
+
+              {authError && (
+                <p className="text-sm text-destructive text-center rounded-md bg-destructive/10 p-2">
+                  Sign-in failed. Please try again.
+                </p>
+              )}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input

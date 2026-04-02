@@ -1,8 +1,8 @@
 import { relations } from "drizzle-orm";
 import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
-import { organization } from "./orgSchema.js";
-import { partner } from "../partners/partners.schema.js";
-import { user } from "./authSchema.js";
+import { organization } from "./orgSchema";
+import { partner } from "../partners/partners.schema";
+import { user } from "./authSchema";
 
 export const communication = pgTable(
     "communication",

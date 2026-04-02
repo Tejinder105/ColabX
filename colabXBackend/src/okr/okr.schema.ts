@@ -8,9 +8,9 @@ import {
     index,
     pgEnum,
 } from "drizzle-orm/pg-core";
-import { organization } from "../schemas/orgSchema.js";
-import { user } from "../schemas/authSchema.js";
-import { partner } from "../partners/partners.schema.js";
+import { organization } from "../schemas/orgSchema";
+import { user } from "../schemas/authSchema";
+import { partner } from "../partners/partners.schema";
 
 export const keyResultStatusEnum = pgEnum("keyResultStatus", [
     "on_track",

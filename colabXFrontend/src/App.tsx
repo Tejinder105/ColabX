@@ -28,6 +28,11 @@ const router = createBrowserRouter([
     path: "/",
     element: <LandingPage />,
   },
+  // Catch better-auth error redirects that land on the frontend
+  {
+    path: "/api/auth/error",
+    element: <Navigate to="/auth/login?error=auth_failed" replace />,
+  },
   // Redirect /login and /signup to /auth/*
   {
     path: "/login",
@@ -48,6 +53,10 @@ const router = createBrowserRouter([
       {
         path: "signup",
         element: <SignupForm />,
+      },
+      {
+        path: "error",
+        element: <Navigate to="/auth/login?error=auth_failed" replace />,
       },
     ],
   },
