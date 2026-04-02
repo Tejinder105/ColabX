@@ -322,7 +322,7 @@ export async function createInvite(
     const response = await fetch(`${API_BASE}/invite`, {
         method: 'POST',
         credentials: 'include',
-        headers: buildHeaders(),
+        headers: buildHeaders(input.orgId),
         body: JSON.stringify(input),
     });
 
