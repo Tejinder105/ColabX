@@ -3,15 +3,13 @@ import { SettingsHeader } from './components/settings-header';
 import { ProfileSettings } from './components/profile-settings';
 import { UserManagement } from './components/user-management';
 import { TeamManagement } from './components/team-management';
-import { PermissionsSettings } from './components/permissions-settings';
 import { AuditLogs } from './components/audit-logs';
-import { Building2, Users, ShieldCheck, FileClock, Network } from 'lucide-react';
+import { Building2, Users, FileClock, Network } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
     useOrgDetails,
     useOrgMembers,
     usePendingInvitations,
-    useOrgPermissions,
     useOrgAuditLogs,
     useUpdateOrgMutation,
     useDeleteOrgMutation,
@@ -44,7 +42,6 @@ export default function SettingsPage() {
     const { data: orgData } = useOrgDetails(activeOrgId);
     const { data: membersData } = useOrgMembers(activeOrgId);
     const { data: invitesData } = usePendingInvitations(activeOrgId);
-    const { data: permissionsData, isLoading: isPermissionsLoading } = useOrgPermissions(activeOrgId);
     const { data: auditData, isLoading: isAuditLoading } = useOrgAuditLogs(activeOrgId);
     const { data: teamsData } = useTeams();
 
@@ -167,10 +164,6 @@ export default function SettingsPage() {
                         <Network className="mr-2 h-4 w-4" />
                         Teams & Departments
                     </TabsTrigger>
-                    <TabsTrigger value="permissions" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:shadow-none px-4 py-3 rounded-none border-l-2 data-[state=active]:border-primary border-transparent">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        Role Permissions
-                    </TabsTrigger>
                     <TabsTrigger value="audit" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:shadow-none px-4 py-3 rounded-none border-l-2 data-[state=active]:border-primary border-transparent mt-4">
                         <FileClock className="mr-2 h-4 w-4" />
                         Audit Logs
@@ -207,10 +200,6 @@ export default function SettingsPage() {
                             onCreateTeam={handleCreateTeam}
                             isCreating={createTeam.isPending}
                         />
-                    </TabsContent>
-
-                    <TabsContent value="permissions" className="m-0 border-none p-0 outline-none">
-                        <PermissionsSettings permissions={permissions} isLoading={isPermissionsLoading} />
                     </TabsContent>
 
                     <TabsContent value="audit" className="m-0 border-none p-0 outline-none">
