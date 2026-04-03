@@ -2,14 +2,20 @@ import nodemailer from 'nodemailer';
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
+const SMTP_HOST = process.env.SMTP_HOST?.trim();
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+const SMTP_USER = process.env.SMTP_USER?.trim();
+const SMTP_PASS = process.env.SMTP_PASS?.trim();
+const SMTP_FROM = process.env.SMTP_FROM?.trim();
+
 // Create transporter using SMTP configuration
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  host: SMTP_HOST,
+  port: SMTP_PORT,
   secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: SMTP_USER,
+    pass: SMTP_PASS,
   },
 });
 
@@ -28,6 +34,10 @@ export async function sendInvitationEmail({
   token,
   role,
 }: SendInvitationEmailInput): Promise<void> {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
+    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM.');
+  }
+
   const inviteLink = `${APP_URL}/auth?invite=${token}`;
   const roleLabels: Record<string, string> = {
     admin: 'Administrator',
@@ -105,14 +115,24 @@ ColabX — Partnership & OKR Management Platform
 If you didn't expect this invitation, you can safely ignore this email.
   `.trim();
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to,
-    subject,
-    html: htmlContent,
-    text: plainTextContent,
-  });
+  try {
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      to,
+      subject,
+      html: htmlContent,
+      text: plainTextContent,
+    });
 
-  console.log(`Invitation email sent to ${to}`);
+    console.log(`Invitation email sent to ${to}`);
+  } catch (error) {
+    const smtpError = error as { code?: string; responseCode?: number };
+    if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
+      throw new Error(
+        'SMTP authentication failed (535). For Gmail, enable 2-Step Verification and use a 16-character App Password as SMTP_PASS.',
+      );
+    }
+    throw error;
+  }
 }
 
