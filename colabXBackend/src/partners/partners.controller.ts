@@ -16,6 +16,7 @@ import {
     getPartnerWithTeams,
     updatePartner,
     softDeletePartner,
+    hardDeletePartner,
     normalizeEmail,
 } from "./partners.service.js";
 
@@ -378,7 +379,7 @@ export async function deletePartnerHandler(
             return;
         }
 
-        const updated = await softDeletePartner(req.partner.id);
+        const deleted = await hardDeletePartner(req.partner.id);
 
         // Log the deletion
         try {
@@ -387,13 +388,13 @@ export async function deletePartnerHandler(
                 req.user.id,
                 "partner",
                 req.partner.id,
-                `deactivated partner "${req.partner.name}"`
+                `deleted partner "${req.partner.name}"`
             );
         } catch (activityError) {
             console.error("Activity log write failed:", activityError);
         }
 
-        res.json({ partner: updated });
+        res.json({ partner: deleted });
     } catch (error) {
         console.error("Delete partner error:", error);
         res.status(500).json({ error: "Failed to delete partner" });

@@ -275,27 +275,43 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'admin')}>
-                                                    Set as Admin
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'manager')}>
-                                                    Set as Manager
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'partner')}>
-                                                    Set as Partner
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    className="text-destructive font-medium"
-                                                    disabled={isRemoving}
-                                                    onSelect={() => {
-                                                        if (window.confirm(`Remove ${user.name} from the organization?`)) {
-                                                            onRemove?.(user.id);
-                                                        }
-                                                    }}
-                                                >
-                                                    Remove account
-                                                </DropdownMenuItem>
+                                                {user.role === 'Partner' ? (
+                                                    <DropdownMenuItem
+                                                        className="text-destructive font-medium"
+                                                        disabled={isRemoving}
+                                                        onSelect={() => {
+                                                            if (window.confirm(`Delete partner ${user.name}? This action cannot be undone.`)) {
+                                                                onRemove?.(user.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <>
+                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'admin')}>
+                                                            Set as Admin
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'manager')}>
+                                                            Set as Manager
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'partner')}>
+                                                            Set as Partner
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive font-medium"
+                                                            disabled={isRemoving}
+                                                            onSelect={() => {
+                                                                if (window.confirm(`Remove ${user.name} from the organization?`)) {
+                                                                    onRemove?.(user.id);
+                                                                }
+                                                            }}
+                                                        >
+                                                            Remove account
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     )}

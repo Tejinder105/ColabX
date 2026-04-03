@@ -128,6 +128,15 @@ export async function softDeletePartner(partnerId: string) {
     return updated;
 }
 
+export async function hardDeletePartner(partnerId: string) {
+    const [deleted] = await db
+        .delete(partner)
+        .where(eq(partner.id, partnerId))
+        .returning();
+
+    return deleted;
+}
+
 export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
     const [result] = await db
         .select({ id: orgUser.id })
