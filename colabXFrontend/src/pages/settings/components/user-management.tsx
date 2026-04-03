@@ -11,16 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MoreHorizontal, Plus, Search, X, Loader2, Copy, Check } from 'lucide-react';
+import { Plus, Search, X, Loader2, Copy, Check, Trash2 } from 'lucide-react';
 import type { OrgUser, UserRole, UserStatus } from '@/types/settings';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -41,7 +33,6 @@ import { useState } from 'react';
 interface UserManagementProps {
     users: OrgUser[];
     onRemove?: (userId: string) => void;
-    onChangeRole?: (userId: string, role: 'admin' | 'manager' | 'partner') => void;
     onInvite?: (email: string, role: string, partnerType?: string, partnerIndustry?: string) => void;
     isRemoving?: boolean;
     isInviting?: boolean;
@@ -267,53 +258,19 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                                 <TableCell className="text-muted-foreground">{user.lastActive || '-'}</TableCell>
                                 <TableCell className="text-right pr-4">
                                     {user.status !== 'Invited' && (
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                {user.role === 'Partner' ? (
-                                                    <DropdownMenuItem
-                                                        className="text-destructive font-medium"
-                                                        disabled={isRemoving}
-                                                        onSelect={() => {
-                                                            if (window.confirm(`Delete partner ${user.name}? This action cannot be undone.`)) {
-                                                                onRemove?.(user.id);
-                                                            }
-                                                        }}
-                                                    >
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                ) : (
-                                                    <>
-                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'admin')}>
-                                                            Set as Admin
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'manager')}>
-                                                            Set as Manager
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onSelect={() => onChangeRole?.(user.id, 'partner')}>
-                                                            Set as Partner
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            className="text-destructive font-medium"
-                                                            disabled={isRemoving}
-                                                            onSelect={() => {
-                                                                if (window.confirm(`Remove ${user.name} from the organization?`)) {
-                                                                    onRemove?.(user.id);
-                                                                }
-                                                            }}
-                                                        >
-                                                            Remove account
-                                                        </DropdownMenuItem>
-                                                    </>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => {
+                                                if (window.confirm(`Delete ${user.name}? This action cannot be undone.`)) {
+                                                    onRemove?.(user.id);
+                                                }
+                                            }}
+                                            disabled={isRemoving}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     )}
                                 </TableCell>
                             </TableRow>
