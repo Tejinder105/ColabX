@@ -36,7 +36,7 @@ interface InvitationData {
   };
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 export function InviteForm({
   className,
@@ -77,7 +77,7 @@ export function InviteForm({
       }
 
       try {
-        const response = await fetch(`${API_BASE}/api/invite/${token}`, {
+        const response = await fetch(`${API_BASE}/invite/${token}`, {
           method: "GET",
         });
 
@@ -128,7 +128,7 @@ export function InviteForm({
           // After signup, accept the invitation
           try {
             const acceptResponse = await fetch(
-              `${API_BASE}/api/invite/${token}/accept`,
+              `${API_BASE}/invite/${token}/accept`,
               {
                 method: "POST",
                 credentials: "include",
