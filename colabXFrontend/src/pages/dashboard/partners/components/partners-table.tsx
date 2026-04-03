@@ -202,7 +202,6 @@ export function PartnersTable({
                                 </TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Industry</TableHead>
-                                <TableHead>Owner</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>
                                     <Button variant="ghost" size="sm" className="-ml-3 h-8 data-[state=open]:bg-accent" onClick={() => handleSort('performanceScore')}>
@@ -222,7 +221,7 @@ export function PartnersTable({
                         <TableBody>
                             {partners.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="h-64 text-center">
+                                    <TableCell colSpan={7} className="h-64 text-center">
                                         <div className="flex flex-col items-center justify-center space-y-3">
                                             <div className="bg-muted p-4 rounded-full">
                                                 <Filter className="h-8 w-8 text-muted-foreground" />
@@ -237,7 +236,7 @@ export function PartnersTable({
                                 </TableRow>
                             ) : filteredPartners.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-48 text-center">
+                                    <TableCell colSpan={7} className="h-48 text-center">
                                         <div className="flex flex-col items-center justify-center space-y-2">
                                             <Search className="h-6 w-6 text-muted-foreground mb-2" />
                                             <h4 className="font-semibold">No results found</h4>
@@ -259,7 +258,6 @@ export function PartnersTable({
                                             <Badge variant="outline">{partner.type}</Badge>
                                         </TableCell>
                                         <TableCell>{partner.industry}</TableCell>
-                                        <TableCell>{partner.ownerName}</TableCell>
                                         <TableCell>
                                             {getUIStatusBadge(partner.uiStatus)}
                                         </TableCell>

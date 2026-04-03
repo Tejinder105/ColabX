@@ -126,13 +126,15 @@ export default function SettingsPage() {
         changeMemberRole.mutate({ orgId: activeOrgId, memberId: userId, role });
     };
 
-    const handleInvite = (email: string, role: string) => {
+    const handleInvite = (email: string, role: string, partnerType?: string, partnerIndustry?: string) => {
         if (!activeOrgId) return;
         createInvite.mutate(
             {
                 orgId: activeOrgId,
                 email,
                 role: role as 'admin' | 'manager' | 'partner',
+                partnerType,
+                partnerIndustry,
             },
             {
                 onSuccess: (data) => {

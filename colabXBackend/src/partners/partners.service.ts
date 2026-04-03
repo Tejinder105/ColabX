@@ -1,7 +1,14 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import db from "../db/index.js";
 import { partner } from "./partners.schema.js";
 import { orgUser } from "../schemas/orgSchema.js";
+
+/**
+ * Normalize email for consistent storage and comparison
+ */
+export function normalizeEmail(email: string): string {
+    return email.toLowerCase().trim();
+}
 
 export async function createPartner(
     orgId: string,
@@ -21,7 +28,7 @@ export async function createPartner(
             orgId,
             name: data.name,
             type: data.type,
-            contactEmail: data.contactEmail,
+            contactEmail: normalizeEmail(data.contactEmail),
             industry: data.industry ?? null,
             onboardingDate: data.onboardingDate
                 ? new Date(data.onboardingDate)
@@ -34,10 +41,16 @@ export async function createPartner(
 }
 
 export async function getPartnerByEmail(orgId: string, email: string) {
+    const normalizedEmail = normalizeEmail(email);
     const [result] = await db
         .select()
         .from(partner)
-        .where(and(eq(partner.orgId, orgId), eq(partner.contactEmail, email)))
+        .where(
+            and(
+                eq(partner.orgId, orgId),
+                sql`lower(${partner.contactEmail}) = ${normalizedEmail}`
+            )
+        )
         .limit(1);
 
     return result;
@@ -91,6 +104,11 @@ export async function updatePartner(
     partnerId: string,
     data: Record<string, string | Date | null | undefined>
 ) {
+    // Normalize email if being updated
+    if (data.contactEmail && typeof data.contactEmail === 'string') {
+        data.contactEmail = normalizeEmail(data.contactEmail);
+    }
+    
     const [updated] = await db
         .update(partner)
         .set(data)

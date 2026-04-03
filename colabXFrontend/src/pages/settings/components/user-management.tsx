@@ -42,18 +42,38 @@ interface UserManagementProps {
     users: OrgUser[];
     onRemove?: (userId: string) => void;
     onChangeRole?: (userId: string, role: 'admin' | 'manager' | 'partner') => void;
-    onInvite?: (email: string, role: string) => void;
+    onInvite?: (email: string, role: string, partnerType?: string, partnerIndustry?: string) => void;
     isRemoving?: boolean;
     isInviting?: boolean;
     invitationToken?: string | null;
     onTokenDismiss?: () => void;
 }
 
+// Partner types and industries - keep in sync with backend
+const PARTNER_TYPES = [
+    { value: 'reseller', label: 'Reseller' },
+    { value: 'agent', label: 'Agent' },
+    { value: 'technology', label: 'Technology Partner' },
+    { value: 'distributor', label: 'Distributor' },
+] as const;
+
+const PARTNER_INDUSTRIES = [
+    { value: 'Software', label: 'Software' },
+    { value: 'Finance', label: 'Finance' },
+    { value: 'Healthcare', label: 'Healthcare' },
+    { value: 'Retail', label: 'Retail' },
+    { value: 'Manufacturing', label: 'Manufacturing' },
+    { value: 'Defense', label: 'Defense' },
+    { value: 'Other', label: 'Other' },
+] as const;
+
 export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'partner'>('manager');
+    const [partnerType, setPartnerType] = useState<string>('');
+    const [partnerIndustry, setPartnerIndustry] = useState<string>('');
     const [copied, setCopied] = useState(false);
 
     const filteredUsers = users.filter((u) =>
@@ -65,9 +85,23 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
     const handleSendInvite = (event?: React.MouseEvent) => {
         event?.preventDefault();
         if (!inviteEmail.trim()) return;
-        // Show token will be handled by the parent component that has the mutation
-        // For now, just pass data and let parent handle - we'll intercept in settings page
-        onInvite?.(inviteEmail.trim(), inviteRole);
+        // Partner role requires type selection
+        if (inviteRole === 'partner' && !partnerType) return;
+        onInvite?.(
+            inviteEmail.trim(),
+            inviteRole,
+            inviteRole === 'partner' ? partnerType : undefined,
+            inviteRole === 'partner' ? partnerIndustry || undefined : undefined
+        );
+    };
+
+    // Reset partner fields when role changes away from partner
+    const handleRoleChange = (role: 'admin' | 'manager' | 'partner') => {
+        setInviteRole(role);
+        if (role !== 'partner') {
+            setPartnerType('');
+            setPartnerIndustry('');
+        }
     };
 
     const copyToClipboard = (text: string) => {
@@ -121,40 +155,89 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
             {/* Inline invite form */}
             {showInviteForm && (
                 <div className="px-6 py-3 border-t bg-muted/20">
-                    <div className="flex flex-col sm:flex-row items-end gap-3">
-                        <div className="flex-1 grid gap-1.5">
-                            <Label htmlFor="inviteEmail" className="text-xs text-muted-foreground">Email address</Label>
-                            <Input
-                                id="inviteEmail"
-                                type="email"
-                                placeholder="user@example.com"
-                                value={inviteEmail}
-                                onChange={(e) => setInviteEmail(e.target.value)}
-                                className="h-9"
-                            />
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row items-end gap-3">
+                            <div className="flex-1 grid gap-1.5">
+                                <Label htmlFor="inviteEmail" className="text-xs text-muted-foreground">Email address</Label>
+                                <Input
+                                    id="inviteEmail"
+                                    type="email"
+                                    placeholder="user@example.com"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                    className="h-9"
+                                />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label className="text-xs text-muted-foreground">Role</Label>
+                                <Select value={inviteRole} onValueChange={(v) => handleRoleChange(v as typeof inviteRole)}>
+                                    <SelectTrigger className="h-9 w-32">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="manager">Manager</SelectItem>
+                                        <SelectItem value="partner">Partner</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {inviteRole !== 'partner' && (
+                                <Button
+                                    size="sm"
+                                    className="h-9"
+                                    onClick={handleSendInvite}
+                                    disabled={!inviteEmail.trim() || isInviting}
+                                >
+                                    {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Send Invite
+                                </Button>
+                            )}
                         </div>
-                        <div className="grid gap-1.5">
-                            <Label className="text-xs text-muted-foreground">Role</Label>
-                            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as typeof inviteRole)}>
-                                <SelectTrigger className="h-9 w-32">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="manager">Manager</SelectItem>
-                                    <SelectItem value="partner">Partner</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Button
-                            size="sm"
-                            className="h-9"
-                            onClick={handleSendInvite}
-                            disabled={!inviteEmail.trim() || isInviting}
-                        >
-                            {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Send Invite
-                        </Button>
+
+                        {/* Partner-specific fields */}
+                        {inviteRole === 'partner' && (
+                            <div className="flex flex-col sm:flex-row items-end gap-3 pt-2 border-t border-muted-foreground/10">
+                                <div className="grid gap-1.5">
+                                    <Label className="text-xs text-muted-foreground">Partner Type *</Label>
+                                    <Select value={partnerType} onValueChange={setPartnerType}>
+                                        <SelectTrigger className="h-9 w-44">
+                                            <SelectValue placeholder="Select type..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PARTNER_TYPES.map((type) => (
+                                                <SelectItem key={type.value} value={type.value}>
+                                                    {type.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label className="text-xs text-muted-foreground">Industry</Label>
+                                    <Select value={partnerIndustry} onValueChange={setPartnerIndustry}>
+                                        <SelectTrigger className="h-9 w-44">
+                                            <SelectValue placeholder="Select industry..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PARTNER_INDUSTRIES.map((industry) => (
+                                                <SelectItem key={industry.value} value={industry.value}>
+                                                    {industry.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    className="h-9"
+                                    onClick={handleSendInvite}
+                                    disabled={!inviteEmail.trim() || !partnerType || isInviting}
+                                >
+                                    {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Send Invite
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,5 +1,5 @@
 import type { Response } from "express";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, isNull, sql } from "drizzle-orm";
 import db from "../db/index.js";
 import { invitation, orgUser, organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
@@ -12,8 +12,34 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function generateToken(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+/**
+ * Normalize email for consistent storage and comparison
+ */
+function normalizeEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+/**
+ * Generate unique invitation token with collision retry
+ */
+async function generateUniqueToken(maxRetries = 3): Promise<string> {
+  for (let i = 0; i < maxRetries; i++) {
+    const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+    
+    // Check if token already exists
+    const [existing] = await db
+      .select({ id: invitation.id })
+      .from(invitation)
+      .where(eq(invitation.token, token))
+      .limit(1);
+    
+    if (!existing) {
+      return token;
+    }
+  }
+  
+  // Fallback to full UUID if collisions persist (extremely unlikely)
+  return crypto.randomUUID().replace(/-/g, "").toUpperCase();
 }
 
 // Create invitation (admin/manager only)
@@ -22,7 +48,9 @@ export async function createInvitation(
   res: Response,
 ): Promise<void> {
   try {
-    const { orgId, email, role = "partner" } = req.body;
+    const { orgId, role = "partner", partnerType, partnerIndustry } = req.body;
+    // Email is already normalized by validation schema
+    const email = normalizeEmail(req.body.email);
     const userId = req.user?.id;
 
     if (!userId) {
@@ -45,11 +73,11 @@ export async function createInvitation(
       return;
     }
 
-    // Check if target email is already a member
+    // Check if target email is already a member (case-insensitive)
     const [existingUser] = await db
       .select({ id: user.id })
       .from(user)
-      .where(eq(user.email, email))
+      .where(sql`lower(${user.email}) = ${email}`)
       .limit(1);
 
     if (existingUser) {
@@ -69,14 +97,14 @@ export async function createInvitation(
       }
     }
 
-    // Check for existing pending invitation
+    // Check for existing pending invitation (case-insensitive)
     const [existingInvite] = await db
       .select()
       .from(invitation)
       .where(
         and(
           eq(invitation.orgId, orgId),
-          eq(invitation.email, email),
+          sql`lower(${invitation.email}) = ${email}`,
           isNull(invitation.usedAt),
           gt(invitation.expiresAt, new Date()),
         ),
@@ -113,7 +141,8 @@ export async function createInvitation(
       return;
     }
 
-    const token = generateToken();
+    // Generate unique token with collision handling
+    const token = await generateUniqueToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const insertedInvites = await db
@@ -121,9 +150,12 @@ export async function createInvitation(
       .values({
         id: generateId(),
         orgId,
-        email,
+        email, // Already normalized
         token,
         role,
+        // Store partner details if role is partner
+        partnerType: role === "partner" ? partnerType : null,
+        partnerIndustry: role === "partner" ? partnerIndustry : null,
         expiresAt,
       })
       .returning();
@@ -250,6 +282,8 @@ export async function acceptInvitation(
       return;
     }
 
+    const normalizedUserEmail = normalizeEmail(userEmail);
+
     const [invite] = await db
       .select()
       .from(invitation)
@@ -268,8 +302,9 @@ export async function acceptInvitation(
       return;
     }
 
-    // Strict email match
-    if (invite.email.toLowerCase() !== userEmail.toLowerCase()) {
+    // Strict email match (case-insensitive)
+    const normalizedInviteEmail = normalizeEmail(invite.email);
+    if (normalizedInviteEmail !== normalizedUserEmail) {
       res.status(403).json({
         error: "This invitation was sent to a different email address",
       });
@@ -304,13 +339,14 @@ export async function acceptInvitation(
 
       // If partner role, ensure partner record exists and link user
       if (invite.role === "partner") {
+        // Use case-insensitive match for partner lookup
         const [existingPartner] = await tx
           .select({ id: partner.id })
           .from(partner)
           .where(
             and(
               eq(partner.orgId, invite.orgId),
-              eq(partner.contactEmail, invite.email),
+              sql`lower(${partner.contactEmail}) = ${normalizedInviteEmail}`,
             )
           )
           .limit(1);
@@ -322,14 +358,16 @@ export async function acceptInvitation(
             .set({ userId, status: "active" })
             .where(eq(partner.id, existingPartner.id));
         } else {
-          // Auto-create partner record if none exists
+          // Auto-create partner record using stored invitation data
+          const partnerType = invite.partnerType || "reseller";
           await tx.insert(partner).values({
             id: crypto.randomUUID(),
             orgId: invite.orgId,
             name: req.user?.name || invite.email,
-            type: "reseller", // Default type for auto-created partners
+            type: partnerType as "reseller" | "agent" | "technology" | "distributor",
+            industry: invite.partnerIndustry || undefined,
             status: "active",
-            contactEmail: invite.email,
+            contactEmail: normalizedInviteEmail, // Store normalized
             userId,
             createdBy: userId,
           });

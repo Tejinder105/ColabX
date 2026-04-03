@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { AddPartnerDialog } from './add-partner-dialog';
 
 export function PartnersHeader() {
     return (
@@ -16,7 +15,6 @@ export function PartnersHeader() {
                     <Download className="mr-2 h-4 w-4" />
                     Import CSV
                 </Button>
-                <AddPartnerDialog />
             </div>
         </div>
     );

@@ -1,9 +1,12 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, isNull, sql } from "drizzle-orm";
 import db from "../db/index.js";
-import { invitation, orgUser } from "../schemas/orgSchema.js";
+import { invitation, orgUser, organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
+import { partner } from "./partners.schema.js";
+import { sendInvitationEmail } from "../utils/email.js";
+import { createActivity } from "../collaboration/collaboration.service.js";
 import {
     createPartner,
     getPartnerByEmail,
@@ -13,7 +16,31 @@ import {
     getPartnerWithTeams,
     updatePartner,
     softDeletePartner,
+    normalizeEmail,
 } from "./partners.service.js";
+
+/**
+ * Generate a unique invitation token with collision retry
+ */
+async function generateUniqueToken(maxRetries = 3): Promise<string> {
+    for (let i = 0; i < maxRetries; i++) {
+        const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+        
+        // Check if token already exists
+        const [existing] = await db
+            .select({ id: invitation.id })
+            .from(invitation)
+            .where(eq(invitation.token, token))
+            .limit(1);
+        
+        if (!existing) {
+            return token;
+        }
+    }
+    
+    // Fallback to full UUID if collisions persist (extremely unlikely)
+    return crypto.randomUUID().replace(/-/g, "").toUpperCase();
+}
 
 export async function createPartnerHandler(
     req: AuthRequest,
@@ -26,63 +53,127 @@ export async function createPartnerHandler(
         }
 
         const { contactEmail } = req.body;
+        const normalizedContactEmail = normalizeEmail(contactEmail);
 
-        // Prevent duplicate partner email within org
-        const existing = await getPartnerByEmail(req.org.id, contactEmail);
+        // Prevent duplicate partner email within org (case-insensitive)
+        const existing = await getPartnerByEmail(req.org.id, normalizedContactEmail);
         if (existing) {
             res.status(409).json({ error: "A partner with this email already exists in this organization" });
             return;
         }
 
-        // Create partner with status=pending
-        const created = await createPartner(req.org.id, req.user.id, req.body);
+        // Use transaction for atomic partner + invitation creation
+        const result = await db.transaction(async (tx) => {
+            // Create partner with status=pending
+            const [created] = await tx
+                .insert(partner)
+                .values({
+                    id: crypto.randomUUID(),
+                    orgId: req.org!.id,
+                    name: req.body.name,
+                    type: req.body.type,
+                    contactEmail: normalizedContactEmail,
+                    industry: req.body.industry ?? null,
+                    onboardingDate: req.body.onboardingDate
+                        ? new Date(req.body.onboardingDate)
+                        : null,
+                    createdBy: req.user!.id,
+                })
+                .returning();
 
-        if (!created) {
-            res.status(500).json({ error: "Failed to create partner" });
-            return;
-        }
+            if (!created) {
+                throw new Error("Failed to create partner");
+            }
 
-        // Check if user with this email already exists
-        const [existingUser] = await db
-            .select({ id: user.id })
-            .from(user)
-            .where(eq(user.email, contactEmail))
-            .limit(1);
-
-        if (existingUser) {
-            // Check if already an org member
-            const [existingMember] = await db
-                .select()
-                .from(orgUser)
-                .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.userId, existingUser.id)))
+            // Check if user with this email already exists
+            const [existingUser] = await tx
+                .select({ id: user.id })
+                .from(user)
+                .where(sql`lower(${user.email}) = ${normalizedContactEmail}`)
                 .limit(1);
 
-            if (existingMember) {
-                // User is already in the org — link directly and activate
-                await linkUserToPartner(created.id, existingUser.id);
-                const linked = { ...created, userId: existingUser.id, status: "active" as const };
-                res.status(201).json({ partner: linked, linked: true });
-                return;
+            if (existingUser) {
+                // Check if already an org member
+                const [existingMember] = await tx
+                    .select()
+                    .from(orgUser)
+                    .where(and(eq(orgUser.orgId, req.org!.id), eq(orgUser.userId, existingUser.id)))
+                    .limit(1);
+
+                if (existingMember) {
+                    // User is already in the org — link directly and activate
+                    const [linked] = await tx
+                        .update(partner)
+                        .set({ userId: existingUser.id, status: "active" })
+                        .where(eq(partner.id, created.id))
+                        .returning();
+
+                    return { partner: linked, linked: true, invitation: null };
+                }
+            }
+
+            // Generate unique token and create invitation
+            const token = await generateUniqueToken();
+            const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+            await tx.insert(invitation).values({
+                id: crypto.randomUUID(),
+                orgId: req.org!.id,
+                email: normalizedContactEmail,
+                token,
+                role: "partner",
+                expiresAt,
+            });
+
+            // Log activity
+            try {
+                await createActivity(
+                    req.org!.id,
+                    req.user!.id,
+                    "partner",
+                    created.id,
+                    `created partner "${created.name}" and sent invitation`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+
+            return { partner: created, linked: false, invitation: { token, expiresAt } };
+        });
+
+        // Send invitation email outside transaction (non-critical)
+        if (result.invitation) {
+            try {
+                const [org] = await db
+                    .select({ name: organization.name })
+                    .from(organization)
+                    .where(eq(organization.id, req.org.id))
+                    .limit(1);
+
+                if (org) {
+                    const inviterName = req.user?.name || "Someone";
+                    await sendInvitationEmail({
+                        to: normalizedContactEmail,
+                        orgName: org.name,
+                        invitedBy: inviterName,
+                        token: result.invitation.token,
+                        role: "partner",
+                    });
+                }
+            } catch (emailError) {
+                console.error("Failed to send partner invitation email:", emailError);
+                // Don't fail the request if email fails - invitation is created
             }
         }
 
-        // Create invitation for the partner
-        const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-        await db.insert(invitation).values({
-            id: crypto.randomUUID(),
-            orgId: req.org.id,
-            email: contactEmail,
-            token,
-            role: "partner",
-            expiresAt,
-        });
-
-        res.status(201).json({
-            partner: created,
-            invitation: { token, expiresAt },
-        });
+        if (result.linked) {
+            res.status(201).json({ partner: result.partner, linked: true });
+        } else {
+            res.status(201).json({
+                partner: result.partner,
+                invitation: result.invitation,
+            });
+        }
     } catch (error) {
         console.error("Create partner error:", error);
         res.status(500).json({ error: "Failed to create partner" });
@@ -121,23 +212,25 @@ export async function getMyPartnerProfileHandler(
         let selfPartner = (await getOrgPartnersForUser(req.org.id, req.user.id))[0];
 
         // Recovery path: if partner row isn't linked yet, match by contact email and link it.
+        // getPartnerByEmail already uses case-insensitive matching
         if (!selfPartner) {
-            const directEmailMatch = await getPartnerByEmail(req.org.id, req.user.email);
+            const emailMatch = await getPartnerByEmail(req.org.id, req.user.email);
 
-            if (directEmailMatch && !directEmailMatch.userId) {
-                await linkUserToPartner(directEmailMatch.id, req.user.id);
-                selfPartner = { ...directEmailMatch, userId: req.user.id, status: "active" };
-            } else if (!directEmailMatch) {
-                const orgPartners = await getOrgPartners(req.org.id);
-                const caseInsensitiveMatch = orgPartners.find(
-                    (partnerRow) =>
-                        partnerRow.contactEmail?.toLowerCase() === req.user?.email.toLowerCase() &&
-                        !partnerRow.userId
-                );
-
-                if (caseInsensitiveMatch) {
-                    await linkUserToPartner(caseInsensitiveMatch.id, req.user.id);
-                    selfPartner = { ...caseInsensitiveMatch, userId: req.user.id, status: "active" };
+            if (emailMatch && !emailMatch.userId) {
+                await linkUserToPartner(emailMatch.id, req.user.id);
+                selfPartner = { ...emailMatch, userId: req.user.id, status: "active" };
+                
+                // Log the auto-link activity
+                try {
+                    await createActivity(
+                        req.org.id,
+                        req.user.id,
+                        "partner",
+                        emailMatch.id,
+                        `auto-linked partner "${emailMatch.name}" to user account`
+                    );
+                } catch (activityError) {
+                    console.error("Activity log write failed:", activityError);
                 }
             }
         }
@@ -180,7 +273,7 @@ export async function updatePartnerHandler(
     res: Response
 ): Promise<void> {
     try {
-        if (!req.partner) {
+        if (!req.partner || !req.org || !req.user) {
             res.status(404).json({ error: "Partner not found" });
             return;
         }
@@ -189,7 +282,6 @@ export async function updatePartnerHandler(
         if (req.body.name !== undefined) updates.name = req.body.name;
         if (req.body.type !== undefined) updates.type = req.body.type;
         if (req.body.status !== undefined) updates.status = req.body.status;
-        if (req.body.contactEmail !== undefined) updates.contactEmail = req.body.contactEmail;
         if (req.body.industry !== undefined) updates.industry = req.body.industry;
         if (req.body.onboardingDate !== undefined) {
             updates.onboardingDate = req.body.onboardingDate
@@ -197,12 +289,66 @@ export async function updatePartnerHandler(
                 : null;
         }
 
+        // Handle email change with invitation cleanup
+        const oldEmail = req.partner.userId ? null : await getPartnerContactEmail(req.partner.id);
+        const newEmail = req.body.contactEmail !== undefined ? normalizeEmail(req.body.contactEmail) : null;
+        
+        if (newEmail && oldEmail && newEmail !== oldEmail) {
+            // Check for duplicate email in org
+            const existingWithEmail = await getPartnerByEmail(req.org.id, newEmail);
+            if (existingWithEmail && existingWithEmail.id !== req.partner.id) {
+                res.status(409).json({ error: "Another partner with this email already exists" });
+                return;
+            }
+            updates.contactEmail = newEmail;
+        } else if (req.body.contactEmail !== undefined) {
+            updates.contactEmail = normalizeEmail(req.body.contactEmail);
+        }
+
         if (Object.keys(updates).length === 0) {
             res.status(400).json({ error: "No fields to update" });
             return;
         }
 
-        const updated = await updatePartner(req.partner.id, updates);
+        // Use transaction to update partner and clean up old invitations if email changed
+        const updated = await db.transaction(async (tx) => {
+            // If email is changing and partner is not yet linked to a user, invalidate old invitations
+            if (newEmail && oldEmail && newEmail !== oldEmail && !req.partner!.userId) {
+                await tx
+                    .update(invitation)
+                    .set({ usedAt: new Date() }) // Mark as "used" to invalidate
+                    .where(
+                        and(
+                            eq(invitation.orgId, req.org!.id),
+                            sql`lower(${invitation.email}) = ${oldEmail}`,
+                            isNull(invitation.usedAt)
+                        )
+                    );
+            }
+
+            const [result] = await tx
+                .update(partner)
+                .set(updates)
+                .where(eq(partner.id, req.partner!.id))
+                .returning();
+
+            return result;
+        });
+
+        // Log the update
+        try {
+            const changedFields = Object.keys(updates).join(", ");
+            await createActivity(
+                req.org.id,
+                req.user.id,
+                "partner",
+                req.partner.id,
+                `updated partner "${req.partner.name}" (${changedFields})`
+            );
+        } catch (activityError) {
+            console.error("Activity log write failed:", activityError);
+        }
+
         res.json({ partner: updated });
     } catch (error) {
         console.error("Update partner error:", error);
@@ -210,17 +356,43 @@ export async function updatePartnerHandler(
     }
 }
 
+/**
+ * Helper to get partner's contact email by ID
+ */
+async function getPartnerContactEmail(partnerId: string): Promise<string | null> {
+    const [result] = await db
+        .select({ contactEmail: partner.contactEmail })
+        .from(partner)
+        .where(eq(partner.id, partnerId))
+        .limit(1);
+    return result?.contactEmail ? normalizeEmail(result.contactEmail) : null;
+}
+
 export async function deletePartnerHandler(
     req: AuthRequest,
     res: Response
 ): Promise<void> {
     try {
-        if (!req.partner) {
+        if (!req.partner || !req.org || !req.user) {
             res.status(404).json({ error: "Partner not found" });
             return;
         }
 
         const updated = await softDeletePartner(req.partner.id);
+
+        // Log the deletion
+        try {
+            await createActivity(
+                req.org.id,
+                req.user.id,
+                "partner",
+                req.partner.id,
+                `deactivated partner "${req.partner.name}"`
+            );
+        } catch (activityError) {
+            console.error("Activity log write failed:", activityError);
+        }
+
         res.json({ partner: updated });
     } catch (error) {
         console.error("Delete partner error:", error);

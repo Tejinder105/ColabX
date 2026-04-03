@@ -73,6 +73,8 @@ export interface InviteInput {
     orgId: string;
     email: string;
     role?: 'admin' | 'manager' | 'partner';
+    partnerType?: string;
+    partnerIndustry?: string;
 }
 
 export interface InviteValidationResponse {

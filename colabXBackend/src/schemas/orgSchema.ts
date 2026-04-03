@@ -10,6 +10,14 @@ import { user } from "./authSchema.js";
 
 export const roleEnum = pgEnum("orgRole", ["admin", "manager", "partner"]);
 
+// Partner-specific enums for invitation (reuse from partners schema)
+export const invitePartnerTypeEnum = pgEnum("invitePartnerType", [
+    "reseller",
+    "agent",
+    "technology",
+    "distributor",
+]);
+
 // Organization table
 export const organization = pgTable("organization", {
     id: text("id").primaryKey(),
@@ -53,6 +61,9 @@ export const invitation = pgTable(
         email: text("email").notNull(),
         token: text("token").notNull().unique(),
         role: roleEnum("role").notNull().default("partner"),
+        // Partner-specific fields (only used when role="partner")
+        partnerType: text("partnerType"), // reseller, agent, technology, distributor
+        partnerIndustry: text("partnerIndustry"), // Finance, Healthcare, etc.
         expiresAt: timestamp("expiresAt").notNull(),
         usedAt: timestamp("usedAt"),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
