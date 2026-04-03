@@ -6,16 +6,14 @@ const GMAIL_USER = process.env.GMAIL_USER?.trim();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN?.trim();
+const PASS= process.env.PASS?.trim();
 
 // Create transporter using Gmail OAuth 2.0
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    type: 'OAuth2',
     user: GMAIL_USER,
-    clientId: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
-    refreshToken: GOOGLE_REFRESH_TOKEN,
+    pass: PASS,
   },
 });
 
@@ -34,10 +32,9 @@ export async function sendInvitationEmail({
   token,
   role,
 }: SendInvitationEmailInput): Promise<void> {
-  if (!GMAIL_USER || !GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
-    throw new Error('Gmail OAuth2 is not configured. Set GMAIL_USER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.');
-  }
-
+if (!GMAIL_USER || !PASS) {
+  throw new Error('Gmail SMTP is not configured. Set GMAIL_USER and PASS.');
+}
   const inviteLink = `${APP_URL}/auth?invite=${token}`;
   const roleLabels: Record<string, string> = {
     admin: 'Administrator',
