@@ -89,8 +89,6 @@ export default function SettingsPage() {
         department: t.description ?? '',
     }));
 
-    const permissions = permissionsData?.permissions ?? [];
-
     const auditLogs = (auditData?.logs ?? []).map((log) => ({
         id: log.id,
         timestamp: new Date(log.createdAt).toLocaleString(),
