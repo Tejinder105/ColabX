@@ -19,7 +19,7 @@ const router = Router();
 // All contact routes require authentication
 router.use(authMiddleware);
 
-// ── Partner Contact Routes ──────────────────────────────────────────────────
+// Partner Contact Routes ─>
 
 // GET /api/partners/:partnerId/contacts
 router.get(
@@ -40,7 +40,7 @@ router.post(
     createContactHandler
 );
 
-// ── Direct Contact Routes ───────────────────────────────────────────────────
+// Direct Contact Routes ->
 
 // PATCH /api/contacts/:contactId
 router.patch(

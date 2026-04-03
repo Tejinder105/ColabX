@@ -60,7 +60,7 @@ export function DealPipeline({ stages, avgDealSize, winRate, avgDealAgeDays }: D
                                     <span className="font-bold text-sm">{formatCurrency(stage.value)}</span>
                                 </div>
 
-                                {/* Connecting Line Effect (Visual only, behind bars) */}
+                                    {/* Connector */}
                                 {index < stages.length - 1 && (
                                     <div
                                         className="absolute left-1/2 -translate-x-1/2 bottom-[-4px] w-[2px] h-4 bg-border z-0"

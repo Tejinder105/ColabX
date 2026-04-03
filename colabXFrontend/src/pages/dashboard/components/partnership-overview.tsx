@@ -30,24 +30,24 @@ const chartConfig = {
     },
     active: {
         label: "Active",
-        color: "var(--chart-1)", // Green
+        color: "var(--chart-1)", 
     },
     atRisk: {
         label: "At Risk",
-        color: "var(--chart-4)", // Orange
+        color: "var(--chart-4)", 
     },
     onboarding: {
         label: "Onboarding",
-        color: "var(--chart-2)", // Blue/Purple
+        color: "var(--chart-2)", 
     },
 } satisfies ChartConfig
 
 export function PartnershipOverview({ activePartners, atRiskPartners, onboardingPartners, tiers }: PartnershipOverviewProps) {
-    const chartData = [
+    const chartData = React.useMemo(() => [
         { status: "active", partners: activePartners, fill: "var(--color-active)" },
         { status: "atRisk", partners: atRiskPartners, fill: "var(--color-atRisk)" },
         { status: "onboarding", partners: onboardingPartners, fill: "var(--color-onboarding)" },
-    ]
+    ], [activePartners, atRiskPartners, onboardingPartners])
 
     const totalPartners = React.useMemo(() => {
         return chartData.reduce((acc, curr) => acc + curr.partners, 0)
@@ -119,7 +119,6 @@ export function PartnershipOverview({ activePartners, atRiskPartners, onboarding
                         </PieChart>
                     </ChartContainer>
 
-                    {/* Semantic Statistics below chart */}
                     <div className="flex w-full justify-center gap-6 mt-2 text-sm">
                         <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-chart-4" />

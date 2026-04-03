@@ -17,3 +17,7 @@ export const updateDealSchema = z.object({
 export const assignUserSchema = z.object({
     userId: z.string().min(1),
 });
+
+export const createMessageSchema = z.object({
+    content: z.string().min(1).max(5000).trim(),
+});

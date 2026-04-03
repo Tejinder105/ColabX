@@ -5,6 +5,11 @@ import {
     getDealById,
     getDeals,
     updateDeal,
+    assignUserToDeal,
+    removeUserFromDeal,
+    getDealMessages,
+    createDealMessage,
+    deleteDealMessage,
     type ApiDeal,
     type ApiDealStage,
     type CreateDealInput,
@@ -153,5 +158,73 @@ export function useDealDetails(dealId: string | undefined, enabled = true) {
         queryFn: () => getDealById(activeOrgId!, dealId!),
         enabled: !!activeOrgId && !!dealId && enabled,
         staleTime: 1000 * 30,
+    });
+}
+
+export function useAssignUserToDealMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, userId }: { dealId: string; userId: string }) =>
+            assignUserToDeal(activeOrgId!, dealId, userId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deals', activeOrgId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useRemoveUserFromDealMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, userId }: { dealId: string; userId: string }) =>
+            removeUserFromDeal(activeOrgId!, dealId, userId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deals', activeOrgId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+// ── Deal Messages ───────────────────────────────────────────────────────────────
+
+export function useDealMessages(dealId: string | undefined, enabled = true) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['deal-messages', activeOrgId, dealId],
+        queryFn: () => getDealMessages(activeOrgId!, dealId!),
+        enabled: !!activeOrgId && !!dealId && enabled,
+        staleTime: 1000 * 10, // 10 seconds - messages should be fresh
+        refetchInterval: 1000 * 30, // Poll every 30 seconds for new messages
+    });
+}
+
+export function useSendDealMessageMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, content }: { dealId: string; content: string }) =>
+            createDealMessage(activeOrgId!, dealId, content),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-messages', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useDeleteDealMessageMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, messageId }: { dealId: string; messageId: string }) =>
+            deleteDealMessage(activeOrgId!, dealId, messageId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-messages', activeOrgId, variables.dealId] });
+        },
     });
 }

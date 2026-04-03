@@ -4,9 +4,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileText, Download, Activity, MessageSquare } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { FileText, Download, Activity, MessageSquare, UserPlus, X, Users } from "lucide-react";
 import type { Deal } from "@/types/deal";
-import { useDealDetails } from "@/hooks/useDeals";
+import { useDealDetails, useAssignUserToDealMutation, useRemoveUserFromDealMutation } from "@/hooks/useDeals";
+import { useOrgMembers } from "@/hooks/useOrg";
+import { useAuthStore } from "@/stores/authStore";
+import { useRbac } from "@/hooks/useRbac";
+import { useState } from "react";
 
 interface DealDetailsSheetProps {
     deal: Deal | null;
@@ -16,11 +27,38 @@ interface DealDetailsSheetProps {
 
 export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetProps) {
     const { data: dealDetails } = useDealDetails(deal?.id, open && !!deal?.id);
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const { data: membersData } = useOrgMembers(activeOrgId);
+    const { canManageDeals } = useRbac();
+    
+    const assignUser = useAssignUserToDealMutation();
+    const removeUser = useRemoveUserFromDealMutation();
+    
+    const [selectedUserId, setSelectedUserId] = useState<string>("");
 
     if (!deal) return null;
 
     const assignments = dealDetails?.assignments ?? [];
     const activities = dealDetails?.activities ?? deal.activity ?? [];
+    
+    // Get members not already assigned to this deal
+    const assignedUserIds = new Set(assignments.map(a => a.userId));
+    const availableMembers = (membersData?.members ?? []).filter(
+        m => !assignedUserIds.has(m.userId)
+    );
+
+    const handleAssignUser = () => {
+        if (!selectedUserId || !deal.id) return;
+        assignUser.mutate(
+            { dealId: deal.id, userId: selectedUserId },
+            { onSuccess: () => setSelectedUserId("") }
+        );
+    };
+
+    const handleRemoveUser = (userId: string) => {
+        if (!deal.id) return;
+        removeUser.mutate({ dealId: deal.id, userId });
+    };
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -51,9 +89,12 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                 </div>
 
                 <div className="flex-1 overflow-hidden">
-                    <Tabs defaultValue="messages" className="w-full h-full flex flex-col">
+                    <Tabs defaultValue="assignees" className="w-full h-full flex flex-col">
                         <div className="px-6 pt-4 border-b border-white/5">
-                            <TabsList className="grid w-full grid-cols-3 max-w-[400px]">
+                            <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
+                                <TabsTrigger value="assignees" className="flex items-center gap-2">
+                                    <Users className="w-4 h-4" /> Assignees
+                                </TabsTrigger>
                                 <TabsTrigger value="messages" className="flex items-center gap-2">
                                     <MessageSquare className="w-4 h-4" /> Messages
                                 </TabsTrigger>
@@ -67,6 +108,87 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                         </div>
 
                         <ScrollArea className="flex-1 p-6">
+
+                            {/* ASSIGNEES TAB */}
+                            <TabsContent value="assignees" className="m-0 space-y-4">
+                                {/* Add Assignee Section - Only for Admin/Manager */}
+                                {canManageDeals && (
+                                    <div className="flex gap-2 items-center mb-6">
+                                        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue placeholder="Select a team member to assign..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableMembers.length === 0 ? (
+                                                    <SelectItem value="_none" disabled>
+                                                        All members are assigned
+                                                    </SelectItem>
+                                                ) : (
+                                                    availableMembers.map((member) => (
+                                                        <SelectItem key={member.userId} value={member.userId}>
+                                                            {member.userName} ({member.userEmail})
+                                                        </SelectItem>
+                                                    ))
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            onClick={handleAssignUser}
+                                            disabled={!selectedUserId || assignUser.isPending}
+                                            size="sm"
+                                        >
+                                            <UserPlus className="w-4 h-4 mr-2" />
+                                            Assign
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {/* Assignees List */}
+                                {assignments.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {assignments.map((assignment) => (
+                                            <div
+                                                key={assignment.id}
+                                                className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <Avatar className="w-10 h-10">
+                                                        <AvatarImage src={assignment.userImage ?? undefined} />
+                                                        <AvatarFallback>
+                                                            {assignment.userName?.charAt(0) ?? '?'}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{assignment.userName}</p>
+                                                        <p className="text-xs text-muted-foreground">{assignment.userEmail}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Assigned {new Date(assignment.assignedAt).toLocaleDateString()}
+                                                    </span>
+                                                    {canManageDeals && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                            onClick={() => handleRemoveUser(assignment.userId)}
+                                                            disabled={removeUser.isPending}
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-10 text-muted-foreground">
+                                        No one is assigned to this deal yet.
+                                        {canManageDeals && " Use the dropdown above to assign team members."}
+                                    </div>
+                                )}
+                            </TabsContent>
 
                             {/* MESSAGES TAB */}
                             <TabsContent value="messages" className="m-0 space-y-4">

@@ -11,9 +11,7 @@ export function useSignupMutation() {
     return useMutation({
         mutationFn: signupUser,
         onSuccess: () => {
-            // Clear any stale org data from previous sessions
             clearAuth();
-            // Invalidate all cached queries to ensure fresh data
             queryClient.clear();
             navigate("/onboarding");
         },
@@ -31,9 +29,7 @@ export function useSigninMutation() {
     return useMutation({
         mutationFn: signinUser,
         onSuccess: () => {
-            // Clear stale org data - fresh user may have different org memberships
             clearAuth();
-            // Invalidate all cached queries to ensure fresh data
             queryClient.clear();
             navigate("/dashboard");
         },

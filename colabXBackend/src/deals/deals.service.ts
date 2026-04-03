@@ -1,6 +1,6 @@
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, asc } from "drizzle-orm";
 import db from "../db/index.js";
-import { deal, dealAssignment } from "./deals.schema.js";
+import { deal, dealAssignment, dealMessage } from "./deals.schema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "../schemas/authSchema.js";
 import { orgUser } from "../schemas/orgSchema.js";
@@ -165,6 +165,31 @@ export async function getDealAssignmentRecord(dealId: string, userId: string) {
     return result;
 }
 
+export async function isUserAssignedToDeal(dealId: string, userId: string): Promise<boolean> {
+    const [result] = await db
+        .select({ id: dealAssignment.id })
+        .from(dealAssignment)
+        .where(
+            and(
+                eq(dealAssignment.dealId, dealId),
+                eq(dealAssignment.userId, userId)
+            )
+        )
+        .limit(1);
+
+    return !!result;
+}
+
+export async function getPartnerForUserInOrg(orgId: string, userId: string) {
+    const [result] = await db
+        .select({ id: partner.id, orgId: partner.orgId, userId: partner.userId })
+        .from(partner)
+        .where(and(eq(partner.orgId, orgId), eq(partner.userId, userId)))
+        .limit(1);
+
+    return result;
+}
+
 export async function assignUserToDeal(dealId: string, userId: string) {
     const [created] = await db
         .insert(dealAssignment)
@@ -221,6 +246,59 @@ export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
         .select()
         .from(partner)
         .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
+        .limit(1);
+
+    return result;
+}
+
+// ── Deal Message Functions ─────────────────────────────────────────────────────
+
+export async function createDealMessage(dealId: string, senderId: string, content: string) {
+    const [created] = await db
+        .insert(dealMessage)
+        .values({
+            id: crypto.randomUUID(),
+            dealId,
+            senderId,
+            content,
+        })
+        .returning();
+
+    return created;
+}
+
+export async function getDealMessages(dealId: string) {
+    return db
+        .select({
+            id: dealMessage.id,
+            dealId: dealMessage.dealId,
+            senderId: dealMessage.senderId,
+            content: dealMessage.content,
+            createdAt: dealMessage.createdAt,
+            senderName: user.name,
+            senderEmail: user.email,
+            senderImage: user.image,
+        })
+        .from(dealMessage)
+        .innerJoin(user, eq(dealMessage.senderId, user.id))
+        .where(eq(dealMessage.dealId, dealId))
+        .orderBy(asc(dealMessage.createdAt));
+}
+
+export async function deleteDealMessage(messageId: string) {
+    const [deleted] = await db
+        .delete(dealMessage)
+        .where(eq(dealMessage.id, messageId))
+        .returning();
+
+    return deleted;
+}
+
+export async function getDealMessageById(messageId: string) {
+    const [result] = await db
+        .select()
+        .from(dealMessage)
+        .where(eq(dealMessage.id, messageId))
         .limit(1);
 
     return result;

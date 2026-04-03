@@ -29,7 +29,6 @@ export function useCreateOrgMutation() {
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
             queryClient.invalidateQueries({ queryKey: ['organizations'] });
 
-            // New org creator is always admin
             setActiveOrg({
                 ...data.organization,
                 role: 'admin',
@@ -50,7 +49,6 @@ export function useValidateInvite(token: string | undefined) {
 }
 
 // Hook to accept invitation
-// mutationFn accepts { token, role } so the actual invite role is stored
 export function useAcceptInviteMutation() {
     const queryClient = useQueryClient();
     const setActiveOrg = useAuthStore((state) => state.setActiveOrg);
@@ -199,7 +197,6 @@ export function useCreateInviteMutation() {
         mutationFn: (input: InviteInput) => createInvite(input),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['org', variables.orgId, 'invitations'] });
-            // Return token for display
             return { token: data.invitation.token };
         },
     });

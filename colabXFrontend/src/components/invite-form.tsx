@@ -67,7 +67,6 @@ export function InviteForm({
 
   const signupMutation = useSignupMutation();
 
-  // Validate invitation token on mount
   useEffect(() => {
     const validateToken = async () => {
       if (!token) {
@@ -116,7 +115,7 @@ export function InviteForm({
       setError("Invitation token missing");
       return;
     }
-    // Pass the invite token in signup mutation
+
     signupMutation.mutate(
       {
         email: data.email,
@@ -125,7 +124,6 @@ export function InviteForm({
       },
       {
         onSuccess: async () => {
-          // After signup, accept the invitation
           try {
             const acceptResponse = await fetch(
               `${API_BASE}/invite/${token}/accept`,
@@ -140,7 +138,6 @@ export function InviteForm({
 
             if (acceptResponse.ok) {
               const result = await acceptResponse.json();
-              // Set the newly joined organization as active
               if (result.organization && inviteData) {
                 setActiveOrg({
                   id: result.organization.id,
@@ -150,7 +147,6 @@ export function InviteForm({
                   joinedAt: new Date().toISOString(),
                 });
               }
-              // Navigate to dashboard
               navigate("/dashboard");
             } else {
               const errorData = await acceptResponse.json();

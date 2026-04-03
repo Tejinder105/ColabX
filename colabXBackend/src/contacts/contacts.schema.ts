@@ -10,7 +10,7 @@ import { organization } from "../schemas/orgSchema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "../schemas/authSchema.js";
 
-// Contact table — contacts belong to a partner
+// Contact table 
 export const contact = pgTable(
     "contact",
     {

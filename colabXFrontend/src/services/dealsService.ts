@@ -144,3 +144,132 @@ export async function updateDeal(
 
     return response.json();
 }
+
+// ── Deal Assignment Operations ─────────────────────────────────────────────────
+
+export async function getDealAssignments(
+    orgId: string,
+    dealId: string
+): Promise<{ assignments: ApiDealAssignment[] }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/assign`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch deal assignments');
+    }
+
+    return response.json();
+}
+
+export async function assignUserToDeal(
+    orgId: string,
+    dealId: string,
+    userId: string
+): Promise<{ assignment: ApiDealAssignment }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/assign`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to assign user to deal');
+    }
+
+    return response.json();
+}
+
+export async function removeUserFromDeal(
+    orgId: string,
+    dealId: string,
+    userId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/assign/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to remove user from deal');
+    }
+
+    return response.json();
+}
+
+// ── Deal Message Operations ─────────────────────────────────────────────────────
+
+export interface ApiDealMessage {
+    id: string;
+    dealId: string;
+    senderId: string;
+    content: string;
+    createdAt: string;
+    senderName: string;
+    senderEmail: string;
+    senderImage: string | null;
+}
+
+export async function getDealMessages(
+    orgId: string,
+    dealId: string
+): Promise<{ messages: ApiDealMessage[] }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/messages`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch deal messages');
+    }
+
+    return response.json();
+}
+
+export async function createDealMessage(
+    orgId: string,
+    dealId: string,
+    content: string
+): Promise<{ message: ApiDealMessage }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/messages`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send message');
+    }
+
+    return response.json();
+}
+
+export async function deleteDealMessage(
+    orgId: string,
+    dealId: string,
+    messageId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/messages/${messageId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete message');
+    }
+
+    return response.json();
+}

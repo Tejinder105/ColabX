@@ -24,11 +24,12 @@ interface DealsTableProps {
     deals: Deal[];
     onRowClick: (deal: Deal) => void;
     onUpdateStage: (dealId: string, stage: DealStage) => void;
+    canManageDeals: boolean;
 }
 
 const STAGE_OPTIONS: DealStage[] = ['Lead', 'Proposal', 'Negotiation', 'Won', 'Lost'];
 
-export function DealsTable({ deals, onRowClick, onUpdateStage }: DealsTableProps) {
+export function DealsTable({ deals, onRowClick, onUpdateStage, canManageDeals }: DealsTableProps) {
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
@@ -69,7 +70,9 @@ export function DealsTable({ deals, onRowClick, onUpdateStage }: DealsTableProps
                                     </div>
                                     <h3 className="text-lg font-semibold">No deals found</h3>
                                     <p className="text-muted-foreground max-w-sm">
-                                        You don't have any deals yet. Try creating one!
+                                        {canManageDeals
+                                            ? "You don't have any deals yet. Try creating one!"
+                                            : "No deals are assigned to you yet."}
                                     </p>
                                 </div>
                             </TableCell>
@@ -99,19 +102,23 @@ export function DealsTable({ deals, onRowClick, onUpdateStage }: DealsTableProps
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRowClick(deal); }}>
                                                 View details
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            {STAGE_OPTIONS.map((stageOption) => (
-                                                <DropdownMenuItem
-                                                    key={stageOption}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onUpdateStage(deal.id, stageOption);
-                                                    }}
-                                                    disabled={deal.stage === stageOption}
-                                                >
-                                                    Move to {stageOption}
-                                                </DropdownMenuItem>
-                                            ))}
+                                            {canManageDeals ? (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    {STAGE_OPTIONS.map((stageOption) => (
+                                                        <DropdownMenuItem
+                                                            key={stageOption}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onUpdateStage(deal.id, stageOption);
+                                                            }}
+                                                            disabled={deal.stage === stageOption}
+                                                        >
+                                                            Move to {stageOption}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </>
+                                            ) : null}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>

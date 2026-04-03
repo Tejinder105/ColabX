@@ -25,7 +25,7 @@ export function useTeams() {
         queryKey: ['teams', activeOrgId],
         queryFn: () => getTeams(activeOrgId!),
         enabled: !!activeOrgId,
-        staleTime: 1000 * 60 * 2, // 2 minutes
+        staleTime: 1000 * 60 * 2, 
     });
 }
 

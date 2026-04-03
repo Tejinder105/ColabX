@@ -26,15 +26,15 @@ const chartConfig = {
     },
     active: {
         label: "Active",
-        color: "var(--chart-1)", // Green/Primary
+        color: "var(--chart-1)", 
     },
     atRisk: {
         label: "At Risk",
-        color: "var(--chart-4)", // Orange
+        color: "var(--chart-4)", 
     },
     onboarding: {
         label: "Onboarding",
-        color: "var(--chart-2)", // Blue/Purple
+        color: "var(--chart-2)",
     },
 } satisfies ChartConfig
 

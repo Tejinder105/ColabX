@@ -13,7 +13,7 @@ import {
 } from '@/services/collaborationService';
 import { useAuthStore } from '@/stores/authStore';
 
-// ── Communications Hooks ────────────────────────────────────────────────────
+// Communications Hooks - > 
 
 export function usePartnerCommunications(partnerId: string | undefined) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
@@ -40,7 +40,7 @@ export function useCreateCommunicationMutation(partnerId: string) {
     });
 }
 
-// ── Documents Hooks ─────────────────────────────────────────────────────────
+//  Documents Hooks ─────────────────────────────────────────────────────────
 
 export function usePartnerDocuments(partnerId: string | undefined) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
@@ -130,7 +130,7 @@ export function useUpdateDocumentVisibilityMutation() {
     });
 }
 
-// ── Activities Hooks ────────────────────────────────────────────────────────
+// Activities Hooks ->
 
 export function usePartnerActivities(partnerId: string | undefined) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);

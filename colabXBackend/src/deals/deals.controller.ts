@@ -12,6 +12,11 @@ import {
     removeUserFromDeal,
     isOrgMember,
     getPartnerByIdForOrg,
+    getPartnerForUserInOrg,
+    createDealMessage,
+    getDealMessages,
+    deleteDealMessage,
+    getDealMessageById,
 } from "./deals.service.js";
 
 // Deal CRUD ->
@@ -54,12 +59,30 @@ export async function getOrgDealsHandler(
 
         const filters: { stage?: string; partnerId?: string; assignedUser?: string } = {};
         if (req.query.stage) filters.stage = req.query.stage as string;
-        if (req.query.partnerId) filters.partnerId = req.query.partnerId as string;
-        if (req.query.assignedUser) filters.assignedUser = req.query.assignedUser as string;
+
+        const requestedPartnerId = req.query.partnerId as string | undefined;
+        const requestedAssignedUser = req.query.assignedUser as string | undefined;
+
+        if (requestedPartnerId) filters.partnerId = requestedPartnerId;
+        if (requestedAssignedUser) filters.assignedUser = requestedAssignedUser;
 
         // Partner role: can only see deals assigned to them
         if (req.membership.role === "partner") {
-            filters.assignedUser = req.user.id;
+            const linkedPartner = await getPartnerForUserInOrg(req.org.id, req.user.id);
+
+            // If partner explicitly requests partnerId, it must be their own partner record.
+            // Otherwise default to assignments-only view.
+            if (requestedPartnerId) {
+                if (!linkedPartner || linkedPartner.id !== requestedPartnerId) {
+                    res.status(403).json({ error: "Cannot view deals for another partner" });
+                    return;
+                }
+                filters.partnerId = linkedPartner.id;
+                delete filters.assignedUser;
+            } else {
+                filters.assignedUser = req.user.id;
+                delete filters.partnerId;
+            }
         }
 
         const deals = await getOrgDeals(req.org.id, filters);
@@ -221,5 +244,83 @@ export async function removeAssignmentHandler(
     } catch (error) {
         console.error("Remove assignment error:", error);
         res.status(500).json({ error: "Failed to remove assignment" });
+    }
+}
+
+// ── Deal Messages ──────────────────────────────────────────────────────────────
+
+// POST /api/deals/:dealId/messages
+export async function createMessageHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.deal || !req.user) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        const { content } = req.body;
+        const message = await createDealMessage(req.deal.id, req.user.id, content);
+
+        res.status(201).json({ message });
+    } catch (error) {
+        console.error("Create message error:", error);
+        res.status(500).json({ error: "Failed to create message" });
+    }
+}
+
+// GET /api/deals/:dealId/messages
+export async function getDealMessagesHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.deal) {
+            res.status(404).json({ error: "Deal not found" });
+            return;
+        }
+
+        const messages = await getDealMessages(req.deal.id);
+        res.json({ messages });
+    } catch (error) {
+        console.error("Get deal messages error:", error);
+        res.status(500).json({ error: "Failed to fetch messages" });
+    }
+}
+
+// DELETE /api/deals/:dealId/messages/:messageId
+export async function deleteMessageHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.deal || !req.user || !req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        const messageId = req.params.messageId as string;
+        const message = await getDealMessageById(messageId);
+
+        if (!message || message.dealId !== req.deal.id) {
+            res.status(404).json({ error: "Message not found" });
+            return;
+        }
+
+        // Only allow sender or admin/manager to delete
+        const isOwner = message.senderId === req.user.id;
+        const isAdminOrManager = req.membership.role === "admin" || req.membership.role === "manager";
+
+        if (!isOwner && !isAdminOrManager) {
+            res.status(403).json({ error: "You can only delete your own messages" });
+            return;
+        }
+
+        await deleteDealMessage(messageId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Delete message error:", error);
+        res.status(500).json({ error: "Failed to delete message" });
     }
 }

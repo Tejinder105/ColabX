@@ -37,7 +37,7 @@ export function TopPerformers({ partners, teams }: TopPerformersProps) {
     const navigate = useNavigate()
 
     return (
-        <Card className="col-span-1 lg:col-span-2"> {/* Span 2 cols */}
+        <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Trophy className="h-4 w-4 text-chart-4" />

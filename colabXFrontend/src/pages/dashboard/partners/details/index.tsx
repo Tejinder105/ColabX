@@ -176,6 +176,27 @@ const getUIStatusBadge = (uiStatus: string) => {
     }
 };
 
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+    }).format(value);
+}
+
+function titleCase(value: string) {
+    if (!value) return value;
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleDateString();
+}
+
 export default function PartnerDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -217,6 +238,13 @@ export default function PartnerDetailsPage() {
         activities: activitiesData?.activities ?? [],
     });
 
+    const partnerDeals = dealsData?.deals ?? [];
+    const totalDeals = partnerDeals.length;
+    const wonDeals = partnerDeals.filter((deal) => deal.stage === 'won').length;
+    const revenueFromPartner = partnerDeals
+        .filter((deal) => deal.stage === 'won')
+        .reduce((sum, deal) => sum + (deal.value ?? 0), 0);
+
     return (
         <div className="flex-1 space-y-6 p-8 pt-6 max-w-[1600px] mx-auto">
             {/* Header Area */}
@@ -254,7 +282,7 @@ export default function PartnerDetailsPage() {
             <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="overview">Overview & Performance</TabsTrigger>
-                    <TabsTrigger value="deals">Pipeline ({partner.openDealsCount})</TabsTrigger>
+                    <TabsTrigger value="deals">Deals ({totalDeals})</TabsTrigger>
                     <TabsTrigger value="communications">Communications</TabsTrigger>
                     <TabsTrigger value="documents">Documents</TabsTrigger>
                     <TabsTrigger value="notes">Internal Notes</TabsTrigger>
@@ -339,24 +367,47 @@ export default function PartnerDetailsPage() {
                 </TabsContent>
 
                 <TabsContent value="deals" className="border rounded-lg p-6">
-                    <h3 className="font-semibold text-lg mb-4">Active Pipeline Deals</h3>
-                    {partner.activeDeals.length > 0 ? (
-                        <div className="space-y-4">
-                            {partner.activeDeals.map(deal => (
-                                <div key={deal.id} className="flex justify-between items-center border-b pb-4 last:border-0 hover:bg-muted/50 p-2 rounded-md transition-colors">
-                                    <div>
-                                        <h4 className="font-medium">{deal.name}</h4>
-                                        <p className="text-sm text-muted-foreground">Expected Close: {deal.expectedCloseDate}</p>
+                    <h3 className="font-semibold text-lg mb-4">Partner Deals</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-6">
+                        <div className="rounded-lg border p-4">
+                            <p className="text-xs text-muted-foreground">Total Deals</p>
+                            <p className="text-2xl font-semibold">{totalDeals}</p>
+                        </div>
+                        <div className="rounded-lg border p-4">
+                            <p className="text-xs text-muted-foreground">Won Deals</p>
+                            <p className="text-2xl font-semibold">{wonDeals}</p>
+                        </div>
+                        <div className="rounded-lg border p-4">
+                            <p className="text-xs text-muted-foreground">Revenue From Partner</p>
+                            <p className="text-2xl font-semibold">{formatCurrency(revenueFromPartner)}</p>
+                        </div>
+                    </div>
+
+                    {partnerDeals.length > 0 ? (
+                        <div className="space-y-2">
+                            {partnerDeals.map((deal) => {
+                                const isClosed = deal.stage === 'won' || deal.stage === 'lost';
+                                return (
+                                    <div key={deal.id} className="grid grid-cols-1 gap-2 rounded-md border p-3 md:grid-cols-4 md:items-center">
+                                        <div>
+                                            <p className="font-medium">{deal.title}</p>
+                                            <p className="text-xs text-muted-foreground">Updated: {formatDate(deal.updatedAt)}</p>
+                                        </div>
+                                        <div className="text-sm font-semibold">{formatCurrency(deal.value ?? 0)}</div>
+                                        <div>
+                                            <Badge variant="outline">{titleCase(deal.stage)}</Badge>
+                                        </div>
+                                        <div>
+                                            <Badge variant={isClosed ? "secondary" : "outline"}>
+                                                {isClosed ? "Closed" : "Open"}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-semibold">${deal.amount.toLocaleString()}</p>
-                                        <Badge variant="outline">{deal.stage}</Badge>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
-                        <p className="text-muted-foreground">No active deals in pipeline.</p>
+                        <p className="text-muted-foreground">No deals found for this partner.</p>
                     )}
                 </TabsContent>
 

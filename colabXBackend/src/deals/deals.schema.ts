@@ -73,6 +73,27 @@ export const dealAssignment = pgTable(
     ]
 );
 
+// DealMessage table — messages/chat within a deal
+export const dealMessage = pgTable(
+    "dealMessage",
+    {
+        id: text("id").primaryKey(),
+        dealId: text("dealId")
+            .notNull()
+            .references(() => deal.id, { onDelete: "cascade" }),
+        senderId: text("senderId")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        content: text("content").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+    },
+    (table) => [
+        index("dealMessage_dealId_idx").on(table.dealId),
+        index("dealMessage_senderId_idx").on(table.senderId),
+        index("dealMessage_createdAt_idx").on(table.createdAt),
+    ]
+);
+
 // Relations
 export const dealRelations = relations(deal, ({ one, many }) => ({
     organization: one(organization, {
@@ -88,6 +109,7 @@ export const dealRelations = relations(deal, ({ one, many }) => ({
         references: [user.id],
     }),
     assignments: many(dealAssignment),
+    messages: many(dealMessage),
 }));
 
 export const dealAssignmentRelations = relations(dealAssignment, ({ one }) => ({
@@ -97,6 +119,17 @@ export const dealAssignmentRelations = relations(dealAssignment, ({ one }) => ({
     }),
     user: one(user, {
         fields: [dealAssignment.userId],
+        references: [user.id],
+    }),
+}));
+
+export const dealMessageRelations = relations(dealMessage, ({ one }) => ({
+    deal: one(deal, {
+        fields: [dealMessage.dealId],
+        references: [deal.id],
+    }),
+    sender: one(user, {
+        fields: [dealMessage.senderId],
         references: [user.id],
     }),
 }));

@@ -30,25 +30,25 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["admin", "manager", "partner"], // All roles
+      roles: ["admin", "manager", "partner"], 
     },
     {
       title: "Partners",
       url: "/partners",
       icon: Handshake,
-      roles: ["admin", "manager"], // Not for partners
+      roles: ["admin", "manager"],
     },
     {
       title: "My Partnership",
       url: "/my-partnership",
       icon: Building2,
-      roles: ["partner"], // Only partners
+      roles: ["partner"], 
     },
     {
       title: "Teams",
       url: "/teams",
       icon: Users,
-      roles: ["admin", "manager"], // Not for partners
+      roles: ["admin", "manager"],
     },
     {
       title: "OKRs & Performance",
@@ -72,13 +72,13 @@ const data = {
       title: "Reports",
       url: "/reports",
       icon: BarChart2,
-      roles: ["admin", "manager"], // Not for partners
+      roles: ["admin", "manager"], 
     },
     {
       title: "Organization Settings",
       url: "/settings",
       icon: Settings2,
-      roles: ["admin"], // Admin only
+      roles: ["admin"],
     },
   ],
   navSecondary: [
@@ -98,8 +98,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: currentUser } = useCurrentUser()
   const { role } = useRbac()
-
-  // Filter nav items based on user role
+  
   const navMainItems = data.navMain.filter((item) => {
     if (!role) return false;
     return item.roles.includes(role);

@@ -113,7 +113,6 @@ export async function getOrgDocumentsHandler(
             return;
         }
 
-        // Partner role: can only see documents shared with partners
         const visibilityFilter = req.membership.role === "partner" ? "partner" : undefined;
         const documents = await getOrgDocuments(req.org.id, visibilityFilter);
         res.json({ documents });

@@ -24,7 +24,7 @@ const router = Router();
 // All collaboration routes require authentication
 router.use(authMiddleware);
 
-// ── Communications ──────────────────────────────────────────────────────────
+// Communications ─>
 
 // GET /api/partners/:partnerId/communications
 router.get(
@@ -45,7 +45,7 @@ router.post(
     createCommunicationHandler
 );
 
-// ── Documents ───────────────────────────────────────────────────────────────
+// Documents ->
 
 // GET /api/partners/:partnerId/documents
 router.get(
@@ -90,7 +90,7 @@ router.patch(
     updateDocumentVisibilityHandler
 );
 
-// ── Activities ──────────────────────────────────────────────────────────────
+// Activities ─> 
 
 // GET /api/partners/:partnerId/activities
 router.get(

@@ -6,10 +6,12 @@ import { DealDetailsSheet } from './components/deal-details-sheet';
 import { mapUiDealStageToApi, useDealsDashboard, useUpdateDealMutation } from '@/hooks/useDeals';
 import type { Deal, DealStage } from '@/types/deal';
 import { toast } from 'sonner';
+import { useRbac } from '@/hooks/useRbac';
 
 export default function DealsPage() {
     const { data, isLoading, isError, error } = useDealsDashboard();
     const updateDealMutation = useUpdateDealMutation();
+    const { canManageDeals } = useRbac();
     const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -28,6 +30,11 @@ export default function DealsPage() {
     };
 
     const handleUpdateStage = (dealId: string, stage: DealStage) => {
+        if (!canManageDeals) {
+            toast.error('Only admins and managers can change deal stages');
+            return;
+        }
+
         updateDealMutation.mutate(
             {
                 dealId,
@@ -68,7 +75,12 @@ export default function DealsPage() {
                     Loading deals...
                 </div>
             ) : (
-                <DealsTable deals={deals} onRowClick={handleRowClick} onUpdateStage={handleUpdateStage} />
+                <DealsTable
+                    deals={deals}
+                    onRowClick={handleRowClick}
+                    onUpdateStage={handleUpdateStage}
+                    canManageDeals={canManageDeals}
+                />
             )}
 
             <DealDetailsSheet

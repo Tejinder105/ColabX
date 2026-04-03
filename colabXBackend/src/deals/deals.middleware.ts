@@ -1,5 +1,5 @@
 import type { Response, NextFunction } from "express";
-import { getDealById } from "./deals.service.js";
+import { getDealById, getPartnerForUserInOrg, isUserAssignedToDeal } from "./deals.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
 
@@ -41,5 +41,45 @@ export async function requireDeal(
     } catch (error) {
         console.error("requireDeal error:", error);
         res.status(500).json({ error: "Failed to verify deal access" });
+    }
+}
+
+export async function requireDealAccess(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.deal || !req.user || !req.org || !req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        if (req.membership.role === "admin" || req.membership.role === "manager") {
+            next();
+            return;
+        }
+
+        if (req.membership.role !== "partner") {
+            res.status(403).json({ error: "Insufficient permissions" });
+            return;
+        }
+
+        const [isAssigned, linkedPartner] = await Promise.all([
+            isUserAssignedToDeal(req.deal.id, req.user.id),
+            getPartnerForUserInOrg(req.org.id, req.user.id),
+        ]);
+
+        const canAccessViaPartner = linkedPartner?.id === req.deal.partnerId;
+
+        if (!isAssigned && !canAccessViaPartner) {
+            res.status(403).json({ error: "Access denied to this deal" });
+            return;
+        }
+
+        next();
+    } catch (error) {
+        console.error("requireDealAccess error:", error);
+        res.status(500).json({ error: "Failed to verify deal permissions" });
     }
 }

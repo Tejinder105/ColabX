@@ -2,11 +2,12 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { requireOrganization, requireRole } from "../middlewares/requireOrganization.js";
 import { validate } from "../middlewares/validate.js";
-import { requireDeal } from "./deals.middleware.js";
+import { requireDeal, requireDealAccess } from "./deals.middleware.js";
 import {
     createDealSchema,
     updateDealSchema,
     assignUserSchema,
+    createMessageSchema,
 } from "./deals.validation.js";
 import {
     createDealHandler,
@@ -17,6 +18,9 @@ import {
     assignUserHandler,
     getDealAssignmentsHandler,
     removeAssignmentHandler,
+    createMessageHandler,
+    getDealMessagesHandler,
+    deleteMessageHandler,
 } from "./deals.controller.js";
 
 const router = Router();
@@ -36,7 +40,7 @@ router.post(
 
 router.get("/", requireOrganization, getOrgDealsHandler);
 
-router.get("/:dealId", requireOrganization, requireDeal, getDealByIdHandler);
+router.get("/:dealId", requireOrganization, requireDeal, requireDealAccess, getDealByIdHandler);
 
 router.patch(
     "/:dealId",
@@ -70,6 +74,7 @@ router.get(
     "/:dealId/assign",
     requireOrganization,
     requireDeal,
+    requireDealAccess,
     getDealAssignmentsHandler
 );
 
@@ -79,6 +84,33 @@ router.delete(
     requireDeal,
     requireRole("admin", "manager"),
     removeAssignmentHandler
+);
+
+// ── Deal Messages ───────────────────────────────────────────────────────────
+
+router.post(
+    "/:dealId/messages",
+    requireOrganization,
+    requireDeal,
+    requireDealAccess,
+    validate(createMessageSchema),
+    createMessageHandler
+);
+
+router.get(
+    "/:dealId/messages",
+    requireOrganization,
+    requireDeal,
+    requireDealAccess,
+    getDealMessagesHandler
+);
+
+router.delete(
+    "/:dealId/messages/:messageId",
+    requireOrganization,
+    requireDeal,
+    requireDealAccess,
+    deleteMessageHandler
 );
 
 export default router;

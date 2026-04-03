@@ -11,10 +11,10 @@ import { ArrowRight } from "lucide-react"
 
 export function PartnerTierDistribution() {
     const tiers = [
-        { name: "Platinum", count: 8, max: 20, color: "bg-chart-2" }, // Purple/Blue
-        { name: "Gold", count: 15, max: 20, color: "bg-chart-4" }, // Yellow/Orange
-        { name: "Silver", count: 14, max: 20, color: "bg-muted" }, // Grey
-        { name: "Bronze", count: 10, max: 20, color: "bg-chart-3" }, // Magenta/Orange
+        { name: "Platinum", count: 8, max: 20, color: "bg-chart-2" }, 
+        { name: "Gold", count: 15, max: 20, color: "bg-chart-4" }, 
+        { name: "Silver", count: 14, max: 20, color: "bg-muted" }, 
+        { name: "Bronze", count: 10, max: 20, color: "bg-chart-3" },
     ]
 
     return (
@@ -33,7 +33,6 @@ export function PartnerTierDistribution() {
                             <span className="font-medium">{tier.name}</span>
                             <span className="text-muted-foreground">{tier.count}</span>
                         </div>
-                        {/* Note: Progress component styling might need customization for explicit bar colors */}
                         <Progress value={(tier.count / tier.max) * 100} className="h-2" />
                     </div>
                 ))}

@@ -14,7 +14,6 @@ export function ProtectedRoute({ children, requireOrg = true }: ProtectedRoutePr
     const activeOrgId = useAuthStore((state) => state.activeOrgId)
     const setActiveOrg = useAuthStore((state) => state.setActiveOrg)
 
-    // Show loading while checking auth
     if (isLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center">
@@ -26,19 +25,14 @@ export function ProtectedRoute({ children, requireOrg = true }: ProtectedRoutePr
         )
     }
 
-    // Redirect to login if not authenticated
     if (isError || !data?.user) {
         return <Navigate to="/auth/login" state={{ from: location }} replace />
     }
 
-    // If no orgs, redirect to onboarding
-    // Also check activeOrgId: the create-org mutation sets it synchronously
-    // before the currentUser query refetches, so trust the store
     if (requireOrg && data.orgCount === 0 && !activeOrgId) {
         return <Navigate to="/onboarding" replace />
     }
 
-    // If has orgs but no active org selected, set the first one
     if (requireOrg && data.organizations.length > 0 && !activeOrgId) {
         const firstOrg = data.organizations[0]
         if (firstOrg) {
