@@ -2,20 +2,20 @@ import nodemailer from 'nodemailer';
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
-const SMTP_HOST = process.env.SMTP_HOST?.trim();
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
-const SMTP_USER = process.env.SMTP_USER?.trim();
-const SMTP_PASS = process.env.SMTP_PASS?.trim();
-const SMTP_FROM = process.env.SMTP_FROM?.trim();
+const GMAIL_USER = process.env.GMAIL_USER?.trim();
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET?.trim();
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN?.trim();
 
-// Create transporter using SMTP configuration
+// Create transporter using Gmail OAuth 2.0
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  service: 'gmail',
   auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
+    type: 'OAuth2',
+    user: GMAIL_USER,
+    clientId: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    refreshToken: GOOGLE_REFRESH_TOKEN,
   },
 });
 
@@ -34,8 +34,8 @@ export async function sendInvitationEmail({
   token,
   role,
 }: SendInvitationEmailInput): Promise<void> {
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
-    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM.');
+  if (!GMAIL_USER || !GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
+    throw new Error('Gmail OAuth2 is not configured. Set GMAIL_USER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.');
   }
 
   const inviteLink = `${APP_URL}/auth?invite=${token}`;
@@ -117,7 +117,7 @@ If you didn't expect this invitation, you can safely ignore this email.
 
   try {
     await transporter.sendMail({
-      from: SMTP_FROM,
+      from: GMAIL_USER,
       to,
       subject,
       html: htmlContent,
@@ -129,7 +129,7 @@ If you didn't expect this invitation, you can safely ignore this email.
     const smtpError = error as { code?: string; responseCode?: number };
     if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
       throw new Error(
-        'SMTP authentication failed (535). For Gmail, enable 2-Step Verification and use a 16-character App Password as SMTP_PASS.',
+        'Gmail OAuth2 authentication failed. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.',
       );
     }
     throw error;
