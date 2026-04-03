@@ -84,9 +84,31 @@ export async function createInvitation(
       .limit(1);
 
     if (existingInvite) {
-      res.status(409).json({
-        error: "A pending invitation already exists for this email",
+      try {
+        const orgs = await db
+          .select({ name: organization.name })
+          .from(organization)
+          .where(eq(organization.id, orgId))
+          .limit(1);
+
+        const org = orgs[0];
+        if (org) {
+          const inviterName = req.user?.name || "Someone";
+          await sendInvitationEmail({
+            to: email,
+            orgName: org.name,
+            invitedBy: inviterName,
+            token: existingInvite.token,
+            role: existingInvite.role,
+          });
+        }
+      } catch (emailError) {
+        console.error("Failed to resend invitation email:", emailError);
+      }
+
+      res.status(200).json({
         invitation: { token: existingInvite.token },
+        message: "A pending invitation already exists. Invitation email was re-sent.",
       });
       return;
     }

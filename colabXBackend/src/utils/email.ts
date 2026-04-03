@@ -105,18 +105,14 @@ ColabX — Partnership & OKR Management Platform
 If you didn't expect this invitation, you can safely ignore this email.
   `.trim();
 
-  try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to,
-      subject,
-      html: htmlContent,
-      text: plainTextContent,
-    });
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject,
+    html: htmlContent,
+    text: plainTextContent,
+  });
 
-    console.log(`Invitation email sent to ${to}`);
-  } catch (error) {
-    console.error('Failed to send invitation email:', error);
-  }
+  console.log(`Invitation email sent to ${to}`);
 }
 
