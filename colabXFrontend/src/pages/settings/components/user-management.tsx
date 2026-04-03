@@ -58,7 +58,7 @@ const PARTNER_INDUSTRIES = [
     { value: 'Other', label: 'Other' },
 ] as const;
 
-export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
+export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');

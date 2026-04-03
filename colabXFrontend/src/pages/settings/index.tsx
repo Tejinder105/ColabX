@@ -13,7 +13,6 @@ import {
     useOrgAuditLogs,
     useUpdateOrgMutation,
     useDeleteOrgMutation,
-    useChangeMemberRoleMutation,
     useRemoveMemberMutation,
     useCreateInviteMutation,
 } from '@/hooks/useOrg';
@@ -48,7 +47,6 @@ export default function SettingsPage() {
     // Mutations
     const updateOrg = useUpdateOrgMutation();
     const deleteOrg = useDeleteOrgMutation();
-    const changeMemberRole = useChangeMemberRoleMutation();
     const removeMember = useRemoveMemberMutation();
     const createInvite = useCreateInviteMutation();
     const createTeam = useCreateTeamMutation();
@@ -116,11 +114,6 @@ export default function SettingsPage() {
         removeMember.mutate({ orgId: activeOrgId, memberId: userId });
     };
 
-    const handleChangeRole = (userId: string, role: 'admin' | 'manager' | 'partner') => {
-        if (!activeOrgId) return;
-        changeMemberRole.mutate({ orgId: activeOrgId, memberId: userId, role });
-    };
-
     const handleInvite = (email: string, role: string, partnerType?: string, partnerIndustry?: string) => {
         if (!activeOrgId) return;
         createInvite.mutate(
@@ -183,7 +176,6 @@ export default function SettingsPage() {
                         <UserManagement
                             users={orgUsers}
                             onRemove={handleRemoveMember}
-                            onChangeRole={handleChangeRole}
                             onInvite={handleInvite}
                             isRemoving={removeMember.isPending}
                             isInviting={createInvite.isPending}
