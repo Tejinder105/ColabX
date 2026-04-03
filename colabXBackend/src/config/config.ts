@@ -16,8 +16,9 @@ const envSchema = z.object({
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().url().optional(),
-    GMAIL_USER: z.string().optional(),
-    GOOGLE_REFRESH_TOKEN: z.string().optional(),
+    BREVO_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    EMAIL_FROM_NAME: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);

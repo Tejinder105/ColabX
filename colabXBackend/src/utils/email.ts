@@ -1,25 +1,60 @@
-import nodemailer from 'nodemailer';
-
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
-const GMAIL_USER = process.env.GMAIL_USER?.trim();
-const PASS= process.env.PASS?.trim();
+const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
+const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'tejinderpalsinghc3@gmail.com';
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || 'ColabX';
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,      
-  secure: true,    
-  auth: {
-    user: GMAIL_USER,
-    pass: PASS,     
-  },
-});
 interface SendInvitationEmailInput {
   to: string;
   orgName: string;
   invitedBy: string;
   token: string;
   role: 'admin' | 'manager' | 'partner';
+}
+
+/**
+ * Sends email via Brevo HTTP API (port 443).
+ * This avoids SMTP port blocking on production hosting providers.
+ */
+async function sendEmail({
+  from,
+  fromName,
+  to,
+  subject,
+  html,
+  text,
+}: {
+  from: string;
+  fromName: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<void> {
+  if (!BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY is not configured.');
+  }
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: fromName, email: from },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Brevo API error (${response.status}): ${errorBody}`);
+  }
 }
 
 export async function sendInvitationEmail({
@@ -29,9 +64,10 @@ export async function sendInvitationEmail({
   token,
   role,
 }: SendInvitationEmailInput): Promise<void> {
-if (!GMAIL_USER || !PASS) {
-  throw new Error('Gmail SMTP is not configured. Set GMAIL_USER and PASS.');
-}
+  if (!BREVO_API_KEY) {
+    throw new Error('Email is not configured. Set BREVO_API_KEY env variable.');
+  }
+
   const inviteLink = `${APP_URL}/auth?invite=${token}`;
   const roleLabels: Record<string, string> = {
     admin: 'Administrator',
@@ -110,8 +146,9 @@ If you didn't expect this invitation, you can safely ignore this email.
   `.trim();
 
   try {
-    await transporter.sendMail({
-      from: GMAIL_USER,
+    await sendEmail({
+      from: EMAIL_FROM,
+      fromName: EMAIL_FROM_NAME,
       to,
       subject,
       html: htmlContent,
@@ -120,13 +157,7 @@ If you didn't expect this invitation, you can safely ignore this email.
 
     console.log(`Invitation email sent to ${to}`);
   } catch (error) {
-    const smtpError = error as { code?: string; responseCode?: number };
-    if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
-      throw new Error(
-        'Gmail OAuth2 authentication failed. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.',
-      );
-    }
+    console.error('Failed to send invitation email:', error);
     throw error;
   }
 }
-
