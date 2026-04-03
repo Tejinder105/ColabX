@@ -3,20 +3,17 @@ import nodemailer from 'nodemailer';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 const GMAIL_USER = process.env.GMAIL_USER?.trim();
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET?.trim();
-const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN?.trim();
 const PASS= process.env.PASS?.trim();
 
-// Create transporter using Gmail OAuth 2.0
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 465,      
+  secure: true,    
   auth: {
     user: GMAIL_USER,
-    pass: PASS,
+    pass: PASS,     
   },
 });
-
 interface SendInvitationEmailInput {
   to: string;
   orgName: string;
