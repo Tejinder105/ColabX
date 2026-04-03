@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { useState } from 'react';
+import { useRbac } from '@/hooks/useRbac';
 
 type SortConfig = { key: keyof Partner | 'performanceScore'; direction: 'asc' | 'desc' } | null;
 
@@ -56,6 +57,7 @@ export function PartnersTable({
     onSearchChange,
     onRowClick
 }: PartnersTableProps) {
+    const { canManagePartners } = useRbac();
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
@@ -282,12 +284,20 @@ export function PartnersTable({
                                                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRowClick && onRowClick(partner); }}>
                                                         View details
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Edit partner</DropdownMenuItem>
+                                                    {canManagePartners && (
+                                                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Edit partner</DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Assign Team</DropdownMenuItem>
+                                                    {canManagePartners && (
+                                                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Assign Team</DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuItem onClick={(e) => e.stopPropagation()}>Add Deal</DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="text-destructive">Disable Partner</DropdownMenuItem>
+                                                    {canManagePartners && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={(e) => e.stopPropagation()} className="text-destructive">Disable Partner</DropdownMenuItem>
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>

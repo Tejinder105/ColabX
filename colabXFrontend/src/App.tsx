@@ -25,7 +25,21 @@ import FeedbackPage from "./pages/feedback";
 import { Toaster } from "sonner";
 import { useAuthStore } from "./stores/authStore";
 
-function PartnerManagementGuard({ children }: { children: React.ReactNode }) {
+// RBAC Route Guards
+
+/** Admin-only pages (Settings, User Management) */
+function AdminOnlyGuard({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.activeOrg?.role);
+
+  if (role && role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+/** Admin + Manager pages (Partners list, Teams, Reports) */
+function ManagerGuard({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((state) => state.activeOrg?.role);
 
   if (role === "partner") {
@@ -35,7 +49,8 @@ function PartnerManagementGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function PartnerSelfViewGuard({ children }: { children: React.ReactNode }) {
+/** Partner-only page (My Partnership) */
+function PartnerOnlyGuard({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((state) => state.activeOrg?.role);
 
   if (role && role !== "partner") {
@@ -103,38 +118,50 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: <DashboardPage />,
       },
+      // Admin + Manager: Partner management
       {
         path: "/partners",
         element: (
-          <PartnerManagementGuard>
+          <ManagerGuard>
             <PartnersPage />
-          </PartnerManagementGuard>
+          </ManagerGuard>
         ),
       },
       {
         path: "/partners/:id",
         element: (
-          <PartnerManagementGuard>
+          <ManagerGuard>
             <PartnerDetailsPage />
-          </PartnerManagementGuard>
+          </ManagerGuard>
         ),
       },
+      // Partner only: Self view
       {
         path: "/my-partnership",
         element: (
-          <PartnerSelfViewGuard>
+          <PartnerOnlyGuard>
             <MyPartnershipPage />
-          </PartnerSelfViewGuard>
+          </PartnerOnlyGuard>
+        ),
+      },
+      // Admin + Manager: Teams
+      {
+        path: "/teams",
+        element: (
+          <ManagerGuard>
+            <TeamsPage />
+          </ManagerGuard>
         ),
       },
       {
-        path: "/teams",
-        element: <TeamsPage />,
-      },
-      {
         path: "/teams/:id",
-        element: <TeamDetailsPage />,
+        element: (
+          <ManagerGuard>
+            <TeamDetailsPage />
+          </ManagerGuard>
+        ),
       },
+      // All roles: OKRs, Deals, Documents
       {
         path: "/okrs",
         element: <OkrsPage />,
@@ -147,14 +174,25 @@ const router = createBrowserRouter([
         path: "/documents",
         element: <DocumentsPage />,
       },
+      // Admin + Manager: Reports
       {
         path: "/reports",
-        element: <ReportsPage />,
+        element: (
+          <ManagerGuard>
+            <ReportsPage />
+          </ManagerGuard>
+        ),
       },
+      // Admin only: Organization Settings
       {
         path: "/settings",
-        element: <SettingsPage />,
+        element: (
+          <AdminOnlyGuard>
+            <SettingsPage />
+          </AdminOnlyGuard>
+        ),
       },
+      // All roles: Support & Feedback
       {
         path: "/support",
         element: <SupportPage />,

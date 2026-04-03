@@ -22,7 +22,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { useCurrentUser } from "@/hooks/useAuth"
-import { useAuthStore } from "@/stores/authStore"
+import { useRbac } from "@/hooks/useRbac"
 
 const data = {
   navMain: [
@@ -30,46 +30,55 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
+      roles: ["admin", "manager", "partner"], // All roles
     },
     {
       title: "Partners",
       url: "/partners",
       icon: Handshake,
+      roles: ["admin", "manager"], // Not for partners
     },
     {
       title: "My Partnership",
       url: "/my-partnership",
       icon: Building2,
+      roles: ["partner"], // Only partners
     },
     {
       title: "Teams",
       url: "/teams",
       icon: Users,
+      roles: ["admin", "manager"], // Not for partners
     },
     {
       title: "OKRs & Performance",
       url: "/okrs",
       icon: Target,
+      roles: ["admin", "manager", "partner"],
     },
     {
       title: "Deals Collaboration",
       url: "/deals",
       icon: Briefcase,
+      roles: ["admin", "manager", "partner"],
     },
     {
       title: "Documents",
       url: "/documents",
       icon: FileText,
+      roles: ["admin", "manager", "partner"],
     },
     {
       title: "Reports",
       url: "/reports",
       icon: BarChart2,
+      roles: ["admin", "manager"], // Not for partners
     },
     {
       title: "Organization Settings",
       url: "/settings",
       icon: Settings2,
+      roles: ["admin"], // Admin only
     },
   ],
   navSecondary: [
@@ -88,15 +97,12 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: currentUser } = useCurrentUser()
-  const activeOrg = useAuthStore((state) => state.activeOrg)
-  const isPartnerRole = activeOrg?.role === "partner"
+  const { role } = useRbac()
 
+  // Filter nav items based on user role
   const navMainItems = data.navMain.filter((item) => {
-    if (isPartnerRole) {
-      return item.title !== "Partners"
-    }
-
-    return item.title !== "My Partnership"
+    if (!role) return false;
+    return item.roles.includes(role);
   })
 
   const user = {

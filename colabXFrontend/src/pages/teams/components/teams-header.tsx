@@ -1,8 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { AddTeamDialog } from './add-team-dialog';
+import { useRbac } from '@/hooks/useRbac';
 
 export function TeamsHeader() {
+    const { canManageTeams } = useRbac();
+    
     return (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -16,7 +19,7 @@ export function TeamsHeader() {
                     <Download className="mr-2 h-4 w-4" />
                     Export CSV
                 </Button>
-                <AddTeamDialog />
+                {canManageTeams && <AddTeamDialog />}
             </div>
         </div>
     );

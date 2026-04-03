@@ -1,6 +1,9 @@
 import { AddDealDialog } from './add-deal-dialog';
+import { useRbac } from '@/hooks/useRbac';
 
 export function DealsHeader() {
+    const { canManageDeals } = useRbac();
+    
     return (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -10,7 +13,7 @@ export function DealsHeader() {
                 </p>
             </div>
             <div className="flex items-center gap-2">
-                <AddDealDialog />
+                {canManageDeals && <AddDealDialog />}
             </div>
         </div>
     );
