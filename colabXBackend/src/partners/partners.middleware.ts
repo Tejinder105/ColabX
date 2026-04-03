@@ -35,6 +35,7 @@ export async function requirePartner(
             status: partnerRow.status,
             orgId: partnerRow.orgId,
             createdBy: partnerRow.createdBy,
+            userId: partnerRow.userId,
         };
 
         next();
@@ -42,4 +43,27 @@ export async function requirePartner(
         console.error("requirePartner error:", error);
         res.status(500).json({ error: "Failed to verify partner access" });
     }
+}
+
+export function requirePartnerOwnerOrAdminManager(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): void {
+    if (!req.partner || !req.membership || !req.user) {
+        res.status(403).json({ error: "Partner access denied" });
+        return;
+    }
+
+    if (["admin", "manager"].includes(req.membership.role)) {
+        next();
+        return;
+    }
+
+    if (req.membership.role === "partner" && req.partner.userId === req.user.id) {
+        next();
+        return;
+    }
+
+    res.status(403).json({ error: "Cannot access other partners' data" });
 }

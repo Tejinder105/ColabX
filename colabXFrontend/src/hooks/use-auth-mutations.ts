@@ -1,13 +1,20 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { signupUser, signinUser } from "@/services/authservices";
+import { useAuthStore } from "@/stores/authStore";
 
 export function useSignupMutation() {
     const navigate = useNavigate();
+    const clearAuth = useAuthStore((state) => state.clearAuth);
+    const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: signupUser,
         onSuccess: () => {
+            // Clear any stale org data from previous sessions
+            clearAuth();
+            // Invalidate all cached queries to ensure fresh data
+            queryClient.clear();
             navigate("/onboarding");
         },
         onError: (error) => {
@@ -18,10 +25,16 @@ export function useSignupMutation() {
 
 export function useSigninMutation() {
     const navigate = useNavigate();
+    const clearAuth = useAuthStore((state) => state.clearAuth);
+    const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: signinUser,
         onSuccess: () => {
+            // Clear stale org data - fresh user may have different org memberships
+            clearAuth();
+            // Invalidate all cached queries to ensure fresh data
+            queryClient.clear();
             navigate("/dashboard");
         },
         onError: (error) => {

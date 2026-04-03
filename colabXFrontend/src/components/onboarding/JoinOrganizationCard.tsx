@@ -23,11 +23,13 @@ import {
 
 interface JoinOrganizationCardProps {
   onSwitchToCreate?: () => void
+  initialInviteToken?: string
 }
 
-function JoinOrganizationCard({ onSwitchToCreate }: JoinOrganizationCardProps) {
-  const [invitationCode, setInvitationCode] = React.useState("")
-  const [validatedToken, setValidatedToken] = React.useState<string | undefined>()
+function JoinOrganizationCard({ onSwitchToCreate, initialInviteToken }: JoinOrganizationCardProps) {
+  const [invitationCode, setInvitationCode] = React.useState(initialInviteToken ?? "")
+  const [validatedToken, setValidatedToken] = React.useState<string | undefined>(initialInviteToken)
+  const [hasAutoJoinAttempted, setHasAutoJoinAttempted] = React.useState(false)
   const navigate = useNavigate()
 
   const validateQuery = useValidateInvite(validatedToken)
@@ -44,12 +46,39 @@ function JoinOrganizationCard({ onSwitchToCreate }: JoinOrganizationCardProps) {
     const role = validateQuery.data?.invitation?.role ?? 'partner'
     acceptMutation.mutate({ token: validatedToken, role }, {
       onSuccess: () => {
+        sessionStorage.removeItem("inviteToken")
         navigate("/dashboard")
       },
     })
   }
 
   const isValidated = validateQuery.isSuccess && validateQuery.data?.valid
+
+  React.useEffect(() => {
+    if (!initialInviteToken) return
+    if (!isValidated) return
+    if (hasAutoJoinAttempted) return
+
+    setHasAutoJoinAttempted(true)
+    const role = validateQuery.data?.invitation?.role ?? 'partner'
+
+    acceptMutation.mutate(
+      { token: initialInviteToken, role },
+      {
+        onSuccess: () => {
+          sessionStorage.removeItem("inviteToken")
+          navigate("/dashboard")
+        },
+      }
+    )
+  }, [
+    acceptMutation,
+    hasAutoJoinAttempted,
+    initialInviteToken,
+    isValidated,
+    navigate,
+    validateQuery.data?.invitation?.role,
+  ])
 
   return (
     <Card className="w-full max-w-md border-0 bg-transparent shadow-none">

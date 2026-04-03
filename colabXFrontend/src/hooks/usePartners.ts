@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getPartners,
     getPartnerById,
+    getMyPartnerProfile,
     createPartner,
     updatePartner,
     deletePartner,
@@ -27,6 +28,17 @@ export function usePartner(partnerId: string | undefined) {
         queryKey: ['partners', activeOrgId, partnerId],
         queryFn: () => getPartnerById(activeOrgId!, partnerId!),
         enabled: !!activeOrgId && !!partnerId,
+        staleTime: 1000 * 60 * 2,
+    });
+}
+
+export function useMyPartner() {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const activeRole = useAuthStore((state) => state.activeOrg?.role);
+    return useQuery({
+        queryKey: ['partners', activeOrgId, 'me'],
+        queryFn: () => getMyPartnerProfile(activeOrgId!),
+        enabled: !!activeOrgId && activeRole === 'partner',
         staleTime: 1000 * 60 * 2,
     });
 }

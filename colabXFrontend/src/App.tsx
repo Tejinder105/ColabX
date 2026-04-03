@@ -5,6 +5,7 @@ import OnboardingPage from "./pages/public/onboarding";
 import DashboardPage from "./pages/dashboard";
 import PartnersPage from "./pages/dashboard/partners";
 import PartnerDetailsPage from "./pages/dashboard/partners/details";
+import MyPartnershipPage from "./pages/dashboard/my-partnership";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginForm } from "./components/login-form";
@@ -22,6 +23,27 @@ import SettingsPage from "./pages/settings";
 import SupportPage from "./pages/support";
 import FeedbackPage from "./pages/feedback";
 import { Toaster } from "sonner";
+import { useAuthStore } from "./stores/authStore";
+
+function PartnerManagementGuard({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.activeOrg?.role);
+
+  if (role === "partner") {
+    return <Navigate to="/my-partnership" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function PartnerSelfViewGuard({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.activeOrg?.role);
+
+  if (role && role !== "partner") {
+    return <Navigate to="/partners" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 const router = createBrowserRouter([
   {
@@ -83,11 +105,27 @@ const router = createBrowserRouter([
       },
       {
         path: "/partners",
-        element: <PartnersPage />,
+        element: (
+          <PartnerManagementGuard>
+            <PartnersPage />
+          </PartnerManagementGuard>
+        ),
       },
       {
         path: "/partners/:id",
-        element: <PartnerDetailsPage />,
+        element: (
+          <PartnerManagementGuard>
+            <PartnerDetailsPage />
+          </PartnerManagementGuard>
+        ),
+      },
+      {
+        path: "/my-partnership",
+        element: (
+          <PartnerSelfViewGuard>
+            <MyPartnershipPage />
+          </PartnerSelfViewGuard>
+        ),
       },
       {
         path: "/teams",

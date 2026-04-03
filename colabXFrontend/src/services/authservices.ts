@@ -39,11 +39,11 @@ export async function signinUser(data: SigninData) {
     return response.data;
 }
 
-export async function googleSignIn() {
+export async function googleSignIn(callbackURL?: string) {
     try {
         const result = await signIn.social({
             provider: "google",
-            callbackURL: `${getAppBaseUrl()}/dashboard`,
+            callbackURL: callbackURL ?? `${getAppBaseUrl()}/dashboard`,
         });
         console.log("Google sign-in result:", result);
         if (result.error) {

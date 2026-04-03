@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { requireOrganization, requireRole } from "../middlewares/requireOrganization.js";
 import { validate } from "../middlewares/validate.js";
-import { requirePartner } from "../partners/partners.middleware.js";
+import { requirePartner, requirePartnerOwnerOrAdminManager } from "../partners/partners.middleware.js";
 import {
     createContactSchema,
     updateContactSchema,
@@ -26,6 +26,7 @@ router.get(
     "/partners/:partnerId/contacts",
     requireOrganization,
     requirePartner,
+    requirePartnerOwnerOrAdminManager,
     getPartnerContactsHandler
 );
 

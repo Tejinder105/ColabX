@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useSearchParams } from "react-router-dom"
 import { CreateOrganizationCard } from "@/components/onboarding/CreateOrganizationCard"
 import { JoinOrganizationCard } from "@/components/onboarding/JoinOrganizationCard"
 import { Button } from "@/components/ui/button"
@@ -107,7 +108,20 @@ function JoinBrandingPanel() {
 }
 
 function OnboardingPage() {
+  const [searchParams] = useSearchParams()
+  const inviteFromUrl = searchParams.get("invite")?.trim()
+  const inviteFromSession = typeof window !== "undefined"
+    ? sessionStorage.getItem("inviteToken")?.trim()
+    : null
+  const inviteToken = inviteFromUrl || inviteFromSession || undefined
+
   const [activeView, setActiveView] = React.useState<ActiveView>("create")
+
+  React.useEffect(() => {
+    if (inviteToken) {
+      setActiveView("join")
+    }
+  }, [inviteToken])
 
   const switchToJoin = () => setActiveView("join")
   const switchToCreate = () => setActiveView("create")
@@ -133,7 +147,10 @@ function OnboardingPage() {
               <CollabXLogo />
             </div>
             <div className="flex flex-1 items-center justify-center px-8 lg:px-16">
-              <JoinOrganizationCard onSwitchToCreate={switchToCreate} />
+              <JoinOrganizationCard
+                onSwitchToCreate={switchToCreate}
+                initialInviteToken={inviteToken}
+              />
             </div>
             <div className="flex items-center gap-6 p-8 lg:p-12">
               <p className="text-sm text-muted-foreground">© 2024 CollabX Inc.</p>

@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   BarChart2,
   Briefcase,
+  Building2,
   FileText,
   Handshake,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar"
 import { useCurrentUser } from "@/hooks/useAuth"
+import { useAuthStore } from "@/stores/authStore"
 
 const data = {
   navMain: [
@@ -33,6 +35,11 @@ const data = {
       title: "Partners",
       url: "/partners",
       icon: Handshake,
+    },
+    {
+      title: "My Partnership",
+      url: "/my-partnership",
+      icon: Building2,
     },
     {
       title: "Teams",
@@ -81,6 +88,16 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: currentUser } = useCurrentUser()
+  const activeOrg = useAuthStore((state) => state.activeOrg)
+  const isPartnerRole = activeOrg?.role === "partner"
+
+  const navMainItems = data.navMain.filter((item) => {
+    if (isPartnerRole) {
+      return item.title !== "Partners"
+    }
+
+    return item.title !== "My Partnership"
+  })
 
   const user = {
     name: currentUser?.user?.name ?? "",
@@ -97,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={user} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMainItems} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
     </Sidebar>

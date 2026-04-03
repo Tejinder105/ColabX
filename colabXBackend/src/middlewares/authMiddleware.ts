@@ -37,6 +37,7 @@ export interface AuthRequest extends Request {
         status: "pending" | "active" | "inactive" | "suspended";
         orgId: string;
         createdBy: string | null;
+        userId: string | null;
     };
     deal?: {
         id: string;

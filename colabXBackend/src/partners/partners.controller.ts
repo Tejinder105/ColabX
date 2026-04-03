@@ -99,15 +99,61 @@ export async function getOrgPartnersHandler(
             return;
         }
 
-        // Partner role: can only see their own partner record
-        const partners = req.membership.role === "partner"
-            ? await getOrgPartnersForUser(req.org.id, req.user.id)
-            : await getOrgPartners(req.org.id);
+        const partners = await getOrgPartners(req.org.id);
 
         res.json({ partners });
     } catch (error) {
         console.error("Get partners error:", error);
         res.status(500).json({ error: "Failed to fetch partners" });
+    }
+}
+
+export async function getMyPartnerProfileHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.org || !req.user) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        let selfPartner = (await getOrgPartnersForUser(req.org.id, req.user.id))[0];
+
+        // Recovery path: if partner row isn't linked yet, match by contact email and link it.
+        if (!selfPartner) {
+            const directEmailMatch = await getPartnerByEmail(req.org.id, req.user.email);
+
+            if (directEmailMatch && !directEmailMatch.userId) {
+                await linkUserToPartner(directEmailMatch.id, req.user.id);
+                selfPartner = { ...directEmailMatch, userId: req.user.id, status: "active" };
+            } else if (!directEmailMatch) {
+                const orgPartners = await getOrgPartners(req.org.id);
+                const caseInsensitiveMatch = orgPartners.find(
+                    (partnerRow) =>
+                        partnerRow.contactEmail?.toLowerCase() === req.user?.email.toLowerCase() &&
+                        !partnerRow.userId
+                );
+
+                if (caseInsensitiveMatch) {
+                    await linkUserToPartner(caseInsensitiveMatch.id, req.user.id);
+                    selfPartner = { ...caseInsensitiveMatch, userId: req.user.id, status: "active" };
+                }
+            }
+        }
+
+        if (!selfPartner) {
+            res.status(404).json({
+                error: "Partner profile is not linked to this account. Ask an admin to link your partner record to this login email.",
+            });
+            return;
+        }
+
+        const result = await getPartnerWithTeams(selfPartner.id);
+        res.json({ partner: result.partner, teams: result.teams });
+    } catch (error) {
+        console.error("Get my partner profile error:", error);
+        res.status(500).json({ error: "Failed to fetch partner profile" });
     }
 }
 

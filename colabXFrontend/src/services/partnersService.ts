@@ -94,6 +94,24 @@ export async function getPartnerById(
     return response.json();
 }
 
+// GET /api/partners/me
+export async function getMyPartnerProfile(
+    orgId: string
+): Promise<{ partner: ApiPartnerDetail; teams: ApiPartnerTeam[] }> {
+    const response = await fetch(`${API_BASE}/partners/me`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch partner profile');
+    }
+
+    return response.json();
+}
+
 // POST /api/partners
 export async function createPartner(
     orgId: string,

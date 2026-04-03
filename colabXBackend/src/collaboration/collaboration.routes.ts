@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { requireOrganization, requireRole } from "../middlewares/requireOrganization.js";
 import { validate } from "../middlewares/validate.js";
-import { requirePartner } from "../partners/partners.middleware.js";
+import { requirePartner, requirePartnerOwnerOrAdminManager } from "../partners/partners.middleware.js";
 import {
     createCommunicationSchema,
     createDocumentSchema,
@@ -31,6 +31,7 @@ router.get(
     "/partners/:partnerId/communications",
     requireOrganization,
     requirePartner,
+    requirePartnerOwnerOrAdminManager,
     getPartnerCommunicationsHandler
 );
 
@@ -39,6 +40,7 @@ router.post(
     "/partners/:partnerId/communications",
     requireOrganization,
     requirePartner,
+    requirePartnerOwnerOrAdminManager,
     validate(createCommunicationSchema),
     createCommunicationHandler
 );
@@ -50,6 +52,7 @@ router.get(
     "/partners/:partnerId/documents",
     requireOrganization,
     requirePartner,
+    requirePartnerOwnerOrAdminManager,
     getPartnerDocumentsHandler
 );
 
@@ -94,6 +97,7 @@ router.get(
     "/partners/:partnerId/activities",
     requireOrganization,
     requirePartner,
+    requirePartnerOwnerOrAdminManager,
     getPartnerActivitiesHandler
 );
 

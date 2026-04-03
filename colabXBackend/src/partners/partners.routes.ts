@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { requireOrganization, requireRole } from "../middlewares/requireOrganization.js";
 import { validate } from "../middlewares/validate.js";
-import { requirePartner } from "./partners.middleware.js";
+import { requirePartner, requirePartnerOwnerOrAdminManager } from "./partners.middleware.js";
 import {
     createPartnerSchema,
     updatePartnerSchema,
@@ -10,6 +10,7 @@ import {
 import {
     createPartnerHandler,
     getOrgPartnersHandler,
+    getMyPartnerProfileHandler,
     getPartnerByIdHandler,
     updatePartnerHandler,
     deletePartnerHandler,
@@ -30,9 +31,17 @@ router.post(
     createPartnerHandler
 );
 
-router.get("/", requireOrganization, getOrgPartnersHandler);
+router.get("/", requireOrganization, requireRole("admin", "manager"), getOrgPartnersHandler);
 
-router.get("/:partnerId", requireOrganization, requirePartner, getPartnerByIdHandler);
+router.get("/me", requireOrganization, requireRole("partner"), getMyPartnerProfileHandler);
+
+router.get(
+    "/:partnerId",
+    requireOrganization,
+    requirePartner,
+    requirePartnerOwnerOrAdminManager,
+    getPartnerByIdHandler
+);
 
 router.patch(
     "/:partnerId",

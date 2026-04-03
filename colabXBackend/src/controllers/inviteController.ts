@@ -302,25 +302,37 @@ export async function acceptInvitation(
         .set({ usedAt: new Date() })
         .where(eq(invitation.id, invite.id));
 
-      // If partner role, link user to their pending partner record
+      // If partner role, ensure partner record exists and link user
       if (invite.role === "partner") {
-        const [pendingPartner] = await tx
+        const [existingPartner] = await tx
           .select({ id: partner.id })
           .from(partner)
           .where(
             and(
               eq(partner.orgId, invite.orgId),
               eq(partner.contactEmail, invite.email),
-              eq(partner.status, "pending")
             )
           )
           .limit(1);
 
-        if (pendingPartner) {
+        if (existingPartner) {
+          // Link user to existing partner and activate
           await tx
             .update(partner)
             .set({ userId, status: "active" })
-            .where(eq(partner.id, pendingPartner.id));
+            .where(eq(partner.id, existingPartner.id));
+        } else {
+          // Auto-create partner record if none exists
+          await tx.insert(partner).values({
+            id: crypto.randomUUID(),
+            orgId: invite.orgId,
+            name: req.user?.name || invite.email,
+            type: "reseller", // Default type for auto-created partners
+            status: "active",
+            contactEmail: invite.email,
+            userId,
+            createdBy: userId,
+          });
         }
       }
 
