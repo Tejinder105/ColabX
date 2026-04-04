@@ -12,10 +12,6 @@ interface SendInvitationEmailInput {
   role: 'admin' | 'manager' | 'partner';
 }
 
-/**
- * Sends email via Brevo HTTP API (port 443).
- * This avoids SMTP port blocking on production hosting providers.
- */
 async function sendEmail({
   from,
   fromName,
