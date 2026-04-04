@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
@@ -11,13 +12,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileText, Download, Activity, MessageSquare, UserPlus, X, Users } from "lucide-react";
+import { FileText, Download, Activity, MessageSquare, UserPlus, X, Users, Send, Loader2 } from "lucide-react";
 import type { Deal } from "@/types/deal";
-import { useDealDetails, useAssignUserToDealMutation, useRemoveUserFromDealMutation } from "@/hooks/useDeals";
+import { 
+    useDealDetails, 
+    useAssignUserToDealMutation, 
+    useRemoveUserFromDealMutation,
+    useDealMessages,
+    useSendDealMessageMutation,
+} from "@/hooks/useDeals";
 import { useOrgMembers } from "@/hooks/useOrg";
 import { useAuthStore } from "@/stores/authStore";
 import { useRbac } from "@/hooks/useRbac";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface DealDetailsSheetProps {
     deal: Deal | null;
@@ -28,18 +35,34 @@ interface DealDetailsSheetProps {
 export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetProps) {
     const { data: dealDetails } = useDealDetails(deal?.id, open && !!deal?.id);
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const currentUser = useAuthStore((state) => state.user);
     const { data: membersData } = useOrgMembers(activeOrgId);
     const { canManageDeals } = useRbac();
     
+    // Assignment mutations
     const assignUser = useAssignUserToDealMutation();
     const removeUser = useRemoveUserFromDealMutation();
     
+    // Message queries and mutations
+    const { data: messagesData, isLoading: messagesLoading } = useDealMessages(deal?.id, open && !!deal?.id);
+    const sendMessage = useSendDealMessageMutation();
+    
     const [selectedUserId, setSelectedUserId] = useState<string>("");
+    const [messageText, setMessageText] = useState<string>("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messagesData?.messages]);
 
     if (!deal) return null;
 
     const assignments = dealDetails?.assignments ?? [];
     const activities = dealDetails?.activities ?? deal.activity ?? [];
+    const messages = messagesData?.messages ?? [];
     
     // Get members not already assigned to this deal
     const assignedUserIds = new Set(assignments.map(a => a.userId));
@@ -60,11 +83,41 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
         removeUser.mutate({ dealId: deal.id, userId });
     };
 
+    const handleSendMessage = () => {
+        if (!messageText.trim() || !deal.id) return;
+        sendMessage.mutate(
+            { dealId: deal.id, content: messageText.trim() },
+            { onSuccess: () => setMessageText("") }
+        );
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
+
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         notation: 'compact',
     }).format(val);
+
+    const formatMessageTime = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "Just now";
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    };
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -191,33 +244,75 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                             </TabsContent>
 
                             {/* MESSAGES TAB */}
-                            <TabsContent value="messages" className="m-0 space-y-4">
-                                {deal.messages && deal.messages.length > 0 ? (
-                                    <div className="space-y-6">
-                                        {deal.messages.map((msg) => (
-                                            <div key={msg.id} className={`flex gap-4 ${msg.senderRole === 'Manager' ? 'flex-row-reverse' : ''}`}>
-                                                <Avatar className="w-8 h-8">
-                                                    <AvatarImage src={msg.avatarUrl} />
-                                                    <AvatarFallback>{msg.sender.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div className={`flex flex-col space-y-1 w-full max-w-[80%] ${msg.senderRole === 'Manager' ? 'items-end' : 'items-start'}`}>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span className="font-semibold text-foreground">{msg.sender}</span>
-                                                        <span>{msg.timestamp}</span>
+                            <TabsContent value="messages" className="m-0 h-full flex flex-col">
+                                <div className="flex-1 space-y-4 pb-4">
+                                    {messagesLoading ? (
+                                        <div className="flex items-center justify-center py-10">
+                                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                        </div>
+                                    ) : messages.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {messages.map((msg) => {
+                                                const isOwnMessage = msg.senderId === currentUser?.id;
+                                                return (
+                                                    <div key={msg.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                                                        <Avatar className="w-8 h-8 shrink-0">
+                                                            <AvatarImage src={msg.senderImage ?? undefined} />
+                                                            <AvatarFallback className="text-xs">
+                                                                {msg.senderName?.charAt(0) ?? '?'}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className={`flex flex-col space-y-1 max-w-[75%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                                                            <div className={`flex items-center gap-2 text-xs text-muted-foreground ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                                                                <span className="font-medium text-foreground">
+                                                                    {isOwnMessage ? 'You' : msg.senderName}
+                                                                </span>
+                                                                <span>{formatMessageTime(msg.createdAt)}</span>
+                                                            </div>
+                                                            <div className={`p-3 rounded-xl text-sm leading-relaxed ${
+                                                                isOwnMessage
+                                                                    ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                                                    : 'bg-muted rounded-bl-sm'
+                                                            }`}>
+                                                                {msg.content}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className={`p-3 rounded-lg text-sm ${msg.senderRole === 'Manager'
-                                                            ? 'bg-primary text-primary-foreground rounded-tr-none'
-                                                            : 'bg-muted rounded-tl-none'
-                                                        }`}>
-                                                        {msg.content}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-10 text-muted-foreground">No messages yet. Start the conversation!</div>
-                                )}
+                                                );
+                                            })}
+                                            <div ref={messagesEndRef} />
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-10 text-muted-foreground">
+                                            <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                                            <p>No messages yet.</p>
+                                            <p className="text-sm">Start the conversation!</p>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Message Input */}
+                                <div className="flex gap-2 pt-4 border-t border-white/10">
+                                    <Input
+                                        placeholder="Type a message..."
+                                        value={messageText}
+                                        onChange={(e) => setMessageText(e.target.value)}
+                                        onKeyDown={handleKeyPress}
+                                        disabled={sendMessage.isPending}
+                                        className="flex-1"
+                                    />
+                                    <Button 
+                                        onClick={handleSendMessage} 
+                                        disabled={!messageText.trim() || sendMessage.isPending}
+                                        size="icon"
+                                    >
+                                        {sendMessage.isPending ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" />
+                                        )}
+                                    </Button>
+                                </div>
                             </TabsContent>
 
                             {/* DOCUMENTS TAB */}

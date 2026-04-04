@@ -322,12 +322,6 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
                                 </Button>
                             </div>
                         </div>
-                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                            <p className="text-sm text-blue-900">
-                                <strong>💡 Tip:</strong> Share the code above or the email contains a direct join link.
-                                The invitation expires in 7 days.
-                            </p>
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button
