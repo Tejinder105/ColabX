@@ -1,6 +1,7 @@
 import type { Response, NextFunction } from "express";
 import { getObjectiveById, getKeyResultById } from "./okr.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
+import { getOrgPartnersForUser } from "../partners/partners.service.js";
 
 // Verifies the objective exists and belongs to the current org.
 // Must run AFTER requireOrganization (requires req.org to be set).
@@ -34,6 +35,7 @@ export async function requireObjective(
             id: objectiveRow.id,
             title: objectiveRow.title,
             partnerId: objectiveRow.partnerId,
+            teamId: objectiveRow.teamId,
             orgId: objectiveRow.orgId,
         };
 
@@ -75,6 +77,7 @@ export async function requireKeyResult(
         req.keyResult = {
             id: krRow.id,
             objectiveId: krRow.objectiveId,
+            title: krRow.title,
             targetValue: krRow.targetValue,
             currentValue: krRow.currentValue,
             status: krRow.status,
@@ -84,5 +87,82 @@ export async function requireKeyResult(
     } catch (error) {
         console.error("requireKeyResult error:", error);
         res.status(500).json({ error: "Failed to verify key result access" });
+    }
+}
+
+export async function requireObjectiveAccess(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.objective || !req.org || !req.user || !req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        if (req.membership.role === "admin" || req.membership.role === "manager") {
+            next();
+            return;
+        }
+
+        if (req.membership.role !== "partner" || !req.objective.partnerId) {
+            res.status(403).json({ error: "Access denied to this objective" });
+            return;
+        }
+
+        const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
+        const canAccess = userPartners.some(
+            (partnerRow) => partnerRow.id === req.objective?.partnerId
+        );
+
+        if (!canAccess) {
+            res.status(403).json({ error: "Access denied to this objective" });
+            return;
+        }
+
+        next();
+    } catch (error) {
+        console.error("requireObjectiveAccess error:", error);
+        res.status(500).json({ error: "Failed to verify objective permissions" });
+    }
+}
+
+export async function requireKeyResultAccess(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.keyResult || !req.org || !req.user || !req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        if (req.membership.role === "admin" || req.membership.role === "manager") {
+            next();
+            return;
+        }
+
+        const objectiveRow = await getObjectiveById(req.keyResult.objectiveId, req.org.id);
+        if (!objectiveRow || !objectiveRow.partnerId) {
+            res.status(403).json({ error: "Access denied to this key result" });
+            return;
+        }
+
+        const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
+        const canAccess = userPartners.some(
+            (partnerRow) => partnerRow.id === objectiveRow.partnerId
+        );
+
+        if (!canAccess) {
+            res.status(403).json({ error: "Access denied to this key result" });
+            return;
+        }
+
+        next();
+    } catch (error) {
+        console.error("requireKeyResultAccess error:", error);
+        res.status(500).json({ error: "Failed to verify key result permissions" });
     }
 }

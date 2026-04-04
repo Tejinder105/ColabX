@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
+import { createActivity } from "../collaboration/collaboration.service.js";
 import {
     createObjective,
     getOrgObjectives,
@@ -12,8 +13,10 @@ import {
     recordMetric,
     getPartnerMetrics,
     calculateAndStorePartnerScore,
-    getLatestPartnerScore,
     getPartnerByIdForOrg,
+    getTeamByIdForOrg,
+    getPartnerPerformanceSummary,
+    getTeamPerformanceSummary,
 } from "./okr.service.js";
 import { getOrgPartnersForUser } from "../partners/partners.service.js";
 
@@ -30,13 +33,39 @@ export async function createObjectiveHandler(
             return;
         }
 
-        const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
-        if (!partnerRow) {
-            res.status(400).json({ error: "Partner is not part of this organization" });
-            return;
+        if (req.body.partnerId) {
+            const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
+            if (!partnerRow) {
+                res.status(400).json({ error: "Partner is not part of this organization" });
+                return;
+            }
+        }
+
+        if (req.body.teamId) {
+            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+            if (!teamRow) {
+                res.status(400).json({ error: "Team is not part of this organization" });
+                return;
+            }
         }
 
         const created = await createObjective(req.org.id, req.user.id, req.body);
+        if (!created) {
+            throw new Error("Failed to create objective");
+        }
+
+        try {
+            await createActivity(
+                req.org.id,
+                req.user.id,
+                "objective",
+                created.id,
+                `created objective "${created.title}"`
+            );
+        } catch (activityError) {
+            console.error("Activity log write failed:", activityError);
+        }
+
         res.status(201).json({ objective: created });
     } catch (error) {
         console.error("Create objective error:", error);
@@ -57,10 +86,12 @@ export async function getOrgObjectivesHandler(
 
         const filters: {
             partnerId?: string;
+            teamId?: string;
             startDate?: string;
             endDate?: string;
         } = {};
         if (req.query.partnerId) filters.partnerId = req.query.partnerId as string;
+        if (req.query.teamId) filters.teamId = req.query.teamId as string;
         if (req.query.startDate) filters.startDate = req.query.startDate as string;
         if (req.query.endDate) filters.endDate = req.query.endDate as string;
 
@@ -70,13 +101,39 @@ export async function getOrgObjectivesHandler(
             const partnerIds = userPartners.map(p => p.id);
 
             if (partnerIds.length === 0) {
-                res.json({ objectives: [] });
+                res.json({
+                    objectives: [],
+                    summary: {
+                        activeObjectives: 0,
+                        completedObjectives: 0,
+                        atRiskObjectives: 0,
+                    },
+                });
                 return;
             }
 
             // If a specific partnerId filter was set, verify it belongs to this user
             if (filters.partnerId && !partnerIds.includes(filters.partnerId)) {
-                res.json({ objectives: [] });
+                res.json({
+                    objectives: [],
+                    summary: {
+                        activeObjectives: 0,
+                        completedObjectives: 0,
+                        atRiskObjectives: 0,
+                    },
+                });
+                return;
+            }
+
+            if (filters.teamId) {
+                res.json({
+                    objectives: [],
+                    summary: {
+                        activeObjectives: 0,
+                        completedObjectives: 0,
+                        atRiskObjectives: 0,
+                    },
+                });
                 return;
             }
 
@@ -87,13 +144,41 @@ export async function getOrgObjectivesHandler(
                     const objs = await getOrgObjectives(req.org.id, { ...filters, partnerId: pid });
                     allObjectives.push(...objs);
                 }
-                res.json({ objectives: allObjectives });
+                res.json({
+                    objectives: allObjectives,
+                    summary: {
+                        activeObjectives: allObjectives.length,
+                        completedObjectives: allObjectives.filter(
+                            (objective: {
+                                completedKeyResults: number;
+                                totalKeyResults: number;
+                            }) => objective.completedKeyResults === objective.totalKeyResults
+                        ).length,
+                        atRiskObjectives: allObjectives.filter(
+                            (objective: { status: string }) => objective.status === "at_risk"
+                        ).length,
+                    },
+                });
                 return;
             }
         }
 
         const objectives = await getOrgObjectives(req.org.id, filters);
-        res.json({ objectives });
+        res.json({
+            objectives,
+            summary: {
+                activeObjectives: objectives.length,
+                completedObjectives: objectives.filter(
+                    (objective: {
+                        completedKeyResults: number;
+                        totalKeyResults: number;
+                    }) => objective.completedKeyResults === objective.totalKeyResults
+                ).length,
+                atRiskObjectives: objectives.filter(
+                    (objective: { status: string }) => objective.status === "at_risk"
+                ).length,
+            },
+        });
     } catch (error) {
         console.error("Get objectives error:", error);
         res.status(500).json({ error: "Failed to fetch objectives" });
@@ -116,6 +201,10 @@ export async function getObjectiveByIdHandler(
             objective: result.objective,
             keyResults: result.keyResults,
             progressPercent: result.progressPercent,
+            status: result.status,
+            completedKeyResults: result.completedKeyResults,
+            totalKeyResults: result.totalKeyResults,
+            activities: result.activities,
         });
     } catch (error) {
         console.error("Get objective error:", error);
@@ -137,13 +226,31 @@ export async function updateObjectiveHandler(
         const updates: Record<string, string | null> = {};
         if (req.body.title !== undefined) updates.title = req.body.title;
         if (req.body.description !== undefined) updates.description = req.body.description;
-        if (req.body.partnerId !== undefined) {
-            const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
-            if (!partnerRow) {
-                res.status(400).json({ error: "Partner is not part of this organization" });
+        if (req.body.partnerId !== undefined || req.body.teamId !== undefined) {
+            if (req.body.partnerId) {
+                const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
+                if (!partnerRow) {
+                    res.status(400).json({ error: "Partner is not part of this organization" });
+                    return;
+                }
+
+                updates.partnerId = req.body.partnerId;
+                updates.teamId = null;
+            } else if (req.body.teamId) {
+                const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+                if (!teamRow) {
+                    res.status(400).json({ error: "Team is not part of this organization" });
+                    return;
+                }
+
+                updates.teamId = req.body.teamId;
+                updates.partnerId = null;
+            } else {
+                res.status(400).json({
+                    error: "Objective must be assigned to exactly one entity",
+                });
                 return;
             }
-            updates.partnerId = req.body.partnerId;
         }
         if (req.body.startDate !== undefined) updates.startDate = req.body.startDate;
         if (req.body.endDate !== undefined) updates.endDate = req.body.endDate;
@@ -154,6 +261,26 @@ export async function updateObjectiveHandler(
         }
 
         const updated = await updateObjective(req.objective.id, updates);
+        if (!updated) {
+            res.status(404).json({ error: "Objective not found" });
+            return;
+        }
+
+        if (req.org && req.user) {
+            try {
+                const changedFields = Object.keys(updates).join(", ");
+                await createActivity(
+                    req.org.id,
+                    req.user.id,
+                    "objective",
+                    req.objective.id,
+                    `updated objective "${updated.title}" (${changedFields})`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+        }
+
         res.json({ objective: updated });
     } catch (error) {
         console.error("Update objective error:", error);
@@ -173,6 +300,21 @@ export async function deleteObjectiveHandler(
         }
 
         await archiveObjective(req.objective.id);
+
+        if (req.org && req.user) {
+            try {
+                await createActivity(
+                    req.org.id,
+                    req.user.id,
+                    "objective",
+                    req.objective.id,
+                    `archived objective "${req.objective.title}"`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error("Delete objective error:", error);
@@ -194,6 +336,24 @@ export async function createKeyResultHandler(
         }
 
         const created = await createKeyResult(req.objective.id, req.body);
+        if (!created) {
+            throw new Error("Failed to create key result");
+        }
+
+        if (req.org && req.user) {
+            try {
+                await createActivity(
+                    req.org.id,
+                    req.user.id,
+                    "objective",
+                    req.objective.id,
+                    `added key result "${created.title}" to objective "${req.objective.title}"`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+        }
+
         res.status(201).json({ keyResult: created });
     } catch (error) {
         console.error("Create key result error:", error);
@@ -231,7 +391,49 @@ export async function updateKeyResultHandler(
             return;
         }
 
+        if (!req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        if (req.membership.role === "partner") {
+            const invalidFields = ["title", "targetValue", "status"].filter(
+                (field) => req.body[field] !== undefined
+            );
+
+            if (invalidFields.length > 0) {
+                res.status(403).json({
+                    error: "Partners can only update current progress",
+                });
+                return;
+            }
+        }
+
         const updated = await updateKeyResult(req.keyResult.id, req.body);
+        if (!updated) {
+            res.status(404).json({ error: "Key result not found" });
+            return;
+        }
+
+        if (req.org && req.user) {
+            try {
+                await createActivity(
+                    req.org.id,
+                    req.user.id,
+                    "objective",
+                    req.keyResult.objectiveId,
+                    `updated progress for key result "${updated.title}"`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+        }
+
+        const objectiveResult = await getObjectiveWithKeyResults(req.keyResult.objectiveId);
+        if (objectiveResult.objective?.partnerId) {
+            await calculateAndStorePartnerScore(objectiveResult.objective.partnerId);
+        }
+
         res.json({ keyResult: updated });
     } catch (error) {
         console.error("Update key result error:", error);
@@ -253,11 +455,28 @@ export async function recordMetricHandler(
         }
 
         const created = await recordMetric(req.partner.id, req.body);
+        if (!created) {
+            throw new Error("Failed to record metric");
+        }
 
         // Auto-recalculate partner score after new metric is recorded
-        await calculateAndStorePartnerScore(req.partner.id);
+        const score = await calculateAndStorePartnerScore(req.partner.id);
 
-        res.status(201).json({ metric: created });
+        if (req.user) {
+            try {
+                await createActivity(
+                    req.org.id,
+                    req.user.id,
+                    "partner",
+                    req.partner.id,
+                    `recorded performance metric "${created.metricType}"`
+                );
+            } catch (activityError) {
+                console.error("Activity log write failed:", activityError);
+            }
+        }
+
+        res.status(201).json({ metric: created, score });
     } catch (error) {
         console.error("Record metric error:", error);
         res.status(500).json({ error: "Failed to record metric" });
@@ -297,7 +516,7 @@ export async function getPartnerScoreHandler(
             return;
         }
 
-        const score = await getLatestPartnerScore(req.partner.id);
+        const score = await calculateAndStorePartnerScore(req.partner.id);
 
         if (!score) {
             res.json({ score: null });
@@ -308,5 +527,51 @@ export async function getPartnerScoreHandler(
     } catch (error) {
         console.error("Get partner score error:", error);
         res.status(500).json({ error: "Failed to fetch partner score" });
+    }
+}
+
+// GET /api/okr/partners/:partnerId/performance
+export async function getPartnerPerformanceHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.org || !req.partner) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        const summary = await getPartnerPerformanceSummary(req.partner.id, req.org.id);
+        res.json(summary);
+    } catch (error) {
+        console.error("Get partner performance error:", error);
+        res.status(500).json({ error: "Failed to fetch partner performance" });
+    }
+}
+
+// GET /api/okr/teams/:teamId/performance
+export async function getTeamPerformanceHandler(
+    req: AuthRequest,
+    res: Response
+): Promise<void> {
+    try {
+        if (!req.org) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        const teamId = req.params.teamId as string;
+        const teamRow = await getTeamByIdForOrg(teamId, req.org.id);
+
+        if (!teamRow) {
+            res.status(404).json({ error: "Team not found" });
+            return;
+        }
+
+        const summary = await getTeamPerformanceSummary(teamId, req.org.id);
+        res.json(summary);
+    } catch (error) {
+        console.error("Get team performance error:", error);
+        res.status(500).json({ error: "Failed to fetch team performance" });
     }
 }

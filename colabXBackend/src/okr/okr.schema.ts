@@ -11,6 +11,7 @@ import {
 import { organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
 import { partner } from "../partners/partners.schema.js";
+import { team } from "../teams/teams.schema.js";
 
 export const keyResultStatusEnum = pgEnum("keyResultStatus", [
     "on_track",
@@ -27,9 +28,8 @@ export const objective = pgTable(
         orgId: text("orgId")
             .notNull()
             .references(() => organization.id, { onDelete: "cascade" }),
-        partnerId: text("partnerId")
-            .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
+        partnerId: text("partnerId").references(() => partner.id, { onDelete: "cascade" }),
+        teamId: text("teamId").references(() => team.id, { onDelete: "cascade" }),
         title: text("title").notNull(),
         description: text("description"),
         startDate: date("startDate").notNull(),
@@ -46,6 +46,7 @@ export const objective = pgTable(
     (table) => [
         index("objective_orgId_idx").on(table.orgId),
         index("objective_partnerId_idx").on(table.partnerId),
+        index("objective_teamId_idx").on(table.teamId),
     ]
 );
 
@@ -58,6 +59,7 @@ export const keyResult = pgTable(
         objectiveId: text("objectiveId")
             .notNull()
             .references(() => objective.id, { onDelete: "cascade" }),
+        title: text("title").notNull(),
         targetValue: real("targetValue").notNull(),
         currentValue: real("currentValue").notNull().default(0),
         status: keyResultStatusEnum("status").notNull().default("on_track"),
@@ -119,6 +121,10 @@ export const objectiveRelations = relations(objective, ({ one, many }) => ({
     partner: one(partner, {
         fields: [objective.partnerId],
         references: [partner.id],
+    }),
+    team: one(team, {
+        fields: [objective.teamId],
+        references: [team.id],
     }),
     creator: one(user, {
         fields: [objective.createdBy],

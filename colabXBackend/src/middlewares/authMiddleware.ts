@@ -43,6 +43,7 @@ export interface AuthRequest extends Request {
         id: string;
         title: string;
         partnerId: string;
+        teamId: string | null;
         stage: "lead" | "proposal" | "negotiation" | "won" | "lost";
         orgId: string;
         createdBy: string | null;
@@ -50,12 +51,14 @@ export interface AuthRequest extends Request {
     objective?: {
         id: string;
         title: string;
-        partnerId: string;
+        partnerId: string | null;
+        teamId: string | null;
         orgId: string;
     };
     keyResult?: {
         id: string;
         objectiveId: string;
+        title: string;
         targetValue: number;
         currentValue: number;
         status: "on_track" | "at_risk" | "off_track";
