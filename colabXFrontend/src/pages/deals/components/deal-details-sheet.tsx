@@ -22,6 +22,7 @@ import {
     useSendDealMessageMutation,
 } from "@/hooks/useDeals";
 import { useOrgMembers } from "@/hooks/useOrg";
+import { useCurrentUser } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/authStore";
 import { useRbac } from "@/hooks/useRbac";
 import { useState, useRef, useEffect } from "react";
@@ -35,7 +36,7 @@ interface DealDetailsSheetProps {
 export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetProps) {
     const { data: dealDetails } = useDealDetails(deal?.id, open && !!deal?.id);
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
-    const currentUser = useAuthStore((state) => state.user);
+    const { data: currentUser } = useCurrentUser();
     const { data: membersData } = useOrgMembers(activeOrgId);
     const { canManageDeals } = useRbac();
     
@@ -253,7 +254,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     ) : messages.length > 0 ? (
                                         <div className="space-y-4">
                                             {messages.map((msg) => {
-                                                const isOwnMessage = msg.senderId === currentUser?.id;
+                                                const isOwnMessage = msg.senderId === currentUser?.user?.id;
                                                 return (
                                                     <div key={msg.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                                                         <Avatar className="w-8 h-8 shrink-0">
