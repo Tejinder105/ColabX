@@ -4,12 +4,14 @@ import { deal, dealAssignment, dealMessage } from "./deals.schema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "../schemas/authSchema.js";
 import { orgUser } from "../schemas/orgSchema.js";
+import { team, teamMember, teamPartner } from "../teams/teams.schema.js";
 
 export async function createDeal(
     orgId: string,
     userId: string,
     data: {
         partnerId: string;
+        teamId?: string;
         title: string;
         description?: string;
         value?: number;
@@ -21,6 +23,7 @@ export async function createDeal(
             id: crypto.randomUUID(),
             orgId,
             partnerId: data.partnerId,
+            teamId: data.teamId ?? null,
             title: data.title,
             description: data.description ?? null,
             value: data.value ?? null,
@@ -33,7 +36,12 @@ export async function createDeal(
 
 export async function getOrgDeals(
     orgId: string,
-    filters?: { stage?: string; partnerId?: string; assignedUser?: string }
+    filters?: {
+        stage?: string;
+        partnerId?: string;
+        assignedUser?: string;
+        teamId?: string;
+    }
 ) {
     const conditions = [eq(deal.orgId, orgId)];
 
@@ -45,12 +53,17 @@ export async function getOrgDeals(
     if (filters?.partnerId) {
         conditions.push(eq(deal.partnerId, filters.partnerId));
     }
+    if (filters?.teamId) {
+        conditions.push(eq(deal.teamId, filters.teamId));
+    }
 
     const results = await db
         .select({
             id: deal.id,
             orgId: deal.orgId,
             partnerId: deal.partnerId,
+            teamId: deal.teamId,
+            teamName: team.name,
             partnerName: partner.name,
             title: deal.title,
             description: deal.description,
@@ -63,9 +76,10 @@ export async function getOrgDeals(
         })
         .from(deal)
         .leftJoin(partner, eq(deal.partnerId, partner.id))
+        .leftJoin(team, eq(deal.teamId, team.id))
         .leftJoin(dealAssignment, eq(deal.id, dealAssignment.dealId))
         .where(and(...conditions))
-        .groupBy(deal.id, partner.name);
+        .groupBy(deal.id, partner.name, team.name);
 
     if (filters?.assignedUser) {
         const assignedDealIds = await db
@@ -119,9 +133,18 @@ export async function getDealWithDetails(dealId: string) {
               .limit(1)
         : [];
 
+    const teamRow = dealRow?.teamId
+        ? await db
+              .select({ id: team.id, name: team.name, description: team.description })
+              .from(team)
+              .where(eq(team.id, dealRow.teamId))
+              .limit(1)
+        : [];
+
     return {
         deal: dealRow,
         partner: partnerRow[0] ?? null,
+        team: teamRow?.[0] ?? null,
         assignments,
         activities: [],
     };
@@ -249,6 +272,51 @@ export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
         .limit(1);
 
     return result;
+}
+
+export async function getTeamByIdForOrg(teamId: string, orgId: string) {
+    const [result] = await db
+        .select()
+        .from(team)
+        .where(and(eq(team.id, teamId), eq(team.orgId, orgId)))
+        .limit(1);
+
+    return result;
+}
+
+export async function getTeamsForPartner(partnerId: string, orgId: string) {
+    return db
+        .select({
+            id: team.id,
+            name: team.name,
+            description: team.description,
+        })
+        .from(teamPartner)
+        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.orgId, orgId)));
+}
+
+export async function isPartnerAssignedToTeam(
+    teamId: string,
+    partnerId: string
+): Promise<boolean> {
+    const [result] = await db
+        .select({ id: teamPartner.id })
+        .from(teamPartner)
+        .where(and(eq(teamPartner.teamId, teamId), eq(teamPartner.partnerId, partnerId)))
+        .limit(1);
+
+    return !!result;
+}
+
+export async function isUserInTeam(teamId: string, userId: string): Promise<boolean> {
+    const [result] = await db
+        .select({ id: teamMember.id })
+        .from(teamMember)
+        .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+        .limit(1);
+
+    return !!result;
 }
 
 // ── Deal Message Functions ─────────────────────────────────────────────────────

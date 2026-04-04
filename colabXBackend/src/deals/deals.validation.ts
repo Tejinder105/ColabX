@@ -2,12 +2,14 @@ import { z } from "zod";
 
 export const createDealSchema = z.object({
     partnerId: z.string().min(1),
+    teamId: z.string().min(1).optional(),
     title: z.string().min(2).max(300).trim(),
     description: z.string().max(2000).trim().optional(),
     value: z.number().optional(),
 });
 
 export const updateDealSchema = z.object({
+    teamId: z.string().min(1).optional(),
     title: z.string().min(2).max(300).trim().optional(),
     description: z.string().max(2000).trim().nullish(),
     value: z.number().nullish(),

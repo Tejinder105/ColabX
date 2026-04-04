@@ -11,6 +11,7 @@ import {
 import { organization } from "../schemas/orgSchema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "../schemas/authSchema.js";
+import { team } from "../teams/teams.schema.js";
 
 export const dealStageEnum = pgEnum("dealStage", [
     "lead",
@@ -30,6 +31,9 @@ export const deal = pgTable(
         partnerId: text("partnerId")
             .notNull()
             .references(() => partner.id, { onDelete: "cascade" }),
+        teamId: text("teamId").references(() => team.id, {
+            onDelete: "set null",
+        }),
         title: text("title").notNull(),
         description: text("description"),
         value: real("value"),
@@ -46,6 +50,7 @@ export const deal = pgTable(
     (table) => [
         index("deal_orgId_idx").on(table.orgId),
         index("deal_partnerId_idx").on(table.partnerId),
+        index("deal_teamId_idx").on(table.teamId),
         index("deal_stage_idx").on(table.stage),
     ]
 );
@@ -103,6 +108,10 @@ export const dealRelations = relations(deal, ({ one, many }) => ({
     partner: one(partner, {
         fields: [deal.partnerId],
         references: [partner.id],
+    }),
+    team: one(team, {
+        fields: [deal.teamId],
+        references: [team.id],
     }),
     creator: one(user, {
         fields: [deal.createdBy],

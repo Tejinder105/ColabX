@@ -12,6 +12,10 @@ import {
     removeUserFromDeal,
     isOrgMember,
     getPartnerByIdForOrg,
+    getTeamByIdForOrg,
+    getTeamsForPartner,
+    isPartnerAssignedToTeam,
+    isUserInTeam,
     getPartnerForUserInOrg,
     createDealMessage,
     getDealMessages,
@@ -38,7 +42,49 @@ export async function createDealHandler(
             return;
         }
 
-        const created = await createDeal(req.org.id, req.user.id, req.body);
+        const partnerTeams = await getTeamsForPartner(req.body.partnerId, req.org.id);
+        let teamId = req.body.teamId as string | undefined;
+
+        if (teamId) {
+            const teamRow = await getTeamByIdForOrg(teamId, req.org.id);
+            if (!teamRow) {
+                res.status(404).json({ error: "Team not found in this organization" });
+                return;
+            }
+
+            const partnerAssignedToTeam = await isPartnerAssignedToTeam(teamId, req.body.partnerId);
+            if (!partnerAssignedToTeam) {
+                res.status(400).json({
+                    error: "Partner must be assigned to the selected team before creating a deal",
+                });
+                return;
+            }
+        } else if (partnerTeams.length === 1) {
+            const onlyTeam = partnerTeams[0];
+            if (!onlyTeam) {
+                res.status(400).json({
+                    error: "Partner team assignment could not be resolved",
+                });
+                return;
+            }
+
+            teamId = onlyTeam.id;
+        } else if (partnerTeams.length === 0) {
+            res.status(400).json({
+                error: "Partner must be assigned to a team before creating a deal",
+            });
+            return;
+        } else {
+            res.status(400).json({
+                error: "Partner belongs to multiple teams. Please provide teamId.",
+            });
+            return;
+        }
+
+        const created = await createDeal(req.org.id, req.user.id, {
+            ...req.body,
+            teamId,
+        });
         res.status(201).json({ deal: created });
     } catch (error) {
         console.error("Create deal error:", error);
@@ -57,14 +103,21 @@ export async function getOrgDealsHandler(
             return;
         }
 
-        const filters: { stage?: string; partnerId?: string; assignedUser?: string } = {};
+        const filters: {
+            stage?: string;
+            partnerId?: string;
+            assignedUser?: string;
+            teamId?: string;
+        } = {};
         if (req.query.stage) filters.stage = req.query.stage as string;
 
         const requestedPartnerId = req.query.partnerId as string | undefined;
         const requestedAssignedUser = req.query.assignedUser as string | undefined;
+        const requestedTeamId = req.query.teamId as string | undefined;
 
         if (requestedPartnerId) filters.partnerId = requestedPartnerId;
         if (requestedAssignedUser) filters.assignedUser = requestedAssignedUser;
+        if (requestedTeamId) filters.teamId = requestedTeamId;
 
         // Partner role: can only see deals assigned to them
         if (req.membership.role === "partner") {
@@ -108,6 +161,7 @@ export async function getDealByIdHandler(
         res.json({
             deal: result.deal,
             partner: result.partner,
+            team: result.team,
             assignments: result.assignments,
             activities: result.activities,
         });
@@ -133,6 +187,31 @@ export async function updateDealHandler(
         if (req.body.description !== undefined) updates.description = req.body.description;
         if (req.body.value !== undefined) updates.value = req.body.value;
         if (req.body.stage !== undefined) updates.stage = req.body.stage;
+        if (req.body.teamId !== undefined) {
+            if (!req.org) {
+                res.status(403).json({ error: "Access denied" });
+                return;
+            }
+
+            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+            if (!teamRow) {
+                res.status(404).json({ error: "Team not found in this organization" });
+                return;
+            }
+
+            const partnerAssignedToTeam = await isPartnerAssignedToTeam(
+                req.body.teamId,
+                req.deal.partnerId
+            );
+            if (!partnerAssignedToTeam) {
+                res.status(400).json({
+                    error: "Deal partner must be assigned to the selected team",
+                });
+                return;
+            }
+
+            updates.teamId = req.body.teamId;
+        }
 
         if (Object.keys(updates).length === 0) {
             res.status(400).json({ error: "No fields to update" });
@@ -185,6 +264,16 @@ export async function assignUserHandler(
         if (!orgMember) {
             res.status(400).json({ error: "User is not a member of this organization" });
             return;
+        }
+
+        if (req.deal.teamId) {
+            const memberOfDealTeam = await isUserInTeam(req.deal.teamId, userId);
+            if (!memberOfDealTeam) {
+                res.status(400).json({
+                    error: "User must be a member of the deal's team",
+                });
+                return;
+            }
         }
 
         const existing = await getDealAssignmentRecord(req.deal.id, userId);

@@ -32,6 +32,7 @@ export async function requireDeal(
             id: dealRow.id,
             title: dealRow.title,
             partnerId: dealRow.partnerId,
+            teamId: dealRow.teamId,
             stage: dealRow.stage,
             orgId: dealRow.orgId,
             createdBy: dealRow.createdBy,
