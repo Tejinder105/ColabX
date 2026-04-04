@@ -2,6 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import db from "../db/index.js";
 import { partner } from "./partners.schema.js";
 import { orgUser } from "../schemas/orgSchema.js";
+import { team, teamPartner } from "../teams/teams.schema.js";
 
 /**
  * Normalize email for consistent storage and comparison
@@ -97,7 +98,22 @@ export async function getPartnerWithTeams(partnerId: string) {
         .where(eq(partner.id, partnerId))
         .limit(1);
 
-    return { partner: partnerRow, teams: [] };
+    const teams = await db
+        .select({
+            id: team.id,
+            orgId: team.orgId,
+            name: team.name,
+            description: team.description,
+            createdBy: team.createdBy,
+            createdAt: team.createdAt,
+            updatedAt: team.updatedAt,
+            assignedAt: teamPartner.assignedAt,
+        })
+        .from(teamPartner)
+        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .where(eq(teamPartner.partnerId, partnerId));
+
+    return { partner: partnerRow, teams };
 }
 
 export async function updatePartner(

@@ -1,6 +1,6 @@
-import { eq, and, count, inArray, desc } from "drizzle-orm";
+import { and, count, desc, eq, inArray, or } from "drizzle-orm";
 import db from "../db/index.js";
-import { team, teamMember } from "./teams.schema.js";
+import { team, teamMember, teamPartner } from "./teams.schema.js";
 import { orgUser } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
 import { partner } from "../partners/partners.schema.js";
@@ -8,46 +8,157 @@ import { deal, dealAssignment } from "../deals/deals.schema.js";
 import { objective, keyResult } from "../okr/okr.schema.js";
 import { activityLog } from "../schemas/collaborationSchema.js";
 
-// Create a new team inside an organization
+type TeamRole = "lead" | "member";
+
+function uniqueIds(ids: string[]) {
+    return [...new Set(ids.filter(Boolean))];
+}
+
 export async function createTeam(
     orgId: string,
     userId: string,
-    data: { name: string; description?: string }
+    data: {
+        name: string;
+        description?: string;
+        leadUserId?: string;
+        memberIds?: string[];
+    }
 ) {
-    const [created] = await db
-        .insert(team)
-        .values({
-            id: crypto.randomUUID(),
-            orgId,
-            name: data.name,
-            description: data.description ?? null,
-            createdBy: userId,
-        })
-        .returning();
+    const memberIds = uniqueIds(data.memberIds ?? []);
+    if (data.leadUserId && !memberIds.includes(data.leadUserId)) {
+        memberIds.unshift(data.leadUserId);
+    }
 
-    return created;
+    return db.transaction(async (tx) => {
+        const [createdTeam] = await tx
+            .insert(team)
+            .values({
+                id: crypto.randomUUID(),
+                orgId,
+                name: data.name,
+                description: data.description ?? null,
+                createdBy: userId,
+            })
+            .returning();
+
+        if (!createdTeam) {
+            throw new Error("Failed to create team");
+        }
+
+        let members: Array<{
+            id: string;
+            teamId: string;
+            userId: string;
+            role: TeamRole;
+            joinedAt: Date;
+        }> = [];
+
+        if (memberIds.length > 0) {
+            members = await tx
+                .insert(teamMember)
+                .values(
+                    memberIds.map((memberId) => ({
+                        id: crypto.randomUUID(),
+                        teamId: createdTeam.id,
+                        userId: memberId,
+                        role: (memberId === data.leadUserId ? "lead" : "member") as TeamRole,
+                    }))
+                )
+                .returning();
+        }
+
+        return { team: createdTeam, members };
+    });
 }
 
-// List all teams for an org, each with a memberCount
-export async function getOrgTeams(orgId: string) {
-    return db
-        .select({
-            id: team.id,
-            orgId: team.orgId,
-            name: team.name,
-            description: team.description,
-            createdBy: team.createdBy,
-            createdAt: team.createdAt,
-            updatedAt: team.updatedAt,
-            memberCount: count(teamMember.id),
-        })
+export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
+    const conditions = [eq(team.orgId, orgId)];
+
+    if (visibleToUserId) {
+        const visibleTeamRows = await db
+            .select({ teamId: teamMember.teamId })
+            .from(teamMember)
+            .innerJoin(team, eq(teamMember.teamId, team.id))
+            .where(and(eq(team.orgId, orgId), eq(teamMember.userId, visibleToUserId)));
+
+        const visibleTeamIds = uniqueIds(visibleTeamRows.map((row) => row.teamId));
+        if (visibleTeamIds.length === 0) {
+            return [];
+        }
+
+        conditions.push(inArray(team.id, visibleTeamIds));
+    }
+
+    const teamRows = await db
+        .select()
         .from(team)
-        .leftJoin(teamMember, eq(team.id, teamMember.teamId))
-        .where(eq(team.orgId, orgId))
-        .groupBy(team.id);
+        .where(and(...conditions))
+        .orderBy(desc(team.updatedAt));
+
+    if (teamRows.length === 0) {
+        return [];
+    }
+
+    const teamIds = teamRows.map((row) => row.id);
+    const members = await getMembersForTeamIds(teamIds);
+
+    const partnerCounts = await db
+        .select({
+            teamId: teamPartner.teamId,
+            partnerCount: count(teamPartner.id),
+        })
+        .from(teamPartner)
+        .where(inArray(teamPartner.teamId, teamIds))
+        .groupBy(teamPartner.teamId);
+
+    const dealCounts = await db
+        .select({
+            teamId: deal.teamId,
+            dealCount: count(deal.id),
+        })
+        .from(deal)
+        .where(and(eq(deal.orgId, orgId), inArray(deal.teamId, teamIds)))
+        .groupBy(deal.teamId);
+
+    const memberCountByTeamId = new Map<string, number>();
+    const leadByTeamId = new Map<string, (typeof members)[number]>();
+
+    for (const member of members) {
+        memberCountByTeamId.set(
+            member.teamId,
+            (memberCountByTeamId.get(member.teamId) ?? 0) + 1
+        );
+
+        if (member.role === "lead" && !leadByTeamId.has(member.teamId)) {
+            leadByTeamId.set(member.teamId, member);
+        }
+    }
+
+    const partnerCountByTeamId = new Map(
+        partnerCounts.map((row) => [row.teamId, Number(row.partnerCount)])
+    );
+    const dealCountByTeamId = new Map(
+        dealCounts
+            .filter((row) => !!row.teamId)
+            .map((row) => [row.teamId as string, Number(row.dealCount)])
+    );
+
+    return teamRows.map((row) => {
+        const memberCount = memberCountByTeamId.get(row.id) ?? 0;
+        const partnerCount = partnerCountByTeamId.get(row.id) ?? 0;
+        const dealCount = dealCountByTeamId.get(row.id) ?? 0;
+
+        return {
+            ...row,
+            lead: leadByTeamId.get(row.id) ?? null,
+            memberCount,
+            partnerCount,
+            dealCount,
+            isActive: partnerCount > 0 || dealCount > 0,
+        };
+    });
 }
 
-// Get a single team (orgId filter enforces cross-tenant isolation)
 export async function getTeamById(teamId: string, orgId: string) {
     const [result] = await db
         .select()
@@ -58,15 +169,12 @@ export async function getTeamById(teamId: string, orgId: string) {
     return result;
 }
 
-// Get team row + all members with embedded user details
-export async function getTeamWithMembers(teamId: string) {
-    const [teamRow] = await db
-        .select()
-        .from(team)
-        .where(eq(team.id, teamId))
-        .limit(1);
+async function getMembersForTeamIds(teamIds: string[]) {
+    if (teamIds.length === 0) {
+        return [];
+    }
 
-    const members = await db
+    return db
         .select({
             id: teamMember.id,
             teamId: teamMember.teamId,
@@ -79,12 +187,37 @@ export async function getTeamWithMembers(teamId: string) {
         })
         .from(teamMember)
         .innerJoin(user, eq(teamMember.userId, user.id))
-        .where(eq(teamMember.teamId, teamId));
-
-    return { team: teamRow, members };
+        .where(inArray(teamMember.teamId, teamIds))
+        .orderBy(teamMember.joinedAt);
 }
 
-// Update a team's name and/or description
+export async function getTeamWithMembers(teamId: string, orgId: string) {
+    const [teamRow, members, partners, deals] = await Promise.all([
+        getTeamById(teamId, orgId),
+        getTeamMembers(teamId),
+        getTeamPartners(teamId, orgId),
+        getTeamDeals(teamId, orgId),
+    ]);
+
+    if (!teamRow) {
+        return { team: null, members: [] };
+    }
+
+    const lead = members.find((member) => member.role === "lead") ?? null;
+
+    return {
+        team: {
+            ...teamRow,
+            lead,
+            memberCount: members.length,
+            partnerCount: partners.length,
+            dealCount: deals.length,
+            isActive: partners.length > 0 || deals.length > 0,
+        },
+        members,
+    };
+}
+
 export async function updateTeam(
     teamId: string,
     data: Record<string, string | null | undefined>
@@ -98,7 +231,6 @@ export async function updateTeam(
     return updated;
 }
 
-// Delete a team (FK cascade removes teamMember rows)
 export async function deleteTeam(teamId: string) {
     const [deleted] = await db
         .delete(team)
@@ -108,7 +240,6 @@ export async function deleteTeam(teamId: string) {
     return deleted;
 }
 
-// Check whether a user is a member of an organization
 export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
     const [result] = await db
         .select({ id: orgUser.id })
@@ -119,7 +250,20 @@ export async function isOrgMember(orgId: string, userId: string): Promise<boolea
     return !!result;
 }
 
-// Get a specific team membership record (used for duplicate-check before add)
+export async function getOrgMemberUserIds(orgId: string, userIds: string[]) {
+    const uniqueUserIds = uniqueIds(userIds);
+    if (uniqueUserIds.length === 0) {
+        return [];
+    }
+
+    const rows = await db
+        .select({ userId: orgUser.userId })
+        .from(orgUser)
+        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.userId, uniqueUserIds)));
+
+    return rows.map((row) => row.userId);
+}
+
 export async function getTeamMemberRecord(teamId: string, userId: string) {
     const [result] = await db
         .select()
@@ -130,26 +274,43 @@ export async function getTeamMemberRecord(teamId: string, userId: string) {
     return result;
 }
 
-// Add a member to a team
+export async function isTeamMember(teamId: string, userId: string): Promise<boolean> {
+    const [result] = await db
+        .select({ id: teamMember.id })
+        .from(teamMember)
+        .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+        .limit(1);
+
+    return !!result;
+}
+
 export async function addTeamMember(
     teamId: string,
     userId: string,
-    role: "lead" | "member"
+    role: TeamRole
 ) {
-    const [created] = await db
-        .insert(teamMember)
-        .values({
-            id: crypto.randomUUID(),
-            teamId,
-            userId,
-            role,
-        })
-        .returning();
+    return db.transaction(async (tx) => {
+        if (role === "lead") {
+            await tx
+                .update(teamMember)
+                .set({ role: "member" })
+                .where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, "lead")));
+        }
 
-    return created;
+        const [created] = await tx
+            .insert(teamMember)
+            .values({
+                id: crypto.randomUUID(),
+                teamId,
+                userId,
+                role,
+            })
+            .returning();
+
+        return created;
+    });
 }
 
-// List all members of a team with embedded user details
 export async function getTeamMembers(teamId: string) {
     return db
         .select({
@@ -164,25 +325,33 @@ export async function getTeamMembers(teamId: string) {
         })
         .from(teamMember)
         .innerJoin(user, eq(teamMember.userId, user.id))
-        .where(eq(teamMember.teamId, teamId));
+        .where(eq(teamMember.teamId, teamId))
+        .orderBy(teamMember.joinedAt);
 }
 
-// Update a team member's role
 export async function updateTeamMemberRole(
     teamId: string,
     userId: string,
-    role: "lead" | "member"
+    role: TeamRole
 ) {
-    const [updated] = await db
-        .update(teamMember)
-        .set({ role })
-        .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
-        .returning();
+    return db.transaction(async (tx) => {
+        if (role === "lead") {
+            await tx
+                .update(teamMember)
+                .set({ role: "member" })
+                .where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, "lead")));
+        }
 
-    return updated;
+        const [updated] = await tx
+            .update(teamMember)
+            .set({ role })
+            .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+            .returning();
+
+        return updated;
+    });
 }
 
-// Remove a member from a team
 export async function removeTeamMember(teamId: string, userId: string) {
     return db
         .delete(teamMember)
@@ -190,99 +359,114 @@ export async function removeTeamMember(teamId: string, userId: string) {
         .returning();
 }
 
-// Get user IDs of all members of a team
 export async function getTeamMemberUserIds(teamId: string): Promise<string[]> {
     const members = await db
         .select({ userId: teamMember.userId })
         .from(teamMember)
         .where(eq(teamMember.teamId, teamId));
 
-    return members.map((m) => m.userId);
+    return members.map((member) => member.userId);
 }
 
-// Get partners created by team members
-export async function getTeamPartners(teamId: string, orgId: string) {
-    const memberIds = await getTeamMemberUserIds(teamId);
-    if (memberIds.length === 0) return [];
+export async function getTeamPartnerRecord(teamId: string, partnerId: string) {
+    const [result] = await db
+        .select()
+        .from(teamPartner)
+        .where(and(eq(teamPartner.teamId, teamId), eq(teamPartner.partnerId, partnerId)))
+        .limit(1);
 
+    return result;
+}
+
+export async function assignPartnerToTeam(
+    teamId: string,
+    partnerId: string,
+    assignedBy: string
+) {
+    const [created] = await db
+        .insert(teamPartner)
+        .values({
+            id: crypto.randomUUID(),
+            teamId,
+            partnerId,
+            assignedBy,
+        })
+        .returning();
+
+    return created;
+}
+
+export async function removePartnerFromTeam(teamId: string, partnerId: string) {
+    return db
+        .delete(teamPartner)
+        .where(and(eq(teamPartner.teamId, teamId), eq(teamPartner.partnerId, partnerId)))
+        .returning();
+}
+
+export async function getTeamPartnerIds(teamId: string): Promise<string[]> {
+    const rows = await db
+        .select({ partnerId: teamPartner.partnerId })
+        .from(teamPartner)
+        .where(eq(teamPartner.teamId, teamId));
+
+    return rows.map((row) => row.partnerId);
+}
+
+export async function getTeamPartners(teamId: string, orgId: string) {
     return db
         .select({
             id: partner.id,
             name: partner.name,
             type: partner.type,
             status: partner.status,
+            contactEmail: partner.contactEmail,
+            industry: partner.industry,
+            onboardingDate: partner.onboardingDate,
+            userId: partner.userId,
+            createdBy: partner.createdBy,
+            assignedAt: teamPartner.assignedAt,
+            assignedBy: teamPartner.assignedBy,
         })
-        .from(partner)
-        .where(
-            and(
-                eq(partner.orgId, orgId),
-                inArray(partner.createdBy, memberIds)
-            )
-        );
+        .from(teamPartner)
+        .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
+        .where(and(eq(teamPartner.teamId, teamId), eq(partner.orgId, orgId)))
+        .orderBy(desc(teamPartner.assignedAt));
 }
 
-// Get deals created by or assigned to team members
 export async function getTeamDeals(teamId: string, orgId: string) {
-    const memberIds = await getTeamMemberUserIds(teamId);
-    if (memberIds.length === 0) return [];
-
-    // Get deal IDs assigned to team members
-    const assignedDealIds = await db
-        .select({ dealId: dealAssignment.dealId })
-        .from(dealAssignment)
-        .where(inArray(dealAssignment.userId, memberIds));
-
-    const assignedSet = new Set(assignedDealIds.map((r) => r.dealId));
-
-    // Get deals created by team members
-    const createdDeals = await db
+    return db
         .select({
             id: deal.id,
+            teamId: deal.teamId,
+            partnerId: deal.partnerId,
             title: deal.title,
             value: deal.value,
             stage: deal.stage,
+            createdBy: deal.createdBy,
+            createdAt: deal.createdAt,
+            updatedAt: deal.updatedAt,
             partnerName: partner.name,
+            assigneeCount: count(dealAssignment.id),
         })
         .from(deal)
         .leftJoin(partner, eq(deal.partnerId, partner.id))
-        .where(
-            and(
-                eq(deal.orgId, orgId),
-                inArray(deal.createdBy, memberIds)
-            )
-        );
-
-    // Get deals assigned to team members (not already in created)
-    const createdIds = new Set(createdDeals.map((d) => d.id));
-    const assignedOnlyIds = [...assignedSet].filter((id) => !createdIds.has(id));
-
-    let assignedDeals: typeof createdDeals = [];
-    if (assignedOnlyIds.length > 0) {
-        assignedDeals = await db
-            .select({
-                id: deal.id,
-                title: deal.title,
-                value: deal.value,
-                stage: deal.stage,
-                partnerName: partner.name,
-            })
-            .from(deal)
-            .leftJoin(partner, eq(deal.partnerId, partner.id))
-            .where(
-                and(
-                    eq(deal.orgId, orgId),
-                    inArray(deal.id, assignedOnlyIds)
-                )
-            );
-    }
-
-    return [...createdDeals, ...assignedDeals];
+        .leftJoin(dealAssignment, eq(deal.id, dealAssignment.dealId))
+        .where(and(eq(deal.orgId, orgId), eq(deal.teamId, teamId)))
+        .groupBy(deal.id, partner.name)
+        .orderBy(desc(deal.updatedAt));
 }
 
-// Get objectives created by team members with progress
 export async function getTeamObjectives(teamId: string, orgId: string) {
-    const memberIds = await getTeamMemberUserIds(teamId);
-    if (memberIds.length === 0) return [];
+    const partnerIds = await getTeamPartnerIds(teamId);
+    const objectiveConditions = [eq(objective.teamId, teamId)];
+
+    if (partnerIds.length > 0) {
+        objectiveConditions.push(inArray(objective.partnerId, partnerIds));
+    }
+
+    if (objectiveConditions.length === 0) {
+        return [];
+    }
 
     const objectives = await db
         .select({
@@ -290,19 +474,15 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
             title: objective.title,
             startDate: objective.startDate,
             endDate: objective.endDate,
+            partnerId: objective.partnerId,
+            teamId: objective.teamId,
             partnerName: partner.name,
         })
         .from(objective)
         .leftJoin(partner, eq(objective.partnerId, partner.id))
-        .where(
-            and(
-                eq(objective.orgId, orgId),
-                inArray(objective.createdBy, memberIds)
-            )
-        );
+        .where(and(eq(objective.orgId, orgId), or(...objectiveConditions)));
 
-    // Calculate progress for each objective
-    const result = await Promise.all(
+    return Promise.all(
         objectives.map(async (obj) => {
             const keyResults = await db
                 .select()
@@ -313,18 +493,22 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
             let status: "on_track" | "at_risk" | "off_track" = "on_track";
 
             if (keyResults.length > 0) {
-                const total = keyResults.reduce((sum, kr) => {
-                    const krProgress =
-                        kr.targetValue > 0
-                            ? (kr.currentValue / kr.targetValue) * 100
+                const total = keyResults.reduce((sum, keyResultRow) => {
+                    const keyResultProgress =
+                        keyResultRow.targetValue > 0
+                            ? (keyResultRow.currentValue / keyResultRow.targetValue) * 100
                             : 0;
-                    return sum + Math.min(krProgress, 100);
+                    return sum + Math.min(keyResultProgress, 100);
                 }, 0);
+
                 progress = Math.round(total / keyResults.length);
 
-                // Derive status from key results
-                const atRiskCount = keyResults.filter((kr) => kr.status === "at_risk").length;
-                const offTrackCount = keyResults.filter((kr) => kr.status === "off_track").length;
+                const atRiskCount = keyResults.filter(
+                    (keyResultRow) => keyResultRow.status === "at_risk"
+                ).length;
+                const offTrackCount = keyResults.filter(
+                    (keyResultRow) => keyResultRow.status === "off_track"
+                ).length;
 
                 if (offTrackCount > 0) {
                     status = "off_track";
@@ -336,14 +520,36 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
             return { ...obj, progress, status };
         })
     );
-
-    return result;
 }
 
-// Get activity logs by team members
 export async function getTeamActivity(teamId: string, orgId: string) {
-    const memberIds = await getTeamMemberUserIds(teamId);
-    if (memberIds.length === 0) return [];
+    const [memberIds, partnerIds, deals] = await Promise.all([
+        getTeamMemberUserIds(teamId),
+        getTeamPartnerIds(teamId),
+        getTeamDeals(teamId, orgId),
+    ]);
+
+    const scopes = [and(eq(activityLog.entityType, "team"), eq(activityLog.entityId, teamId))];
+
+    if (memberIds.length > 0) {
+        scopes.push(inArray(activityLog.userId, memberIds));
+    }
+
+    if (partnerIds.length > 0) {
+        scopes.push(
+            and(
+                eq(activityLog.entityType, "partner"),
+                inArray(activityLog.entityId, partnerIds)
+            )
+        );
+    }
+
+    const dealIds = deals.map((dealRow) => dealRow.id);
+    if (dealIds.length > 0) {
+        scopes.push(
+            and(eq(activityLog.entityType, "deal"), inArray(activityLog.entityId, dealIds))
+        );
+    }
 
     return db
         .select({
@@ -357,12 +563,7 @@ export async function getTeamActivity(teamId: string, orgId: string) {
         })
         .from(activityLog)
         .leftJoin(user, eq(activityLog.userId, user.id))
-        .where(
-            and(
-                eq(activityLog.orgId, orgId),
-                inArray(activityLog.userId, memberIds)
-            )
-        )
+        .where(and(eq(activityLog.orgId, orgId), or(...scopes)))
         .orderBy(desc(activityLog.createdAt))
         .limit(50);
 }

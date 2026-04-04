@@ -1,10 +1,7 @@
 import type { Response, NextFunction } from "express";
-import { getTeamById } from "./teams.service.js";
+import { getTeamById, isTeamMember } from "./teams.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
-// Verifies the team exists and belongs to the current org.
-// Must run AFTER requireOrganization (requires req.org to be set).
-// Attaches req.team on success.
 export async function requireTeam(
     req: AuthRequest,
     res: Response,
@@ -23,7 +20,6 @@ export async function requireTeam(
             return;
         }
 
-        // orgId filter enforces cross-tenant isolation: a team from another org returns 404
         const teamRow = await getTeamById(teamId, req.org.id);
 
         if (!teamRow) {
@@ -43,5 +39,39 @@ export async function requireTeam(
     } catch (error) {
         console.error("requireTeam error:", error);
         res.status(500).json({ error: "Failed to verify team access" });
+    }
+}
+
+export async function requireTeamAccess(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.team || !req.user || !req.membership) {
+            res.status(403).json({ error: "Access denied" });
+            return;
+        }
+
+        if (req.membership.role === "admin") {
+            next();
+            return;
+        }
+
+        if (req.membership.role !== "manager") {
+            res.status(403).json({ error: "Insufficient permissions" });
+            return;
+        }
+
+        const memberOfTeam = await isTeamMember(req.team.id, req.user.id);
+        if (!memberOfTeam) {
+            res.status(403).json({ error: "Access denied to this team" });
+            return;
+        }
+
+        next();
+    } catch (error) {
+        console.error("requireTeamAccess error:", error);
+        res.status(500).json({ error: "Failed to verify team permissions" });
     }
 }

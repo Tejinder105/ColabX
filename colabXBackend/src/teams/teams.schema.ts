@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
+import { partner } from "../partners/partners.schema.js";
 
 export const teamRoleEnum = pgEnum("teamRole", ["lead", "member"]);
 
@@ -61,6 +62,32 @@ export const teamMember = pgTable(
     ]
 );
 
+export const teamPartner = pgTable(
+    "teamPartner",
+    {
+        id: text("id").primaryKey(),
+        teamId: text("teamId")
+            .notNull()
+            .references(() => team.id, { onDelete: "cascade" }),
+        partnerId: text("partnerId")
+            .notNull()
+            .references(() => partner.id, { onDelete: "cascade" }),
+        assignedBy: text("assignedBy").references(() => user.id, {
+            onDelete: "set null",
+        }),
+        assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+    },
+    (table) => [
+        uniqueIndex("teamPartner_teamId_partnerId_unique").on(
+            table.teamId,
+            table.partnerId
+        ),
+        index("teamPartner_teamId_idx").on(table.teamId),
+        index("teamPartner_partnerId_idx").on(table.partnerId),
+        index("teamPartner_assignedBy_idx").on(table.assignedBy),
+    ]
+);
+
 // Relations
 export const teamRelations = relations(team, ({ one, many }) => ({
     organization: one(organization, {
@@ -72,6 +99,7 @@ export const teamRelations = relations(team, ({ one, many }) => ({
         references: [user.id],
     }),
     members: many(teamMember),
+    partners: many(teamPartner),
 }));
 
 export const teamMemberRelations = relations(teamMember, ({ one }) => ({
@@ -81,6 +109,21 @@ export const teamMemberRelations = relations(teamMember, ({ one }) => ({
     }),
     user: one(user, {
         fields: [teamMember.userId],
+        references: [user.id],
+    }),
+}));
+
+export const teamPartnerRelations = relations(teamPartner, ({ one }) => ({
+    team: one(team, {
+        fields: [teamPartner.teamId],
+        references: [team.id],
+    }),
+    partner: one(partner, {
+        fields: [teamPartner.partnerId],
+        references: [partner.id],
+    }),
+    assignedByUser: one(user, {
+        fields: [teamPartner.assignedBy],
         references: [user.id],
     }),
 }));

@@ -3,6 +3,8 @@ import { z } from "zod";
 export const createTeamSchema = z.object({
     name: z.string().min(2).max(100).trim(),
     description: z.string().max(500).trim().optional(),
+    leadUserId: z.string().min(1).optional(),
+    memberIds: z.array(z.string().min(1)).max(100).optional().default([]),
 });
 
 export const updateTeamSchema = z.object({
@@ -17,4 +19,8 @@ export const addTeamMemberSchema = z.object({
 
 export const updateTeamMemberRoleSchema = z.object({
     role: z.enum(["lead", "member"]),
+});
+
+export const assignTeamPartnerSchema = z.object({
+    partnerId: z.string().min(1),
 });
