@@ -148,6 +148,8 @@ export default function OkrsPage() {
                             )}
                         </TabsContent>
                     )}
+                </div>
+            </Tabs>
         </div>
     );
 }
