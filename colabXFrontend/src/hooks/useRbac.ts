@@ -19,6 +19,14 @@ export interface RbacPermissions {
   canManageDeals: boolean;         // Create/edit deals
   canViewReports: boolean;         // View reports
   canManageDocuments: boolean;     // Upload/manage documents
+  
+  // Partner-specific permissions
+  canViewMyPartnership: boolean;   // Access /my-partnership
+  canViewMyDeals: boolean;         // View only assigned deals
+  canCommentOnDeals: boolean;      // Add comments to deals
+  canUpdateOKRProgress: boolean;   // Update assigned OKR progress
+  canUploadDealDocuments: boolean; // Upload docs to deals
+  canAccessDashboard: boolean;     // Access main dashboard
 }
 
 // Hook to check user permissions based on their org role
@@ -49,6 +57,14 @@ export function useRbac(): RbacPermissions {
     canViewReports: isAdmin || isManager,
     
     canManageDocuments: true,
+    
+    // Partner-specific permissions
+    canViewMyPartnership: isPartner,
+    canViewMyDeals: isPartner,
+    canCommentOnDeals: isPartner,
+    canUpdateOKRProgress: isPartner,
+    canUploadDealDocuments: isPartner,
+    canAccessDashboard: !isPartner, // Partners access /my-partnership instead
   };
 }
 

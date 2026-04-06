@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
 import { organization } from "./orgSchema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "./authSchema.js";
@@ -112,5 +112,52 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
     user: one(user, {
         fields: [activityLog.userId],
         references: [user.id],
+    }),
+}));
+
+export const notification = pgTable(
+    "notification",
+    {
+        id: text("id").primaryKey(),
+        orgId: text("orgId")
+            .notNull()
+            .references(() => organization.id, { onDelete: "cascade" }),
+        recipientId: text("recipientId")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        partnerId: text("partnerId").references(() => partner.id, { onDelete: "cascade" }),
+        alertType: text("alertType").notNull(), // 'missed_deadline', 'low_okr', 'pending_action'
+        title: text("title").notNull(),
+        message: text("message").notNull(),
+        severity: text("severity").default("info"), // 'info', 'warning', 'critical'
+        read: boolean("read").default(false),
+        sentViaEmail: boolean("sentViaEmail").default(false),
+        emailSentAt: timestamp("emailSentAt"),
+        relatedEntityType: text("relatedEntityType"), // 'objective', 'dealTask', 'partner'
+        relatedEntityId: text("relatedEntityId"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        readAt: timestamp("readAt"),
+    },
+    (table) => [
+        index("notification_orgId_idx").on(table.orgId),
+        index("notification_recipientId_idx").on(table.recipientId),
+        index("notification_partnerId_idx").on(table.partnerId),
+        index("notification_alertType_idx").on(table.alertType),
+        index("notification_read_idx").on(table.read),
+    ]
+);
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+    organization: one(organization, {
+        fields: [notification.orgId],
+        references: [organization.id],
+    }),
+    recipient: one(user, {
+        fields: [notification.recipientId],
+        references: [user.id],
+    }),
+    partner: one(partner, {
+        fields: [notification.partnerId],
+        references: [partner.id],
     }),
 }));

@@ -18,6 +18,12 @@ import {
     deleteDocumentHandler,
     getPartnerActivitiesHandler,
 } from "./collaboration.controller.js";
+import {
+    getNotificationsHandler,
+    markNotificationAsReadHandler,
+    getAlertsSummaryHandler,
+    checkAlertsHandler,
+} from "./notifications.controller.js";
 
 const router = Router();
 
@@ -99,6 +105,37 @@ router.get(
     requirePartner,
     requirePartnerOwnerOrAdminManager,
     getPartnerActivitiesHandler
+);
+
+// Notifications ─>
+
+// GET /api/notifications
+router.get(
+    "/notifications",
+    requireOrganization,
+    getNotificationsHandler
+);
+
+// POST /api/notifications/:id/read
+router.post(
+    "/notifications/:id/read",
+    requireOrganization,
+    markNotificationAsReadHandler
+);
+
+// GET /api/notifications/summary
+router.get(
+    "/notifications/summary",
+    requireOrganization,
+    getAlertsSummaryHandler
+);
+
+// POST /api/notifications/check (admin only)
+router.post(
+    "/notifications/check",
+    requireOrganization,
+    requireRole("admin"),
+    checkAlertsHandler
 );
 
 export default router;

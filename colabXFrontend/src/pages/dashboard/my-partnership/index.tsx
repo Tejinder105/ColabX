@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/card";
 import { useMyPartner, usePartnerDeals } from "@/hooks/usePartners";
 import { usePartnerDocuments, usePartnerCommunications } from "@/hooks/useCollaboration";
+import { usePartnerScore } from "@/hooks/useOkrs";
 import { NewMessageDialog } from "@/pages/dashboard/partners/components/new-message-dialog";
+import { AlertsWidget } from "@/components/alerts-widget";
 
 function formatCurrency(value: number | null) {
     if (value === null) return "-";
@@ -26,6 +28,12 @@ function titleCase(value: string) {
     return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function getHealthLabel(score: number): { label: string; color: string } {
+    if (score >= 75) return { label: 'Healthy', color: 'text-green-600' };
+    if (score >= 50) return { label: 'At Risk', color: 'text-yellow-600' };
+    return { label: 'Underperforming', color: 'text-red-600' };
+}
+
 export default function MyPartnershipPage() {
     const myPartnerQuery = useMyPartner();
     const partnerId = myPartnerQuery.data?.partner?.id;
@@ -33,6 +41,7 @@ export default function MyPartnershipPage() {
     const dealsQuery = usePartnerDeals(partnerId);
     const documentsQuery = usePartnerDocuments(partnerId);
     const communicationsQuery = usePartnerCommunications(partnerId);
+    const scoreQuery = usePartnerScore(partnerId);
 
     if (myPartnerQuery.isLoading) {
         return (
@@ -58,6 +67,7 @@ export default function MyPartnershipPage() {
     }
 
     const partner = myPartnerQuery.data.partner;
+    const teams = myPartnerQuery.data?.teams ?? [];
     const deals = dealsQuery.data?.deals ?? [];
     const documents = documentsQuery.data?.documents ?? [];
     const communications = communicationsQuery.data?.communications ?? [];
@@ -95,6 +105,69 @@ export default function MyPartnershipPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Team Assignments</CardTitle>
+                    <CardDescription>Teams managing this partnership and their contacts.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {teams.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No team assignments found.</p>
+                    ) : (
+                        teams.map((team) => (
+                            <div key={team.id} className="rounded-md border p-3 space-y-2">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <p className="font-medium">{team.name}</p>
+                                        {team.description && (
+                                            <p className="text-xs text-muted-foreground">{team.description}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>Assigned: {new Date(team.assignedAt).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Performance Score</CardTitle>
+                    <CardDescription>Your partnership health and OKR progress.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {scoreQuery.isLoading ? (
+                        <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-sm text-muted-foreground">Calculating score...</span>
+                        </div>
+                    ) : scoreQuery.data ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-center gap-6">
+                                <div className="text-center">
+                                    <p className="text-4xl font-bold">{scoreQuery.data.score}</p>
+                                    <p className={`text-sm font-medium ${getHealthLabel(scoreQuery.data.score).color}`}>
+                                        {getHealthLabel(scoreQuery.data.score).label}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="rounded-md bg-muted p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Based on OKR progress and deal performance. Higher scores indicate better alignment and execution.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No performance data available yet. Complete OKRs to see your score.</p>
+                    )}
+                </CardContent>
+            </Card>
+
+            <AlertsWidget partnerId={partnerId} />
 
             <Card>
                 <CardHeader>

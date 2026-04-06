@@ -38,7 +38,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
     const { data: currentUser } = useCurrentUser();
     const { data: membersData } = useOrgMembers(activeOrgId);
-    const { canManageDeals } = useRbac();
+    const { canManageDeals, isPartner } = useRbac();
     
     // Assignment mutations
     const assignUser = useAssignUserToDealMutation();
@@ -143,28 +143,33 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                 </div>
 
                 <div className="flex-1 overflow-hidden">
-                    <Tabs defaultValue="assignees" className="w-full h-full flex flex-col">
+                    <Tabs defaultValue={isPartner ? "messages" : "assignees"} className="w-full h-full flex flex-col">
                         <div className="px-6 pt-4 border-b border-white/5">
                             <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
-                                <TabsTrigger value="assignees" className="flex items-center gap-2">
-                                    <Users className="w-4 h-4" /> Assignees
-                                </TabsTrigger>
+                                {!isPartner && (
+                                    <TabsTrigger value="assignees" className="flex items-center gap-2">
+                                        <Users className="w-4 h-4" /> Assignees
+                                    </TabsTrigger>
+                                )}
                                 <TabsTrigger value="messages" className="flex items-center gap-2">
                                     <MessageSquare className="w-4 h-4" /> Messages
                                 </TabsTrigger>
                                 <TabsTrigger value="documents" className="flex items-center gap-2">
                                     <FileText className="w-4 h-4" /> Documents
                                 </TabsTrigger>
-                                <TabsTrigger value="activity" className="flex items-center gap-2">
-                                    <Activity className="w-4 h-4" /> Activity
-                                </TabsTrigger>
+                                {!isPartner && (
+                                    <TabsTrigger value="activity" className="flex items-center gap-2">
+                                        <Activity className="w-4 h-4" /> Activity
+                                    </TabsTrigger>
+                                )}
                             </TabsList>
                         </div>
 
                         <ScrollArea className="flex-1 p-6">
 
                             {/* ASSIGNEES TAB */}
-                            <TabsContent value="assignees" className="m-0 space-y-4">
+                            {!isPartner && (
+                                <TabsContent value="assignees" className="m-0 space-y-4">
                                 {/* Add Assignee Section - Only for Admin/Manager */}
                                 {canManageDeals && (
                                     <div className="flex gap-2 items-center mb-6">
@@ -236,13 +241,14 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                             </div>
                                         ))}
                                     </div>
-                                ) : (
+                                    ) : (
                                     <div className="text-center py-10 text-muted-foreground">
                                         No one is assigned to this deal yet.
                                         {canManageDeals && " Use the dropdown above to assign team members."}
                                     </div>
                                 )}
                             </TabsContent>
+                            )}
 
                             {/* MESSAGES TAB */}
                             <TabsContent value="messages" className="m-0 h-full flex flex-col">

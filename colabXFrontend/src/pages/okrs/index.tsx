@@ -11,10 +11,12 @@ import {
     useUpdateKeyResultMutation,
     useUpdateObjectiveMutation,
 } from '@/hooks/useOkrs';
+import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
 
 export default function OkrsPage() {
     const { data, isLoading, isError, error } = useOkrsDashboard();
+    const { isPartner } = useRbac();
     const updateObjective = useUpdateObjectiveMutation();
     const deleteObjective = useDeleteObjectiveMutation();
     const createKeyResult = useCreateKeyResultMutation();
@@ -102,9 +104,11 @@ export default function OkrsPage() {
             <OkrKpiStrip data={kpis} />
 
             <Tabs defaultValue="objectives" className="w-full mt-6">
-                <TabsList className="grid w-full grid-cols-2 h-auto max-w-[400px]">
+                <TabsList className={`grid w-full h-auto max-w-[400px] ${isPartner ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     <TabsTrigger value="objectives" className="py-2">Objectives List</TabsTrigger>
-                    <TabsTrigger value="performance" className="py-2">Partner Performance</TabsTrigger>
+                    {!isPartner && (
+                        <TabsTrigger value="performance" className="py-2">Partner Performance</TabsTrigger>
+                    )}
                 </TabsList>
 
                 <div className="mt-6">
@@ -130,20 +134,20 @@ export default function OkrsPage() {
                         )}
                     </TabsContent>
 
-                    <TabsContent value="performance" className="m-0 space-y-6">
-                        {isLoading ? (
-                            <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-                                Loading partner performance...
-                            </div>
-                        ) : (
-                            <>
-                                <PerformanceCharts data={performanceChartData} />
-                                <PerformanceTable records={partnerPerformance} />
-                            </>
-                        )}
-                    </TabsContent>
-                </div>
-            </Tabs>
+                    {!isPartner && (
+                        <TabsContent value="performance" className="m-0 space-y-6">
+                            {isLoading ? (
+                                <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+                                    Loading partner performance...
+                                </div>
+                            ) : (
+                                <>
+                                    <PerformanceCharts data={performanceChartData} />
+                                    <PerformanceTable records={partnerPerformance} />
+                                </>
+                            )}
+                        </TabsContent>
+                    )}
         </div>
     );
 }

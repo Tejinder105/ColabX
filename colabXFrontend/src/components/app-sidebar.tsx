@@ -30,7 +30,7 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["admin", "manager", "member", "partner"], 
+      roles: ["admin", "manager", "member"], 
     },
     {
       title: "Partners",

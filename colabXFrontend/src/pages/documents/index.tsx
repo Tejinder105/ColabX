@@ -68,13 +68,20 @@ export default function DocumentsPage() {
 
     const { data: orgDocumentsData, isLoading, isError, error } = useOrgDocuments();
     const { data: partnersData } = usePartners();
+    const { isPartner } = useRbac();
 
     const createDocumentMutation = useCreateDocumentForPartnerMutation();
     const deleteDocumentMutation = useDeleteDocumentMutation();
     const updateVisibilityMutation = useUpdateDocumentVisibilityMutation();
 
-    const documents = orgDocumentsData?.documents ?? [];
+    let documents = orgDocumentsData?.documents ?? [];
     const partners = partnersData?.partners ?? [];
+    
+    // For partners, filter to only show documents from their own partner records
+    if (isPartner) {
+        const partnerIds = partners.map(p => p.id);
+        documents = documents.filter(doc => partnerIds.includes(doc.partnerId || ''));
+    }
 
     const folders = useMemo<AppFolder[]>(() => {
         const folderMap = new Map<string, AppFolder>();
@@ -133,8 +140,10 @@ export default function DocumentsPage() {
         setSelectedFile(file);
     }
 
-    async function handleUploadSubmit() {
-        if (!selectedPartnerId) {
+    function handleUploadSubmit() {
+        const partnerId = isPartner ? (partners[0]?.id || selectedPartnerId) : selectedPartnerId;
+        
+        if (!partnerId) {
             toast.error('Please select a partner folder.');
             return;
         }
@@ -147,7 +156,7 @@ export default function DocumentsPage() {
         try {
             const uploaded = await uploadToCloudinary({ file: selectedFile });
             await createDocumentMutation.mutateAsync({
-                partnerId: selectedPartnerId,
+                partnerId,
                 input: {
                     fileName: selectedFile.name || uploaded.originalFilename,
                     fileUrl: uploaded.secureUrl,
@@ -270,35 +279,46 @@ export default function DocumentsPage() {
                     </DialogHeader>
 
                     <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="partner">Partner Folder</Label>
-                            <Select value={selectedPartnerId} onValueChange={setSelectedPartnerId}>
-                                <SelectTrigger id="partner">
-                                    <SelectValue placeholder="Select partner" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {partners.map((partner) => (
-                                        <SelectItem key={partner.id} value={partner.id}>
-                                            {partner.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {!isPartner ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="partner">Partner Folder</Label>
+                                <Select value={selectedPartnerId} onValueChange={setSelectedPartnerId}>
+                                    <SelectTrigger id="partner">
+                                        <SelectValue placeholder="Select partner" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {partners.map((partner) => (
+                                            <SelectItem key={partner.id} value={partner.id}>
+                                                {partner.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label>Partner Folder</Label>
+                                <div className="p-2 rounded-md bg-muted text-muted-foreground">
+                                    {partners[0]?.name || 'Your Partner'}
+                                </div>
+                                <input type="hidden" value={partners[0]?.id || ''} />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="visibility">Visibility</Label>
                             <Select
                                 value={selectedVisibility}
                                 onValueChange={(value) => setSelectedVisibility(value as DocumentVisibility)}
+                                disabled={isPartner}
                             >
                                 <SelectTrigger id="visibility">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="private">Partner</SelectItem>
-                                    <SelectItem value="team">Team</SelectItem>
-                                    <SelectItem value="public">Organization</SelectItem>
+                                    {!isPartner && <SelectItem value="public">Organization</SelectItem>}
+                                    {!isPartner && <SelectItem value="team">Team</SelectItem>}
+                                    <SelectItem value="private">{isPartner ? 'My Partner' : 'Partner'}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

@@ -60,6 +60,17 @@ function PartnerOnlyGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Dashboard access guard - partners redirect to /my-partnership */
+function DashboardGuard({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.activeOrg?.role);
+
+  if (role === "partner") {
+    return <Navigate to="/my-partnership" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -116,7 +127,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/dashboard",
-        element: <DashboardPage />,
+        element: (
+          <DashboardGuard>
+            <DashboardPage />
+          </DashboardGuard>
+        ),
       },
       // Admin + Manager: Partner management
       {
