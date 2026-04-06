@@ -10,13 +10,12 @@ import {
     createKeyResult,
     getKeyResultsByObjective,
     updateKeyResult,
-    recordMetric,
-    getPartnerMetrics,
     calculateAndStorePartnerScore,
     getPartnerByIdForOrg,
     getTeamByIdForOrg,
     getPartnerPerformanceSummary,
     getTeamPerformanceSummary,
+    getPartnerHealthLabel,
 } from "./okr.service.js";
 import { getOrgPartnersForUser } from "../partners/partners.service.js";
 
@@ -443,68 +442,6 @@ export async function updateKeyResultHandler(
 
 // Partner Performance Handlers ->
 
-// POST /api/okr/partners/:partnerId/metrics
-export async function recordMetricHandler(
-    req: AuthRequest,
-    res: Response
-): Promise<void> {
-    try {
-        if (!req.org || !req.partner) {
-            res.status(403).json({ error: "Access denied" });
-            return;
-        }
-
-        const created = await recordMetric(req.partner.id, req.body);
-        if (!created) {
-            throw new Error("Failed to record metric");
-        }
-
-        // Auto-recalculate partner score after new metric is recorded
-        const score = await calculateAndStorePartnerScore(req.partner.id);
-
-        if (req.user) {
-            try {
-                await createActivity(
-                    req.org.id,
-                    req.user.id,
-                    "partner",
-                    req.partner.id,
-                    `recorded performance metric "${created.metricType}"`
-                );
-            } catch (activityError) {
-                console.error("Activity log write failed:", activityError);
-            }
-        }
-
-        res.status(201).json({ metric: created, score });
-    } catch (error) {
-        console.error("Record metric error:", error);
-        res.status(500).json({ error: "Failed to record metric" });
-    }
-}
-
-// GET /api/okr/partners/:partnerId/metrics
-export async function getPartnerMetricsHandler(
-    req: AuthRequest,
-    res: Response
-): Promise<void> {
-    try {
-        if (!req.org || !req.partner) {
-            res.status(403).json({ error: "Access denied" });
-            return;
-        }
-
-        const filters: { metricType?: string } = {};
-        if (req.query.metricType) filters.metricType = req.query.metricType as string;
-
-        const metrics = await getPartnerMetrics(req.partner.id, filters);
-        res.json({ metrics });
-    } catch (error) {
-        console.error("Get metrics error:", error);
-        res.status(500).json({ error: "Failed to fetch metrics" });
-    }
-}
-
 // GET /api/okr/partners/:partnerId/score
 export async function getPartnerScoreHandler(
     req: AuthRequest,
@@ -519,11 +456,15 @@ export async function getPartnerScoreHandler(
         const score = await calculateAndStorePartnerScore(req.partner.id);
 
         if (!score) {
-            res.json({ score: null });
+            res.json({ score: null, healthLabel: null });
             return;
         }
 
-        res.json({ score });
+        res.json({
+            score: score.score,
+            healthLabel: score.healthLabel,
+            calculatedAt: score.scoreCalculatedAt,
+        });
     } catch (error) {
         console.error("Get partner score error:", error);
         res.status(500).json({ error: "Failed to fetch partner score" });

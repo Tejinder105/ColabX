@@ -75,42 +75,6 @@ export const keyResult = pgTable(
     ]
 );
 
-// ── Performance Metric table ───────────────────────────────────────────────
-
-export const performanceMetric = pgTable(
-    "performanceMetric",
-    {
-        id: text("id").primaryKey(),
-        partnerId: text("partnerId")
-            .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
-        metricType: text("metricType").notNull(),
-        metricValue: real("metricValue").notNull(),
-        recordedAt: timestamp("recordedAt").defaultNow().notNull(),
-    },
-    (table) => [
-        index("performanceMetric_partnerId_idx").on(table.partnerId),
-        index("performanceMetric_metricType_idx").on(table.metricType),
-    ]
-);
-
-// ── Partner Score table ────────────────────────────────────────────────────
-
-export const partnerScore = pgTable(
-    "partnerScore",
-    {
-        id: text("id").primaryKey(),
-        partnerId: text("partnerId")
-            .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
-        score: real("score").notNull(),
-        calculatedOn: timestamp("calculatedOn").defaultNow().notNull(),
-    },
-    (table) => [
-        index("partnerScore_partnerId_idx").on(table.partnerId),
-    ]
-);
-
 // ── Relations ──────────────────────────────────────────────────────────────
 
 export const objectiveRelations = relations(objective, ({ one, many }) => ({
@@ -138,19 +102,5 @@ export const keyResultRelations = relations(keyResult, ({ one }) => ({
     objective: one(objective, {
         fields: [keyResult.objectiveId],
         references: [objective.id],
-    }),
-}));
-
-export const performanceMetricRelations = relations(performanceMetric, ({ one }) => ({
-    partner: one(partner, {
-        fields: [performanceMetric.partnerId],
-        references: [partner.id],
-    }),
-}));
-
-export const partnerScoreRelations = relations(partnerScore, ({ one }) => ({
-    partner: one(partner, {
-        fields: [partnerScore.partnerId],
-        references: [partner.id],
     }),
 }));

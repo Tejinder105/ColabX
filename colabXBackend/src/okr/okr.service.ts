@@ -3,8 +3,6 @@ import db from "../db/index.js";
 import {
     objective,
     keyResult,
-    performanceMetric,
-    partnerScore,
 } from "./okr.schema.js";
 import { user } from "../schemas/authSchema.js";
 import { partner } from "../partners/partners.schema.js";
@@ -45,7 +43,8 @@ function calculateProgressPercent(currentValue: number, targetValue: number) {
     return clampScore((currentValue / targetValue) * 100);
 }
 
-function getPartnerHealthLabel(score: number): PartnerHealthLabel {
+export function getPartnerHealthLabel(score: number | null | undefined): string {
+    if (score === null || score === undefined) return "Not Rated";
     if (score >= 75) {
         return "Healthy";
     }
@@ -414,43 +413,6 @@ export async function updateKeyResult(
     return updated;
 }
 
-export async function recordMetric(
-    partnerId: string,
-    data: {
-        metricType: string;
-        metricValue: number;
-    }
-) {
-    const [created] = await db
-        .insert(performanceMetric)
-        .values({
-            id: crypto.randomUUID(),
-            partnerId,
-            metricType: data.metricType,
-            metricValue: data.metricValue,
-        })
-        .returning();
-
-    return created;
-}
-
-export async function getPartnerMetrics(
-    partnerId: string,
-    filters?: { metricType?: string }
-) {
-    const conditions = [eq(performanceMetric.partnerId, partnerId)];
-
-    if (filters?.metricType) {
-        conditions.push(eq(performanceMetric.metricType, filters.metricType));
-    }
-
-    return db
-        .select()
-        .from(performanceMetric)
-        .where(and(...conditions))
-        .orderBy(desc(performanceMetric.recordedAt));
-}
-
 async function calculatePartnerScoreSnapshot(partnerId: string) {
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - 90);
@@ -527,40 +489,37 @@ export async function calculateAndStorePartnerScore(
 
     if (!shouldPersist) {
         return {
-            id: `preview-${partnerId}`,
-            partnerId,
             score: snapshot.score,
-            calculatedOn: new Date(),
             healthLabel: snapshot.healthLabel,
+            scoreCalculatedAt: new Date(),
         };
     }
 
-    const latest = await getLatestPartnerScore(partnerId);
-    if (latest && Math.abs(latest.score - snapshot.score) < 0.01) {
-        return latest;
-    }
-
-    const [created] = await db
-        .insert(partnerScore)
-        .values({
-            id: crypto.randomUUID(),
-            partnerId,
+    const [updated] = await db
+        .update(partner)
+        .set({
             score: snapshot.score,
+            scoreCalculatedAt: new Date(),
         })
+        .where(eq(partner.id, partnerId))
         .returning();
 
+    if (!updated) {
+        throw new Error(`Partner ${partnerId} not found`);
+    }
+
     return {
-        ...created,
-        healthLabel: snapshot.healthLabel,
+        score: updated.score,
+        healthLabel: getPartnerHealthLabel(updated.score),
+        scoreCalculatedAt: updated.scoreCalculatedAt,
     };
 }
 
 export async function getLatestPartnerScore(partnerId: string) {
     const [result] = await db
         .select()
-        .from(partnerScore)
-        .where(eq(partnerScore.partnerId, partnerId))
-        .orderBy(desc(partnerScore.calculatedOn))
+        .from(partner)
+        .where(eq(partner.id, partnerId))
         .limit(1);
 
     return result;

@@ -41,7 +41,6 @@ export const deal = pgTable(
             .notNull()
             .references(() => partner.id, { onDelete: "cascade" }),
         teamId: text("teamId")
-            .notNull()
             .references(() => team.id, {
                 onDelete: "cascade",
             }),

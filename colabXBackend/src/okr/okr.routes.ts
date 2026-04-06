@@ -104,9 +104,6 @@ router.patch(
     updateKeyResultHandler
 );
 
-// ── Partner Performance Metrics ────────────────────────────────────────────
-
-
 // ── Partner Score ──────────────────────────────────────────────────────────
 
 router.get(

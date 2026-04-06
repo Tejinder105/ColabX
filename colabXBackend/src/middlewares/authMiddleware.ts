@@ -44,7 +44,7 @@ export interface AuthRequest extends Request {
         id: string;
         title: string;
         partnerId: string;
-        teamId: string;
+        teamId: string | null;
         stage: "lead" | "proposal" | "negotiation" | "won" | "lost";
         orgId: string;
         createdBy: string | null;

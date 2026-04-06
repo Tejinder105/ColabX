@@ -608,26 +608,33 @@ export async function getDealWithDetails(
         .where(eq(partner.id, dealRow.partnerId))
         .limit(1);
 
-    const [teamRow] = await db
-        .select({
-            id: team.id,
-            name: team.name,
-            description: team.description,
-        })
-        .from(team)
-        .where(eq(team.id, dealRow.teamId))
-        .limit(1);
+    let teamRow = null;
+    let leadRow = null;
 
-    const [leadRow] = await db
-        .select({
-            userId: teamMember.userId,
-            name: user.name,
-            email: user.email,
-        })
-        .from(teamMember)
-        .innerJoin(user, eq(teamMember.userId, user.id))
-        .where(and(eq(teamMember.teamId, dealRow.teamId), eq(teamMember.role, "lead")))
-        .limit(1);
+    if (dealRow.teamId) {
+        const [team_] = await db
+            .select({
+                id: team.id,
+                name: team.name,
+                description: team.description,
+            })
+            .from(team)
+            .where(eq(team.id, dealRow.teamId))
+            .limit(1);
+        teamRow = team_;
+
+        const [lead_] = await db
+            .select({
+                userId: teamMember.userId,
+                name: user.name,
+                email: user.email,
+            })
+            .from(teamMember)
+            .innerJoin(user, eq(teamMember.userId, user.id))
+            .where(and(eq(teamMember.teamId, dealRow.teamId), eq(teamMember.role, "lead")))
+            .limit(1);
+        leadRow = lead_;
+    }
 
     return {
         deal: dealRow,

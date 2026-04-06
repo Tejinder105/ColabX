@@ -5,6 +5,7 @@ import {
     timestamp,
     index,
     pgEnum,
+    real,
 } from "drizzle-orm/pg-core";
 import { organization } from "../schemas/orgSchema.js";
 import { user } from "../schemas/authSchema.js";
@@ -40,6 +41,8 @@ export const partner = pgTable(
         }),
         industry: text("industry"),
         onboardingDate: timestamp("onboardingDate"),
+        score: real("score"),
+        scoreCalculatedAt: timestamp("scoreCalculatedAt"),
         createdBy: text("createdBy").references(() => user.id, {
             onDelete: "set null",
         }),
