@@ -7,6 +7,11 @@ import { partner } from "../partners/partners.schema.js";
 import { createActivity } from "../collaboration/collaboration.service.js";
 import { sendInvitationEmail } from "../utils/email.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
+import {
+  ensureRoleAssignmentAllowed,
+  getMembershipForUserInOrg,
+} from "../org/org-membership.service.js";
+import type { OrgRole } from "../org/org.constants.js";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -42,13 +47,23 @@ async function generateUniqueToken(maxRetries = 3): Promise<string> {
   return crypto.randomUUID().replace(/-/g, "").toUpperCase();
 }
 
-// Create invitation (admin/manager only)
+// Create invitation (admin only)
 export async function createInvitation(
   req: AuthRequest,
   res: Response,
 ): Promise<void> {
   try {
-    const { orgId, role = "partner", partnerType, partnerIndustry } = req.body;
+    const {
+      orgId,
+      role = "partner",
+      partnerType,
+      partnerIndustry,
+    } = req.body as {
+      orgId: string;
+      role: OrgRole;
+      partnerType?: string;
+      partnerIndustry?: string;
+    };
     // Email is already normalized by validation schema
     const email = normalizeEmail(req.body.email);
     const userId = req.user?.id;
@@ -58,7 +73,7 @@ export async function createInvitation(
       return;
     }
 
-    // Check if user is admin or manager of this org
+    // Check if user is admin of this org
     const membership = await db
       .select()
       .from(orgUser)
@@ -67,9 +82,16 @@ export async function createInvitation(
 
     if (
       membership.length === 0 ||
-      !["admin", "manager"].includes(membership[0]?.role ?? "")
+      membership[0]?.role !== "admin"
     ) {
-      res.status(403).json({ error: "Only admins and managers can invite" });
+      res.status(403).json({ error: "Only admins can invite users" });
+      return;
+    }
+
+    if (role === "admin") {
+      res.status(400).json({
+        error: "Invite an internal user first, then promote them to admin from organization members",
+      });
       return;
     }
 
@@ -93,6 +115,15 @@ export async function createInvitation(
         res
           .status(409)
           .json({ error: "User is already a member of this organization" });
+        return;
+      }
+
+      const assignmentCheck = await ensureRoleAssignmentAllowed(existingUser.id, role, {
+        orgId,
+      });
+
+      if (!assignmentCheck.allowed) {
+        res.status(409).json({ error: assignmentCheck.error });
         return;
       }
     }
@@ -311,15 +342,18 @@ export async function acceptInvitation(
       return;
     }
 
-    // Check if user already member
-    const existingMember = await db
-      .select()
-      .from(orgUser)
-      .where(and(eq(orgUser.orgId, invite.orgId), eq(orgUser.userId, userId)))
-      .limit(1);
-
-    if (existingMember.length > 0) {
+    const existingMember = await getMembershipForUserInOrg(invite.orgId, userId);
+    if (existingMember) {
       res.status(409).json({ error: "Already a member of this organization" });
+      return;
+    }
+
+    const assignmentCheck = await ensureRoleAssignmentAllowed(userId, invite.role, {
+      orgId: invite.orgId,
+    });
+
+    if (!assignmentCheck.allowed) {
+      res.status(409).json({ error: assignmentCheck.error });
       return;
     }
 
@@ -390,7 +424,7 @@ export async function acceptInvitation(
   }
 }
 
-// Get pending invitations for an organization (admin/manager only, uses requireOrganization middleware)
+// Get pending invitations for an organization (admin only, uses requireOrganization middleware)
 export async function getPendingInvitations(
   req: AuthRequest,
   res: Response,
@@ -401,10 +435,10 @@ export async function getPendingInvitations(
       return;
     }
 
-    if (!["admin", "manager"].includes(req.membership.role)) {
+    if (req.membership.role !== "admin") {
       res
         .status(403)
-        .json({ error: "Only admins and managers can view invitations" });
+        .json({ error: "Only admins can view invitations" });
       return;
     }
 

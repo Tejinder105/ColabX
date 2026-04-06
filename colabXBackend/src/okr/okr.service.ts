@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, count } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, count } from "drizzle-orm";
 import db from "../db/index.js";
 import {
     objective,
@@ -13,6 +13,7 @@ import { deal } from "../deals/deals.schema.js";
 import { activityLog } from "../schemas/collaborationSchema.js";
 
 type KeyResultStatus = "on_track" | "at_risk" | "off_track";
+type PartnerHealthLabel = "Healthy" | "At Risk" | "Underperforming";
 
 function clampScore(value: number) {
     return Math.max(0, Math.min(100, Math.round(value * 100) / 100));
@@ -42,6 +43,18 @@ function calculateProgressPercent(currentValue: number, targetValue: number) {
     }
 
     return clampScore((currentValue / targetValue) * 100);
+}
+
+function getPartnerHealthLabel(score: number): PartnerHealthLabel {
+    if (score >= 75) {
+        return "Healthy";
+    }
+
+    if (score >= 50) {
+        return "At Risk";
+    }
+
+    return "Underperforming";
 }
 
 function calculateObjectiveSummary(
@@ -123,7 +136,9 @@ export async function getOrgObjectives(
     orgId: string,
     filters?: {
         partnerId?: string;
+        partnerIds?: string[];
         teamId?: string;
+        teamIds?: string[];
         startDate?: string;
         endDate?: string;
     }
@@ -132,9 +147,21 @@ export async function getOrgObjectives(
 
     if (filters?.partnerId) {
         conditions.push(eq(objective.partnerId, filters.partnerId));
+    } else if (filters?.partnerIds) {
+        if (filters.partnerIds.length === 0) {
+            return [];
+        }
+
+        conditions.push(inArray(objective.partnerId, filters.partnerIds));
     }
     if (filters?.teamId) {
         conditions.push(eq(objective.teamId, filters.teamId));
+    } else if (filters?.teamIds) {
+        if (filters.teamIds.length === 0) {
+            return [];
+        }
+
+        conditions.push(inArray(objective.teamId, filters.teamIds));
     }
     if (filters?.startDate) {
         conditions.push(gte(objective.startDate, filters.startDate));
@@ -424,29 +451,32 @@ export async function getPartnerMetrics(
         .orderBy(desc(performanceMetric.recordedAt));
 }
 
-export async function calculateAndStorePartnerScore(partnerId: string) {
-    const [partnerObjectives, wonDeals, recentActivities, metrics] = await Promise.all([
+async function calculatePartnerScoreSnapshot(partnerId: string) {
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 90);
+
+    const [partnerObjectives, partnerDeals, recentActivities] = await Promise.all([
         db.select({ id: objective.id })
             .from(objective)
             .where(eq(objective.partnerId, partnerId)),
-        db.select({ wonCount: count(deal.id) })
+        db.select({
+            id: deal.id,
+            stage: deal.stage,
+            value: deal.value,
+        })
             .from(deal)
-            .where(and(eq(deal.partnerId, partnerId), eq(deal.stage, "won"))),
+            .where(and(eq(deal.partnerId, partnerId), gte(deal.createdAt, sinceDate))),
         db.select({ activityCount: count(activityLog.id) })
             .from(activityLog)
-            .where(and(eq(activityLog.entityType, "partner"), eq(activityLog.entityId, partnerId))),
-        db.select().from(performanceMetric).where(eq(performanceMetric.partnerId, partnerId)),
+            .where(and(eq(activityLog.entityId, partnerId), gte(activityLog.createdAt, sinceDate))),
     ]);
 
     const objectiveIds = partnerObjectives.map((objectiveRow) => objectiveRow.id);
     const objectiveKeyResults = objectiveIds.length > 0
-        ? await db
-              .select()
-              .from(keyResult)
-              .where(or(...objectiveIds.map((objectiveId) => eq(keyResult.objectiveId, objectiveId))))
+        ? await db.select().from(keyResult).where(inArray(keyResult.objectiveId, objectiveIds))
         : [];
 
-    const objectiveCompletionScore =
+    const okrCompletionScore =
         objectiveKeyResults.length > 0
             ? clampScore(
                   objectiveKeyResults.reduce((sum, keyResultRow) => {
@@ -461,33 +491,68 @@ export async function calculateAndStorePartnerScore(partnerId: string) {
               )
             : 0;
 
-    const wonDealScore = clampScore((Number(wonDeals[0]?.wonCount ?? 0) / 10) * 100);
-    const activityScore = clampScore((Number(recentActivities[0]?.activityCount ?? 0) / 20) * 100);
-    const metricScore =
-        metrics.length > 0
-            ? clampScore(
-                  metrics.reduce((sum, metricRow) => sum + metricRow.metricValue, 0) /
-                      metrics.length
-              )
-            : 0;
-
-    const weightedScore = clampScore(
-        objectiveCompletionScore * 0.5 +
-            wonDealScore * 0.25 +
-            activityScore * 0.15 +
-            metricScore * 0.1
+    const wonDeals = partnerDeals.filter((dealRow) => dealRow.stage === "won");
+    const closedDeals = partnerDeals.filter(
+        (dealRow) => dealRow.stage === "won" || dealRow.stage === "lost"
     );
+    const totalRevenue = partnerDeals.reduce((sum, dealRow) => sum + (dealRow.value ?? 0), 0);
+    const wonRevenue = wonDeals.reduce((sum, dealRow) => sum + (dealRow.value ?? 0), 0);
+    const winRateScore =
+        closedDeals.length > 0 ? clampScore((wonDeals.length / closedDeals.length) * 100) : 0;
+    const winCountScore = clampScore((wonDeals.length / 10) * 100);
+    const revenueScore =
+        totalRevenue > 0 ? clampScore((wonRevenue / totalRevenue) * 100) : 0;
+    const dealsPerformanceScore = clampScore(
+        winCountScore * 0.3 + winRateScore * 0.4 + revenueScore * 0.3
+    );
+
+    const activityScore = clampScore((Number(recentActivities[0]?.activityCount ?? 0) / 25) * 100);
+    const finalScore = clampScore(
+        dealsPerformanceScore * 0.4 + okrCompletionScore * 0.4 + activityScore * 0.2
+    );
+
+    return {
+        partnerId,
+        score: finalScore,
+        healthLabel: getPartnerHealthLabel(finalScore),
+    };
+}
+
+export async function calculateAndStorePartnerScore(
+    partnerId: string,
+    options?: { persist?: boolean }
+) {
+    const snapshot = await calculatePartnerScoreSnapshot(partnerId);
+    const shouldPersist = options?.persist ?? true;
+
+    if (!shouldPersist) {
+        return {
+            id: `preview-${partnerId}`,
+            partnerId,
+            score: snapshot.score,
+            calculatedOn: new Date(),
+            healthLabel: snapshot.healthLabel,
+        };
+    }
+
+    const latest = await getLatestPartnerScore(partnerId);
+    if (latest && Math.abs(latest.score - snapshot.score) < 0.01) {
+        return latest;
+    }
 
     const [created] = await db
         .insert(partnerScore)
         .values({
             id: crypto.randomUUID(),
             partnerId,
-            score: weightedScore,
+            score: snapshot.score,
         })
         .returning();
 
-    return created;
+    return {
+        ...created,
+        healthLabel: snapshot.healthLabel,
+    };
 }
 
 export async function getLatestPartnerScore(partnerId: string) {
@@ -508,7 +573,14 @@ export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
         .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
         .limit(1);
 
-    return result;
+    if (!result) {
+        return null;
+    }
+
+    return {
+        ...result,
+        healthLabel: getPartnerHealthLabel(result.score),
+    };
 }
 
 export async function getTeamByIdForOrg(teamId: string, orgId: string) {
@@ -525,8 +597,14 @@ export async function getPartnerPerformanceSummary(partnerId: string, orgId: str
     const [partnerRow, objectives, latestScore] = await Promise.all([
         getPartnerByIdForOrg(partnerId, orgId),
         getOrgObjectives(orgId, { partnerId }),
-        calculateAndStorePartnerScore(partnerId),
+        getLatestPartnerScore(partnerId),
     ]);
+
+    const score =
+        latestScore ??
+        (await calculateAndStorePartnerScore(partnerId, {
+            persist: false,
+        }));
 
     const activeObjectives = objectives.filter(
         (objectiveRow) => new Date(objectiveRow.endDate) >= new Date()
@@ -541,7 +619,7 @@ export async function getPartnerPerformanceSummary(partnerId: string, orgId: str
 
     return {
         partner: partnerRow ?? null,
-        score: latestScore,
+        score,
         activeObjectives,
         completionRate,
         objectiveCount: objectives.length,

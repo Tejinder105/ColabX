@@ -58,7 +58,7 @@ export async function requireTeamAccess(
             return;
         }
 
-        if (req.membership.role !== "manager") {
+        if (req.membership.role !== "manager" && req.membership.role !== "member") {
             res.status(403).json({ error: "Insufficient permissions" });
             return;
         }

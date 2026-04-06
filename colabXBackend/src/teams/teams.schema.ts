@@ -82,6 +82,7 @@ export const teamPartner = pgTable(
             table.teamId,
             table.partnerId
         ),
+        uniqueIndex("teamPartner_partnerId_unique").on(table.partnerId),
         index("teamPartner_teamId_idx").on(table.teamId),
         index("teamPartner_partnerId_idx").on(table.partnerId),
         index("teamPartner_assignedBy_idx").on(table.assignedBy),

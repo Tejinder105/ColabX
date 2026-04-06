@@ -42,13 +42,12 @@ router.post(
     createTeamHandler
 );
 
-router.get("/", requireOrganization, requireRole("admin", "manager"), getOrgTeamsHandler);
-
+router.get("/", requireOrganization, requireRole("admin", "manager", "member"), getOrgTeamsHandler);
 router.get(
     "/:teamId",
     requireOrganization,
     requireTeam,
-    requireRole("admin", "manager"),
+    requireRole("admin", "manager", "member"),
     requireTeamAccess,
     getTeamByIdHandler
 );
@@ -75,7 +74,8 @@ router.post(
     "/:teamId/members",
     requireOrganization,
     requireTeam,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
+    requireTeamAccess,
     validate(addTeamMemberSchema),
     addTeamMemberHandler
 );
@@ -84,7 +84,7 @@ router.get(
     "/:teamId/members",
     requireOrganization,
     requireTeam,
-    requireRole("admin", "manager"),
+    requireRole("admin", "manager", "member"),
     requireTeamAccess,
     getTeamMembersHandler
 );
@@ -93,7 +93,8 @@ router.patch(
     "/:teamId/members/:userId/role",
     requireOrganization,
     requireTeam,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
+    requireTeamAccess,
     validate(updateTeamMemberRoleSchema),
     updateTeamMemberRoleHandler
 );
@@ -102,7 +103,8 @@ router.delete(
     "/:teamId/members/:userId",
     requireOrganization,
     requireTeam,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
+    requireTeamAccess,
     removeTeamMemberHandler
 );
 
@@ -139,7 +141,7 @@ router.get(
     "/:teamId/deals",
     requireOrganization,
     requireTeam,
-    requireRole("admin", "manager"),
+    requireRole("admin", "manager", "member"),
     requireTeamAccess,
     getTeamDealsHandler
 );
@@ -148,7 +150,7 @@ router.get(
     "/:teamId/objectives",
     requireOrganization,
     requireTeam,
-    requireRole("admin", "manager"),
+    requireRole("admin", "manager", "member"),
     requireTeamAccess,
     getTeamObjectivesHandler
 );
@@ -157,7 +159,7 @@ router.get(
     "/:teamId/activity",
     requireOrganization,
     requireTeam,
-    requireRole("admin", "manager"),
+    requireRole("admin", "manager", "member"),
     requireTeamAccess,
     getTeamActivityHandler
 );

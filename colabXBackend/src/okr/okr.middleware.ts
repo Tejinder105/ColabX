@@ -2,6 +2,7 @@ import type { Response, NextFunction } from "express";
 import { getObjectiveById, getKeyResultById } from "./okr.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 import { getOrgPartnersForUser } from "../partners/partners.service.js";
+import { getPartnerIdsForTeams, getScopedTeamIdsForUser } from "../teams/teams.service.js";
 
 // Verifies the objective exists and belongs to the current org.
 // Must run AFTER requireOrganization (requires req.org to be set).
@@ -101,7 +102,35 @@ export async function requireObjectiveAccess(
             return;
         }
 
-        if (req.membership.role === "admin" || req.membership.role === "manager") {
+        if (req.membership.role === "admin") {
+            next();
+            return;
+        }
+
+        if (req.membership.role === "manager" || req.membership.role === "member") {
+            const scopedTeamIds = await getScopedTeamIdsForUser(
+                req.org.id,
+                req.user.id,
+                req.membership.role
+            );
+
+            if (!scopedTeamIds || scopedTeamIds.length === 0) {
+                res.status(403).json({ error: "Access denied to this objective" });
+                return;
+            }
+
+            const scopedPartnerIds = await getPartnerIdsForTeams(scopedTeamIds);
+            const canAccess =
+                (req.objective.teamId ? scopedTeamIds.includes(req.objective.teamId) : false) ||
+                (req.objective.partnerId
+                    ? scopedPartnerIds.includes(req.objective.partnerId)
+                    : false);
+
+            if (!canAccess) {
+                res.status(403).json({ error: "Access denied to this objective" });
+                return;
+            }
+
             next();
             return;
         }
@@ -139,13 +168,44 @@ export async function requireKeyResultAccess(
             return;
         }
 
-        if (req.membership.role === "admin" || req.membership.role === "manager") {
+        if (req.membership.role === "admin") {
             next();
             return;
         }
 
         const objectiveRow = await getObjectiveById(req.keyResult.objectiveId, req.org.id);
-        if (!objectiveRow || !objectiveRow.partnerId) {
+        if (!objectiveRow) {
+            res.status(403).json({ error: "Access denied to this key result" });
+            return;
+        }
+
+        if (req.membership.role === "manager" || req.membership.role === "member") {
+            const scopedTeamIds = await getScopedTeamIdsForUser(
+                req.org.id,
+                req.user.id,
+                req.membership.role
+            );
+
+            if (!scopedTeamIds || scopedTeamIds.length === 0) {
+                res.status(403).json({ error: "Access denied to this key result" });
+                return;
+            }
+
+            const scopedPartnerIds = await getPartnerIdsForTeams(scopedTeamIds);
+            const canAccess =
+                (objectiveRow.teamId ? scopedTeamIds.includes(objectiveRow.teamId) : false) ||
+                (objectiveRow.partnerId ? scopedPartnerIds.includes(objectiveRow.partnerId) : false);
+
+            if (!canAccess) {
+                res.status(403).json({ error: "Access denied to this key result" });
+                return;
+            }
+
+            next();
+            return;
+        }
+
+        if (!objectiveRow.partnerId) {
             res.status(403).json({ error: "Access denied to this key result" });
             return;
         }

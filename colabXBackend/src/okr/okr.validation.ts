@@ -66,7 +66,6 @@ export const updateKeyResultSchema = z.object({
     title: z.string().min(2).max(300).trim().optional(),
     currentValue: z.number().min(0).optional(),
     targetValue: z.number().positive().optional(),
-    status: z.enum(["on_track", "at_risk", "off_track"]).optional(),
 });
 
 // ── Performance Metrics ────────────────────────────────────────────────────

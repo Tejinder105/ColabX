@@ -20,6 +20,15 @@ export const dealStageEnum = pgEnum("dealStage", [
     "won",
     "lost",
 ]);
+export const dealTaskStatusEnum = pgEnum("dealTaskStatus", [
+    "todo",
+    "in_progress",
+    "done",
+]);
+export const dealDocumentVisibilityEnum = pgEnum("dealDocumentVisibility", [
+    "shared",
+    "internal",
+]);
 
 export const deal = pgTable(
     "deal",
@@ -31,9 +40,11 @@ export const deal = pgTable(
         partnerId: text("partnerId")
             .notNull()
             .references(() => partner.id, { onDelete: "cascade" }),
-        teamId: text("teamId").references(() => team.id, {
-            onDelete: "set null",
-        }),
+        teamId: text("teamId")
+            .notNull()
+            .references(() => team.id, {
+                onDelete: "cascade",
+            }),
         title: text("title").notNull(),
         description: text("description"),
         value: real("value"),
@@ -99,6 +110,59 @@ export const dealMessage = pgTable(
     ]
 );
 
+export const dealTask = pgTable(
+    "dealTask",
+    {
+        id: text("id").primaryKey(),
+        dealId: text("dealId")
+            .notNull()
+            .references(() => deal.id, { onDelete: "cascade" }),
+        title: text("title").notNull(),
+        description: text("description"),
+        assigneeUserId: text("assigneeUserId").references(() => user.id, {
+            onDelete: "set null",
+        }),
+        status: dealTaskStatusEnum("status").notNull().default("todo"),
+        dueDate: timestamp("dueDate"),
+        createdBy: text("createdBy").references(() => user.id, {
+            onDelete: "set null",
+        }),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt")
+            .defaultNow()
+            .$onUpdate(() => new Date())
+            .notNull(),
+        completedAt: timestamp("completedAt"),
+    },
+    (table) => [
+        index("dealTask_dealId_idx").on(table.dealId),
+        index("dealTask_assigneeUserId_idx").on(table.assigneeUserId),
+        index("dealTask_status_idx").on(table.status),
+    ]
+);
+
+export const dealDocument = pgTable(
+    "dealDocument",
+    {
+        id: text("id").primaryKey(),
+        dealId: text("dealId")
+            .notNull()
+            .references(() => deal.id, { onDelete: "cascade" }),
+        uploadedBy: text("uploadedBy")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        fileName: text("fileName").notNull(),
+        fileUrl: text("fileUrl").notNull(),
+        visibility: dealDocumentVisibilityEnum("visibility").notNull().default("shared"),
+        uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+    },
+    (table) => [
+        index("dealDocument_dealId_idx").on(table.dealId),
+        index("dealDocument_uploadedBy_idx").on(table.uploadedBy),
+        index("dealDocument_visibility_idx").on(table.visibility),
+    ]
+);
+
 // Relations
 export const dealRelations = relations(deal, ({ one, many }) => ({
     organization: one(organization, {
@@ -119,6 +183,8 @@ export const dealRelations = relations(deal, ({ one, many }) => ({
     }),
     assignments: many(dealAssignment),
     messages: many(dealMessage),
+    tasks: many(dealTask),
+    documents: many(dealDocument),
 }));
 
 export const dealAssignmentRelations = relations(dealAssignment, ({ one }) => ({
@@ -139,6 +205,34 @@ export const dealMessageRelations = relations(dealMessage, ({ one }) => ({
     }),
     sender: one(user, {
         fields: [dealMessage.senderId],
+        references: [user.id],
+    }),
+}));
+
+export const dealTaskRelations = relations(dealTask, ({ one }) => ({
+    deal: one(deal, {
+        fields: [dealTask.dealId],
+        references: [deal.id],
+    }),
+    assignee: one(user, {
+        fields: [dealTask.assigneeUserId],
+        references: [user.id],
+        relationName: "dealTaskAssignee",
+    }),
+    creator: one(user, {
+        fields: [dealTask.createdBy],
+        references: [user.id],
+        relationName: "dealTaskCreator",
+    }),
+}));
+
+export const dealDocumentRelations = relations(dealDocument, ({ one }) => ({
+    deal: one(deal, {
+        fields: [dealDocument.dealId],
+        references: [deal.id],
+    }),
+    uploader: one(user, {
+        fields: [dealDocument.uploadedBy],
         references: [user.id],
     }),
 }));

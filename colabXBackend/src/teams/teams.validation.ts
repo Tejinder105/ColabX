@@ -3,7 +3,7 @@ import { z } from "zod";
 export const createTeamSchema = z.object({
     name: z.string().min(2).max(100).trim(),
     description: z.string().max(500).trim().optional(),
-    leadUserId: z.string().min(1).optional(),
+    leadUserId: z.string().min(1),
     memberIds: z.array(z.string().min(1)).max(100).optional().default([]),
 });
 

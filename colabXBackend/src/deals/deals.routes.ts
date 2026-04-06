@@ -8,6 +8,9 @@ import {
     updateDealSchema,
     assignUserSchema,
     createMessageSchema,
+    createDealTaskSchema,
+    updateDealTaskSchema,
+    createDealDocumentSchema,
 } from "./deals.validation.js";
 import {
     createDealHandler,
@@ -21,6 +24,13 @@ import {
     createMessageHandler,
     getDealMessagesHandler,
     deleteMessageHandler,
+    createDealTaskHandler,
+    getDealTasksHandler,
+    updateDealTaskHandler,
+    deleteDealTaskHandler,
+    createDealDocumentHandler,
+    getDealDocumentsHandler,
+    deleteDealDocumentHandler,
 } from "./deals.controller.js";
 
 const router = Router();
@@ -111,6 +121,70 @@ router.delete(
     requireDeal,
     requireDealAccess,
     deleteMessageHandler
+);
+
+router.post(
+    "/:dealId/tasks",
+    requireOrganization,
+    requireDeal,
+    requireRole("admin", "manager"),
+    requireDealAccess,
+    validate(createDealTaskSchema),
+    createDealTaskHandler
+);
+
+router.get(
+    "/:dealId/tasks",
+    requireOrganization,
+    requireDeal,
+    requireDealAccess,
+    getDealTasksHandler
+);
+
+router.patch(
+    "/:dealId/tasks/:taskId",
+    requireOrganization,
+    requireDeal,
+    requireRole("admin", "manager", "member"),
+    requireDealAccess,
+    validate(updateDealTaskSchema),
+    updateDealTaskHandler
+);
+
+router.delete(
+    "/:dealId/tasks/:taskId",
+    requireOrganization,
+    requireDeal,
+    requireRole("admin", "manager"),
+    requireDealAccess,
+    deleteDealTaskHandler
+);
+
+router.post(
+    "/:dealId/documents",
+    requireOrganization,
+    requireDeal,
+    requireRole("admin", "manager", "member", "partner"),
+    requireDealAccess,
+    validate(createDealDocumentSchema),
+    createDealDocumentHandler
+);
+
+router.get(
+    "/:dealId/documents",
+    requireOrganization,
+    requireDeal,
+    requireDealAccess,
+    getDealDocumentsHandler
+);
+
+router.delete(
+    "/:dealId/documents/:documentId",
+    requireOrganization,
+    requireDeal,
+    requireRole("admin", "manager", "member", "partner"),
+    requireDealAccess,
+    deleteDealDocumentHandler
 );
 
 export default router;

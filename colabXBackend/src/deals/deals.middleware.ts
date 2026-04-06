@@ -1,5 +1,10 @@
 import type { Response, NextFunction } from "express";
-import { getDealById, getPartnerForUserInOrg, isUserAssignedToDeal } from "./deals.service.js";
+import {
+    getDealById,
+    getPartnerForUserInOrg,
+    getScopedDealTeamIds,
+    isUserAssignedToDeal,
+} from "./deals.core.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 
 
@@ -56,7 +61,23 @@ export async function requireDealAccess(
             return;
         }
 
-        if (req.membership.role === "admin" || req.membership.role === "manager") {
+        if (req.membership.role === "admin") {
+            next();
+            return;
+        }
+
+        if (req.membership.role === "manager" || req.membership.role === "member") {
+            const visibleTeamIds = await getScopedDealTeamIds(
+                req.org.id,
+                req.user.id,
+                req.membership.role
+            );
+
+            if (!visibleTeamIds?.includes(req.deal.teamId)) {
+                res.status(403).json({ error: "Access denied to this deal" });
+                return;
+            }
+
             next();
             return;
         }

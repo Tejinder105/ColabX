@@ -7,6 +7,13 @@ import { partner } from "../partners/partners.schema.js";
 import { deal, dealAssignment } from "../deals/deals.schema.js";
 import { objective, keyResult } from "../okr/okr.schema.js";
 import { activityLog } from "../schemas/collaborationSchema.js";
+import {
+    TEAM_LEAD_ORG_ROLES,
+    TEAM_MEMBER_ORG_ROLES,
+    type OrgRole,
+    isTeamLeadEligibleRole,
+    isTeamMemberEligibleRole,
+} from "../org/org.constants.js";
 
 type TeamRole = "lead" | "member";
 
@@ -25,7 +32,7 @@ export async function createTeam(
     }
 ) {
     const memberIds = uniqueIds(data.memberIds ?? []);
-    if (data.leadUserId && !memberIds.includes(data.leadUserId)) {
+    if (!memberIds.includes(data.leadUserId)) {
         memberIds.unshift(data.leadUserId);
     }
 
@@ -250,6 +257,23 @@ export async function isOrgMember(orgId: string, userId: string): Promise<boolea
     return !!result;
 }
 
+export async function getOrgMembershipsByUserIds(orgId: string, userIds: string[]) {
+    const uniqueUserIds = uniqueIds(userIds);
+    if (uniqueUserIds.length === 0) {
+        return [];
+    }
+
+    return db
+        .select({
+            id: orgUser.id,
+            userId: orgUser.userId,
+            orgId: orgUser.orgId,
+            role: orgUser.role,
+        })
+        .from(orgUser)
+        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.userId, uniqueUserIds)));
+}
+
 export async function getOrgMemberUserIds(orgId: string, userIds: string[]) {
     const uniqueUserIds = uniqueIds(userIds);
     if (uniqueUserIds.length === 0) {
@@ -264,11 +288,37 @@ export async function getOrgMemberUserIds(orgId: string, userIds: string[]) {
     return rows.map((row) => row.userId);
 }
 
+export async function getOrgMembersByRoles(orgId: string, roles: OrgRole[]) {
+    return db
+        .select({
+            id: orgUser.id,
+            userId: orgUser.userId,
+            role: orgUser.role,
+            userName: user.name,
+            userEmail: user.email,
+            userImage: user.image,
+        })
+        .from(orgUser)
+        .innerJoin(user, eq(orgUser.userId, user.id))
+        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.role, roles)))
+        .orderBy(user.name);
+}
+
 export async function getTeamMemberRecord(teamId: string, userId: string) {
     const [result] = await db
         .select()
         .from(teamMember)
         .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+        .limit(1);
+
+    return result;
+}
+
+export async function getLeadMemberRecord(teamId: string) {
+    const [result] = await db
+        .select()
+        .from(teamMember)
+        .where(and(eq(teamMember.teamId, teamId), eq(teamMember.role, "lead")))
         .limit(1);
 
     return result;
@@ -282,6 +332,35 @@ export async function isTeamMember(teamId: string, userId: string): Promise<bool
         .limit(1);
 
     return !!result;
+}
+
+export async function getScopedTeamIdsForUser(
+    orgId: string,
+    userId: string,
+    role: OrgRole
+): Promise<string[] | null> {
+    if (role === "admin") {
+        return null;
+    }
+
+    if (role === "manager" || role === "member") {
+        const teamRows = await db
+            .select({ teamId: teamMember.teamId })
+            .from(teamMember)
+            .innerJoin(team, eq(teamMember.teamId, team.id))
+            .where(and(eq(team.orgId, orgId), eq(teamMember.userId, userId)));
+
+        return uniqueIds(teamRows.map((row) => row.teamId));
+    }
+
+    const teamRows = await db
+        .select({ teamId: teamPartner.teamId })
+        .from(teamPartner)
+        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
+        .where(and(eq(team.orgId, orgId), eq(partner.userId, userId)));
+
+    return uniqueIds(teamRows.map((row) => row.teamId));
 }
 
 export async function addTeamMember(
@@ -335,6 +414,20 @@ export async function updateTeamMemberRole(
     role: TeamRole
 ) {
     return db.transaction(async (tx) => {
+        const [existing] = await tx
+            .select()
+            .from(teamMember)
+            .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+            .limit(1);
+
+        if (!existing) {
+            return null;
+        }
+
+        if (existing.role === "lead" && role !== "lead") {
+            throw new Error("Assign a new lead before downgrading the current lead");
+        }
+
         if (role === "lead") {
             await tx
                 .update(teamMember)
@@ -353,10 +446,26 @@ export async function updateTeamMemberRole(
 }
 
 export async function removeTeamMember(teamId: string, userId: string) {
-    return db
-        .delete(teamMember)
-        .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
-        .returning();
+    return db.transaction(async (tx) => {
+        const [existing] = await tx
+            .select()
+            .from(teamMember)
+            .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+            .limit(1);
+
+        if (!existing) {
+            return [];
+        }
+
+        if (existing.role === "lead") {
+            throw new Error("Assign a new lead before removing the current lead");
+        }
+
+        return tx
+            .delete(teamMember)
+            .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
+            .returning();
+    });
 }
 
 export async function getTeamMemberUserIds(teamId: string): Promise<string[]> {
@@ -383,17 +492,39 @@ export async function assignPartnerToTeam(
     partnerId: string,
     assignedBy: string
 ) {
-    const [created] = await db
-        .insert(teamPartner)
-        .values({
-            id: crypto.randomUUID(),
-            teamId,
-            partnerId,
-            assignedBy,
-        })
-        .returning();
+    return db.transaction(async (tx) => {
+        const [existing] = await tx
+            .select()
+            .from(teamPartner)
+            .where(eq(teamPartner.partnerId, partnerId))
+            .limit(1);
 
-    return created;
+        if (existing) {
+            const [updated] = await tx
+                .update(teamPartner)
+                .set({
+                    teamId,
+                    assignedBy,
+                    assignedAt: new Date(),
+                })
+                .where(eq(teamPartner.id, existing.id))
+                .returning();
+
+            return updated;
+        }
+
+        const [created] = await tx
+            .insert(teamPartner)
+            .values({
+                id: crypto.randomUUID(),
+                teamId,
+                partnerId,
+                assignedBy,
+            })
+            .returning();
+
+        return created;
+    });
 }
 
 export async function removePartnerFromTeam(teamId: string, partnerId: string) {
@@ -410,6 +541,19 @@ export async function getTeamPartnerIds(teamId: string): Promise<string[]> {
         .where(eq(teamPartner.teamId, teamId));
 
     return rows.map((row) => row.partnerId);
+}
+
+export async function getPartnerIdsForTeams(teamIds: string[]): Promise<string[]> {
+    if (teamIds.length === 0) {
+        return [];
+    }
+
+    const rows = await db
+        .select({ partnerId: teamPartner.partnerId })
+        .from(teamPartner)
+        .where(inArray(teamPartner.teamId, uniqueIds(teamIds)));
+
+    return uniqueIds(rows.map((row) => row.partnerId));
 }
 
 export async function getTeamPartners(teamId: string, orgId: string) {
@@ -431,6 +575,24 @@ export async function getTeamPartners(teamId: string, orgId: string) {
         .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
         .where(and(eq(teamPartner.teamId, teamId), eq(partner.orgId, orgId)))
         .orderBy(desc(teamPartner.assignedAt));
+}
+
+export async function getPartnerTeamAssignment(partnerId: string, orgId: string) {
+    const [assignment] = await db
+        .select({
+            id: teamPartner.id,
+            teamId: teamPartner.teamId,
+            partnerId: teamPartner.partnerId,
+            assignedAt: teamPartner.assignedAt,
+            assignedBy: teamPartner.assignedBy,
+            teamName: team.name,
+        })
+        .from(teamPartner)
+        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.orgId, orgId)))
+        .limit(1);
+
+    return assignment;
 }
 
 export async function getTeamDeals(teamId: string, orgId: string) {
@@ -567,3 +729,14 @@ export async function getTeamActivity(teamId: string, orgId: string) {
         .orderBy(desc(activityLog.createdAt))
         .limit(50);
 }
+
+export function validateLeadMembershipRole(role: OrgRole) {
+    return isTeamLeadEligibleRole(role);
+}
+
+export function validateMemberMembershipRole(role: OrgRole) {
+    return isTeamMemberEligibleRole(role);
+}
+
+export const teamLeadEligibleRoles = [...TEAM_LEAD_ORG_ROLES];
+export const teamMemberEligibleRoles = [...TEAM_MEMBER_ORG_ROLES];

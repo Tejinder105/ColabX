@@ -8,8 +8,7 @@ import {
     getTeamWithMembers,
     updateTeam,
     deleteTeam,
-    isOrgMember,
-    getOrgMemberUserIds,
+    getOrgMembershipsByUserIds,
     getTeamMemberRecord,
     addTeamMember,
     getTeamMembers,
@@ -22,7 +21,12 @@ import {
     getTeamDeals,
     getTeamObjectives,
     getTeamActivity,
+    getOrgMembersByRoles,
+    getPartnerTeamAssignment,
+    validateLeadMembershipRole,
+    validateMemberMembershipRole,
 } from "./teams.service.js";
+import { type OrgRole } from "../org/org.constants.js";
 
 // POST /api/teams
 export async function createTeamHandler(
@@ -39,11 +43,32 @@ export async function createTeamHandler(
             ...(req.body.memberIds ?? []),
             ...(req.body.leadUserId ? [req.body.leadUserId] : []),
         ];
-        const validUserIds = await getOrgMemberUserIds(req.org.id, requestedUserIds);
+        const memberships = await getOrgMembershipsByUserIds(req.org.id, requestedUserIds);
+        const membershipByUserId = new Map(memberships.map((membership) => [membership.userId, membership]));
 
-        if (validUserIds.length !== [...new Set(requestedUserIds)].length) {
+        if (memberships.length !== [...new Set(requestedUserIds)].length) {
             res.status(400).json({
                 error: "Lead and members must belong to this organization",
+            });
+            return;
+        }
+
+        const leadMembership = membershipByUserId.get(req.body.leadUserId);
+        if (!leadMembership || !validateLeadMembershipRole(leadMembership.role)) {
+            res.status(400).json({
+                error: "Team lead must be an admin or manager",
+            });
+            return;
+        }
+
+        const invalidMembers = (req.body.memberIds ?? []).filter((memberId: string) => {
+            const membership = membershipByUserId.get(memberId);
+            return !membership || !validateMemberMembershipRole(membership.role);
+        });
+
+        if (invalidMembers.length > 0) {
+            res.status(400).json({
+                error: "Team members must be managers or members",
             });
             return;
         }
@@ -84,7 +109,9 @@ export async function getOrgTeamsHandler(
         }
 
         const visibleToUserId =
-            req.membership.role === "manager" ? req.user.id : undefined;
+            req.membership.role === "manager" || req.membership.role === "member"
+                ? req.user.id
+                : undefined;
 
         const teams = await getOrgTeams(req.org.id, visibleToUserId);
         res.json({
@@ -113,7 +140,18 @@ export async function getTeamByIdHandler(
         }
 
         const result = await getTeamWithMembers(req.team.id, req.org.id);
-        res.json({ team: result.team, members: result.members });
+        const currentTeamMemberIds = new Set(result.members.map((member) => member.userId));
+        const eligibleMembers = (await getOrgMembersByRoles(req.org.id, ["manager", "member"]))
+            .filter((member) => !currentTeamMemberIds.has(member.userId));
+        const leadCandidates = (await getOrgMembersByRoles(req.org.id, ["admin", "manager"]))
+            .filter((member) => member.userId === result.team?.lead?.userId || !currentTeamMemberIds.has(member.userId));
+
+        res.json({
+            team: result.team,
+            members: result.members,
+            eligibleMembers,
+            leadCandidates,
+        });
     } catch (error) {
         console.error("Get team error:", error);
         res.status(500).json({ error: "Failed to fetch team" });
@@ -215,10 +253,24 @@ export async function addTeamMemberHandler(
 
         const { userId, role } = req.body;
 
-        const orgMember = await isOrgMember(req.org.id, userId);
-        if (!orgMember) {
+        const memberships = await getOrgMembershipsByUserIds(req.org.id, [userId]);
+        const membership = memberships[0];
+        if (!membership) {
             res.status(400).json({
                 error: "User is not a member of this organization",
+            });
+            return;
+        }
+
+        if (
+            (role === "lead" && !validateLeadMembershipRole(membership.role)) ||
+            (role === "member" && !validateMemberMembershipRole(membership.role))
+        ) {
+            res.status(400).json({
+                error:
+                    role === "lead"
+                        ? "Team lead must be an admin or manager"
+                        : "Team members must be managers or members",
             });
             return;
         }
@@ -286,6 +338,26 @@ export async function updateTeamMemberRoleHandler(
 
         const userId = req.params.userId as string;
         const { role } = req.body;
+
+        const memberships = await getOrgMembershipsByUserIds(req.team.orgId, [userId]);
+        const membership = memberships[0];
+        if (!membership) {
+            res.status(400).json({ error: "User is not a member of this organization" });
+            return;
+        }
+
+        if (
+            (role === "lead" && !validateLeadMembershipRole(membership.role)) ||
+            (role === "member" && !validateMemberMembershipRole(membership.role))
+        ) {
+            res.status(400).json({
+                error:
+                    role === "lead"
+                        ? "Team lead must be an admin or manager"
+                        : "Team members must be managers or members",
+            });
+            return;
+        }
 
         const updated = await updateTeamMemberRole(req.team.id, userId, role);
         if (!updated) {
@@ -379,6 +451,7 @@ export async function assignTeamPartnerHandler(
             return;
         }
 
+        const previousAssignment = await getPartnerTeamAssignment(partnerId, req.org.id);
         const assignment = await assignPartnerToTeam(req.team.id, partnerId, req.user.id);
 
         try {
@@ -387,7 +460,9 @@ export async function assignTeamPartnerHandler(
                 req.user.id,
                 "team",
                 req.team.id,
-                `assigned partner "${partnerRow.name}" to team "${req.team.name}"`
+                previousAssignment && previousAssignment.teamId !== req.team.id
+                    ? `reassigned partner "${partnerRow.name}" to team "${req.team.name}"`
+                    : `assigned partner "${partnerRow.name}" to team "${req.team.name}"`
             );
         } catch (activityError) {
             console.error("Activity log write failed:", activityError);

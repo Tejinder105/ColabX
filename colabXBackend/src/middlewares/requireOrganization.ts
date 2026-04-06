@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import db from "../db/index.js";
 import { organization, orgUser } from "../schemas/orgSchema.js";
 import type { AuthRequest } from "./authMiddleware.js";
+import type { OrgRole } from "../org/org.constants.js";
 
 export async function requireOrganization(
     req: AuthRequest,
@@ -65,7 +66,7 @@ export async function requireOrganization(
     }
 }
 
-export function requireRole(...allowedRoles: Array<"admin" | "manager" | "partner">) {
+export function requireRole(...allowedRoles: OrgRole[]) {
     return (req: AuthRequest, res: Response, next: NextFunction): void => {
         if (!req.membership || !allowedRoles.includes(req.membership.role)) {
             res.status(403).json({ error: "Insufficient permissions" });

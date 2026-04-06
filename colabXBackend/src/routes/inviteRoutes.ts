@@ -12,7 +12,7 @@ import {
 const router = Router();
 
 // Create invitation 
-router.post("/", authMiddleware, requireOrganization, requireRole("admin", "manager"), validate(createInviteSchema), createInvitation);
+router.post("/", authMiddleware, requireOrganization, requireRole("admin"), validate(createInviteSchema), createInvitation);
 
 // Validate invitation 
 router.get("/:token", validateInvitation);

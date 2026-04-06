@@ -7,6 +7,6 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get("/dashboard", requireOrganization, requireRole("admin", "manager"), getReportsDashboardHandler);
+router.get("/dashboard", requireOrganization, requireRole("admin"), getReportsDashboardHandler);
 
 export default router;

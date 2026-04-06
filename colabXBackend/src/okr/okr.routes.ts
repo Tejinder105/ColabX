@@ -15,7 +15,6 @@ import {
     updateObjectiveSchema,
     createKeyResultSchema,
     updateKeyResultSchema,
-    recordMetricSchema,
 } from "./okr.validation.js";
 import {
     createObjectiveHandler,
@@ -26,8 +25,6 @@ import {
     createKeyResultHandler,
     getKeyResultsHandler,
     updateKeyResultHandler,
-    recordMetricHandler,
-    getPartnerMetricsHandler,
     getPartnerScoreHandler,
     getPartnerPerformanceHandler,
     getTeamPerformanceHandler,
@@ -109,22 +106,6 @@ router.patch(
 
 // ── Partner Performance Metrics ────────────────────────────────────────────
 
-router.post(
-    "/partners/:partnerId/metrics",
-    requireOrganization,
-    requirePartner,
-    requireRole("admin", "manager"),
-    validate(recordMetricSchema),
-    recordMetricHandler
-);
-
-router.get(
-    "/partners/:partnerId/metrics",
-    requireOrganization,
-    requirePartner,
-    requirePartnerOwnerOrAdminManager,
-    getPartnerMetricsHandler
-);
 
 // ── Partner Score ──────────────────────────────────────────────────────────
 

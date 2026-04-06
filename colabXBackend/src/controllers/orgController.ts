@@ -6,6 +6,12 @@ import { user } from "../schemas/authSchema.js";
 import { activityLog } from "../schemas/collaborationSchema.js";
 import { createActivity } from "../collaboration/collaboration.service.js";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
+import {
+  ensureRoleAssignmentAllowed,
+  hasInternalMembership,
+} from "../org/org-membership.service.js";
+import { isInternalOrgRole, type OrgRole } from "../org/org.constants.js";
+import { team, teamMember, teamPartner } from "../teams/teams.schema.js";
 
 // Generate slug from name
 function generateSlug(name: string): string {
@@ -48,6 +54,15 @@ export async function createOrganization(
       return;
     }
 
+    const alreadyHasInternalOrg = await hasInternalMembership(userId);
+    if (alreadyHasInternalOrg) {
+      res.status(409).json({
+        error:
+          "Internal users can belong to exactly one organization. This account already has an internal organization.",
+      });
+      return;
+    }
+
     const slug = generateSlug(name);
     const orgId = generateId();
 
@@ -69,7 +84,14 @@ export async function createOrganization(
     const newOrg = await db.transaction(async (tx) => {
       const [created] = await tx
         .insert(organization)
-        .values({ id: orgId, name, slug })
+        .values({
+          id: orgId,
+          name,
+          slug,
+          logo: req.body.logo ?? null,
+          industry: req.body.industry ?? null,
+          timezone: req.body.timezone ?? null,
+        })
         .returning();
 
       if (!created) {
@@ -136,7 +158,13 @@ export async function getOrganizationById(
       return;
     }
 
-    res.json({ organization: req.org, role: req.membership.role });
+    const [orgRow] = await db
+      .select()
+      .from(organization)
+      .where(eq(organization.id, req.org.id))
+      .limit(1);
+
+    res.json({ organization: orgRow ?? req.org, role: req.membership.role });
   } catch (error) {
     console.error("Get organization error:", error);
     res.status(500).json({ error: "Failed to fetch organization" });
@@ -151,6 +179,11 @@ export async function getOrganizationMembers(
   try {
     if (!req.org) {
       res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    if (req.membership?.role !== "admin") {
+      res.status(403).json({ error: "Only admins can view organization members" });
       return;
     }
 
@@ -194,7 +227,7 @@ export async function updateOrganization(
     }
 
     const { name } = req.body;
-    const updates: Record<string, string> = {};
+    const updates: Record<string, string | null> = {};
 
     if (name) {
       updates.name = name;
@@ -216,6 +249,21 @@ export async function updateOrganization(
           .json({ error: "An organization with this name already exists" });
         return;
       }
+    }
+
+    if (req.body.logo !== undefined) {
+      updates.logo = req.body.logo ?? null;
+    }
+    if (req.body.industry !== undefined) {
+      updates.industry = req.body.industry ?? null;
+    }
+    if (req.body.timezone !== undefined) {
+      updates.timezone = req.body.timezone ?? null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
     }
 
     const [updated] = await db
@@ -295,12 +343,52 @@ export async function changeMemberRole(
     }
 
     const memberId = req.params.memberId as string;
-    const { role } = req.body;
+    const { role } = req.body as { role: OrgRole };
 
     // Prevent admin from changing their own role
     if (memberId === req.membership.id) {
       res.status(400).json({ error: "Cannot change your own role" });
       return;
+    }
+
+    const [memberRecord] = await db
+      .select({
+        id: orgUser.id,
+        userId: orgUser.userId,
+        role: orgUser.role,
+      })
+      .from(orgUser)
+      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .limit(1);
+
+    if (!memberRecord) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    const assignmentCheck = await ensureRoleAssignmentAllowed(
+      memberRecord.userId,
+      role,
+      { orgId: req.org.id }
+    );
+
+    if (!assignmentCheck.allowed) {
+      res.status(409).json({ error: assignmentCheck.error });
+      return;
+    }
+
+    if (memberRecord.role === "admin" && role !== "admin") {
+      const adminCount = await db
+        .select({ id: orgUser.id })
+        .from(orgUser)
+        .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.role, "admin")));
+
+      if (adminCount.length <= 1) {
+        res.status(400).json({
+          error: "Each organization must keep at least one admin",
+        });
+        return;
+      }
     }
 
     const [updated] = await db
@@ -357,6 +445,34 @@ export async function removeMember(
       return;
     }
 
+    const [memberRecord] = await db
+      .select({
+        id: orgUser.id,
+        role: orgUser.role,
+      })
+      .from(orgUser)
+      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .limit(1);
+
+    if (!memberRecord) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    if (memberRecord.role === "admin") {
+      const adminCount = await db
+        .select({ id: orgUser.id })
+        .from(orgUser)
+        .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.role, "admin")));
+
+      if (adminCount.length <= 1) {
+        res.status(400).json({
+          error: "Each organization must keep at least one admin",
+        });
+        return;
+      }
+    }
+
     const deleted = await db
       .delete(orgUser)
       .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
@@ -394,16 +510,20 @@ export async function getOrganizationPermissions(
       return;
     }
 
+    if (req.membership?.role !== "admin") {
+      res.status(403).json({ error: "Only admins can view organization permissions" });
+      return;
+    }
+
     // Role capabilities are derived from existing backend route policies.
     const permissions = [
-      { feature: "Manage Organization Profile", admin: true, manager: false, partner: false },
-      { feature: "Invite New Users", admin: true, manager: true, partner: false },
-      { feature: "Manage Teams", admin: true, manager: true, partner: false },
-      { feature: "View All Deals", admin: true, manager: true, partner: false },
-      { feature: "View Assigned Deals", admin: true, manager: true, partner: true },
-      { feature: "Upload Documents", admin: true, manager: true, partner: false },
-      { feature: "Delete Documents", admin: true, manager: true, partner: false },
-      { feature: "Access Audit Logs", admin: true, manager: true, partner: false },
+      { feature: "Manage Organization Profile", admin: true, manager: false, member: false, partner: false },
+      { feature: "Invite New Users", admin: true, manager: false, member: false, partner: false },
+      { feature: "Manage Teams", admin: true, manager: true, member: false, partner: false },
+      { feature: "View Team Deals", admin: true, manager: true, member: true, partner: false },
+      { feature: "Update Team KR Progress", admin: true, manager: true, member: true, partner: false },
+      { feature: "Update Partner KR Progress", admin: false, manager: false, member: false, partner: true },
+      { feature: "Access Audit Logs", admin: true, manager: false, member: false, partner: false },
     ];
 
     res.json({ permissions });
@@ -420,6 +540,11 @@ export async function getOrganizationAuditLogs(
   try {
     if (!req.org) {
       res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    if (req.membership?.role !== "admin") {
+      res.status(403).json({ error: "Only admins can view organization audit logs" });
       return;
     }
 
@@ -447,5 +572,129 @@ export async function getOrganizationAuditLogs(
   } catch (error) {
     console.error("Get organization audit logs error:", error);
     res.status(500).json({ error: "Failed to fetch organization audit logs" });
+  }
+}
+
+export async function getOrganizationIntegrityReport(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    if (!req.org || req.membership?.role !== "admin") {
+      res.status(403).json({ error: "Only admins can view integrity reports" });
+      return;
+    }
+
+    const [
+      internalMemberships,
+      teamMembersWithRoles,
+      partnerAssignments,
+      orgTeams,
+      orgLeadRows,
+    ] = await Promise.all([
+      db
+        .select({
+          userId: orgUser.userId,
+          orgId: orgUser.orgId,
+          role: orgUser.role,
+          email: user.email,
+          name: user.name,
+        })
+        .from(orgUser)
+        .innerJoin(user, eq(orgUser.userId, user.id))
+        .where(and(eq(orgUser.orgId, req.org.id))),
+      db
+        .select({
+          teamId: teamMember.teamId,
+          role: teamMember.role,
+          userId: teamMember.userId,
+          teamName: team.name,
+          orgRole: orgUser.role,
+          userName: user.name,
+          userEmail: user.email,
+        })
+        .from(teamMember)
+        .innerJoin(team, eq(teamMember.teamId, team.id))
+        .innerJoin(
+          orgUser,
+          and(eq(orgUser.orgId, team.orgId), eq(orgUser.userId, teamMember.userId))
+        )
+        .innerJoin(user, eq(teamMember.userId, user.id))
+        .where(eq(team.orgId, req.org.id)),
+      db
+        .select({
+          partnerId: teamPartner.partnerId,
+          teamId: teamPartner.teamId,
+          partnerName: user.name,
+        })
+        .from(teamPartner)
+        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .leftJoin(orgUser, and(eq(orgUser.orgId, team.orgId), eq(orgUser.userId, teamPartner.assignedBy)))
+        .where(eq(team.orgId, req.org.id)),
+      db.select({ id: team.id, name: team.name }).from(team).where(eq(team.orgId, req.org.id)),
+      db
+        .select({
+          teamId: teamMember.teamId,
+        })
+        .from(teamMember)
+        .innerJoin(team, eq(teamMember.teamId, team.id))
+        .where(and(eq(team.orgId, req.org.id), eq(teamMember.role, "lead"))),
+    ]);
+
+    const internalUsersInMultipleOrgs = new Map<
+      string,
+      { userId: string; name: string | null; email: string }
+    >();
+
+    const orgInternalMembers = internalMemberships.filter((membership) =>
+      isInternalOrgRole(membership.role)
+    );
+
+    for (const membership of orgInternalMembers) {
+      const hasOtherInternalMembership = await hasInternalMembership(membership.userId, {
+        excludeOrgId: req.org.id,
+      });
+
+      if (hasOtherInternalMembership) {
+        internalUsersInMultipleOrgs.set(membership.userId, {
+          userId: membership.userId,
+          name: membership.name,
+          email: membership.email,
+        });
+      }
+    }
+
+    const partnersInTeams = teamMembersWithRoles.filter(
+      (memberRow) => memberRow.orgRole === "partner"
+    );
+    const partnersLeadingTeams = teamMembersWithRoles.filter(
+      (memberRow) => memberRow.orgRole === "partner" && memberRow.role === "lead"
+    );
+
+    const partnerAssignmentCounts = new Map<string, number>();
+    for (const assignment of partnerAssignments) {
+      partnerAssignmentCounts.set(
+        assignment.partnerId,
+        (partnerAssignmentCounts.get(assignment.partnerId) ?? 0) + 1
+      );
+    }
+
+    const partnersAssignedToMultipleTeams = [...partnerAssignmentCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([partnerId, count]) => ({ partnerId, assignmentCount: count }));
+
+    const leadTeamIds = new Set(orgLeadRows.map((row) => row.teamId));
+    const teamsWithoutLead = orgTeams.filter((teamRow) => !leadTeamIds.has(teamRow.id));
+
+    res.json({
+      internalUsersInMultipleOrgs: [...internalUsersInMultipleOrgs.values()],
+      partnersInTeams,
+      partnersLeadingTeams,
+      partnersAssignedToMultipleTeams,
+      teamsWithoutLead,
+    });
+  } catch (error) {
+    console.error("Get organization integrity report error:", error);
+    res.status(500).json({ error: "Failed to fetch organization integrity report" });
   }
 }

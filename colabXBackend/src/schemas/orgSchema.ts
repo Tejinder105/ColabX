@@ -7,8 +7,9 @@ import {
     pgEnum,
 } from "drizzle-orm/pg-core";
 import { user } from "./authSchema.js";
+import { ORG_ROLES } from "../org/org.constants.js";
 
-export const roleEnum = pgEnum("orgRole", ["admin", "manager", "partner"]);
+export const roleEnum = pgEnum("orgRole", ORG_ROLES);
 
 // Partner-specific enums for invitation (reuse from partners schema)
 export const invitePartnerTypeEnum = pgEnum("invitePartnerType", [
@@ -23,6 +24,9 @@ export const organization = pgTable("organization", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
+    logo: text("logo"),
+    industry: text("industry"),
+    timezone: text("timezone"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt")
         .defaultNow()

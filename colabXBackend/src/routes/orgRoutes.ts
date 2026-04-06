@@ -14,6 +14,7 @@ import {
     getOrganizationMembers,
     getOrganizationPermissions,
     getOrganizationAuditLogs,
+    getOrganizationIntegrityReport,
     updateOrganization,
     deleteOrganization,
     changeMemberRole,
@@ -32,17 +33,18 @@ router.get("/", getUserOrganizations);
 
 // Routes that require org context (x-org-id header)
 router.get("/:id", requireOrganization, getOrganizationById);
-router.get("/:id/permissions", requireOrganization, getOrganizationPermissions);
-router.get("/:id/audit-logs", requireOrganization, getOrganizationAuditLogs);
+router.get("/:id/permissions", requireOrganization, requireRole("admin"), getOrganizationPermissions);
+router.get("/:id/audit-logs", requireOrganization, requireRole("admin"), getOrganizationAuditLogs);
+router.get("/:id/integrity-report", requireOrganization, requireRole("admin"), getOrganizationIntegrityReport);
 router.patch("/:id", requireOrganization, requireRole("admin"), validate(updateOrgSchema), updateOrganization);
 router.delete("/:id", requireOrganization, requireRole("admin"), deleteOrganization);
 
 // Member management
-router.get("/:id/members", requireOrganization, getOrganizationMembers);
+router.get("/:id/members", requireOrganization, requireRole("admin"), getOrganizationMembers);
 router.patch("/:id/members/:memberId/role", requireOrganization, requireRole("admin"), validate(changeMemberRoleSchema), changeMemberRole);
 router.delete("/:id/members/:memberId", requireOrganization, requireRole("admin"), removeMember);
 
 // Invitations (scoped to org)
-router.get("/:id/invitations", requireOrganization, requireRole("admin", "manager"), getPendingInvitations);
+router.get("/:id/invitations", requireOrganization, requireRole("admin"), getPendingInvitations);
 
 export default router;

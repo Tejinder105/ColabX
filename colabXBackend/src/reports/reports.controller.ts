@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../middlewares/authMiddleware.js";
 import { getOrgPartners } from "../partners/partners.service.js";
-import { getOrgDeals } from "../deals/deals.service.js";
+import { getOrgDeals } from "../deals/deals.core.service.js";
 import {
     getOrgObjectives,
     getObjectiveWithKeyResults,

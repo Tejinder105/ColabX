@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { auth } from "../utils/auth.js";
 import { fromNodeHeaders } from "better-auth/node";
+import type { OrgRole } from "../org/org.constants.js";
 
 export interface AuthRequest extends Request {
     user?: {
@@ -20,7 +21,7 @@ export interface AuthRequest extends Request {
     };
     membership?: {
         id: string;
-        role: "admin" | "manager" | "partner";
+        role: OrgRole;
         joinedAt: Date;
     };
     team?: {
@@ -43,7 +44,7 @@ export interface AuthRequest extends Request {
         id: string;
         title: string;
         partnerId: string;
-        teamId: string | null;
+        teamId: string;
         stage: "lead" | "proposal" | "negotiation" | "won" | "lost";
         orgId: string;
         createdBy: string | null;
