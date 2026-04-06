@@ -62,7 +62,7 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
     const [searchQuery, setSearchQuery] = useState('');
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'partner'>('manager');
+    const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'member' | 'partner'>('manager');
     const [partnerType, setPartnerType] = useState<string>('');
     const [partnerIndustry, setPartnerIndustry] = useState<string>('');
     const [copied, setCopied] = useState(false);
@@ -87,7 +87,7 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
     };
 
     // Reset partner fields when role changes away from partner
-    const handleRoleChange = (role: 'admin' | 'manager' | 'partner') => {
+    const handleRoleChange = (role: 'admin' | 'manager' | 'member' | 'partner') => {
         setInviteRole(role);
         if (role !== 'partner') {
             setPartnerType('');
@@ -168,6 +168,7 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
                                     <SelectContent>
                                         <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="manager">Manager</SelectItem>
+                                        <SelectItem value="member">Member</SelectItem>
                                         <SelectItem value="partner">Partner</SelectItem>
                                     </SelectContent>
                                 </Select>

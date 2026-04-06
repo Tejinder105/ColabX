@@ -120,7 +120,7 @@ export default function SettingsPage() {
             {
                 orgId: activeOrgId,
                 email,
-                role: role as 'admin' | 'manager' | 'partner',
+                role: role as 'admin' | 'manager' | 'member' | 'partner',
                 partnerType,
                 partnerIndustry,
             },
