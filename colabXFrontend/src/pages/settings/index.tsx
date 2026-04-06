@@ -133,8 +133,8 @@ export default function SettingsPage() {
         );
     };
 
-    const handleCreateTeam = (name: string, description: string) => {
-        createTeam.mutate({ name, description });
+    const handleCreateTeam = (name: string, description: string, leadUserId: string) => {
+        createTeam.mutate({ name, description, leadUserId });
     };
 
     return (

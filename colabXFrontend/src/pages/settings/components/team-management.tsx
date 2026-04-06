@@ -11,13 +11,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Users, X, Loader2 } from 'lucide-react';
 import type { OrgTeamData } from '@/types/settings';
 import { useState } from 'react';
+import { useOrgMembers } from '@/hooks/useOrg';
+import { useAuthStore } from '@/stores/authStore';
 
 interface TeamManagementProps {
     teams: OrgTeamData[];
-    onCreateTeam?: (name: string, description: string) => void;
+    onCreateTeam?: (name: string, description: string, leadUserId: string) => void;
     isCreating?: boolean;
 }
 
@@ -25,13 +28,23 @@ export function TeamManagement({ teams, onCreateTeam, isCreating }: TeamManageme
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [teamName, setTeamName] = useState('');
     const [teamDescription, setTeamDescription] = useState('');
+    const [leadUserId, setLeadUserId] = useState('');
+    
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const { data: membersData } = useOrgMembers(activeOrgId);
+    
+    // Filter to only show admins and managers as potential team leads
+    const eligibleLeads = membersData?.members?.filter(
+        (m) => m.role === 'admin' || m.role === 'manager'
+    ) || [];
 
     const handleCreateTeam = () => {
         const name = teamName.trim();
-        if (!name) return;
-        onCreateTeam?.(name, teamDescription.trim());
+        if (!name || !leadUserId) return;
+        onCreateTeam?.(name, teamDescription.trim(), leadUserId);
         setTeamName('');
         setTeamDescription('');
+        setLeadUserId('');
         setShowCreateForm(false);
     };
 
@@ -69,8 +82,23 @@ export function TeamManagement({ teams, onCreateTeam, isCreating }: TeamManageme
                             placeholder="Department or focus area"
                         />
                     </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="teamLead" className="text-xs text-muted-foreground">Team Lead</Label>
+                        <Select value={leadUserId} onValueChange={setLeadUserId}>
+                            <SelectTrigger id="teamLead">
+                                <SelectValue placeholder="Select team lead" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {eligibleLeads.map((member) => (
+                                    <SelectItem key={member.userId} value={member.userId}>
+                                        {member.userName} ({member.role})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div>
-                        <Button onClick={handleCreateTeam} disabled={!teamName.trim() || isCreating}>
+                        <Button onClick={handleCreateTeam} disabled={!teamName.trim() || !leadUserId || isCreating}>
                             {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Team
                         </Button>
