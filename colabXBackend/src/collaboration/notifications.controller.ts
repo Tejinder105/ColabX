@@ -1,5 +1,5 @@
-import { Response } from "express";
-import { AuthRequest } from "@/middlewares/authMiddleware.js";
+import type { Response } from "express";
+import type { AuthRequest } from "../middlewares/authMiddleware.js";
 import {
     getUserNotifications,
     markAsRead,
@@ -48,7 +48,11 @@ export async function markNotificationAsReadHandler(req: AuthRequest, res: Respo
             return;
         }
 
-        const notificationId = req.params.id;
+        const notificationId = req.params.id as string;
+        if (!notificationId) {
+            res.status(400).json({ error: "Notification ID is required" });
+            return;
+        }
 
         await markAsRead(notificationId);
 
@@ -92,7 +96,7 @@ export async function getAlertsSummaryHandler(req: AuthRequest, res: Response) {
  */
 export async function checkAlertsHandler(req: AuthRequest, res: Response) {
     try {
-        if (!req.user || !req.org || req.org.role !== "admin") {
+        if (!req.user || !req.org || !req.membership || req.membership.role !== "admin") {
             res.status(403).json({ error: "Admin access required" });
             return;
         }

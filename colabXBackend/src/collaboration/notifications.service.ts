@@ -1,10 +1,9 @@
 import { eq, and, desc } from "drizzle-orm";
-import db from "@/db/index.js";
-import { notification } from "@/schemas/collaborationSchema.js";
-import { objective, keyResult } from "@/okr/okr.schema.js";
-import { dealTask } from "@/deals/deals.schema.js";
-import { partner } from "@/partners/partners.schema.js";
-import { sendEmail } from "@/utils/email.js";
+import db from "../db/index.js";
+import { notification } from "../schemas/collaborationSchema.js";
+import { objective, keyResult } from "../okr/okr.schema.js";
+import { deal, dealTask } from "../deals/deals.schema.js";
+import { partner } from "../partners/partners.schema.js";
 
 export type AlertType = "missed_deadline" | "low_okr" | "pending_action";
 export type Severity = "info" | "warning" | "critical";
@@ -106,7 +105,7 @@ export async function checkMissedDeadlines(orgId: string) {
                     .where(eq(partner.id, obj.partnerId))
                     .limit(1);
 
-                if (partnerRecord.length > 0) {
+                if (partnerRecord.length > 0 && partnerRecord[0].userId) {
                     await createAlert({
                         orgId,
                         recipientId: partnerRecord[0].userId,
@@ -146,7 +145,7 @@ export async function checkLowOKRProgress(orgId: string) {
                 .where(eq(partner.id, obj.partnerId))
                 .limit(1);
 
-            if (partnerRecord.length > 0) {
+            if (partnerRecord.length > 0 && partnerRecord[0].userId) {
                 await createAlert({
                     orgId,
                     recipientId: partnerRecord[0].userId,
@@ -170,16 +169,14 @@ export async function checkPendingActions(orgId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find overdue tasks that aren't done
+    // Find overdue tasks that aren't done by joining with deal to get orgId
     const overdueTasks = await db
-        .select()
+        .select({ task: dealTask, dealOrgId: deal.orgId })
         .from(dealTask)
-        .where(and(
-            eq(dealTask.orgId, orgId),
-            // Status is not 'done'
-        ));
+        .innerJoin(deal, eq(dealTask.dealId, deal.id))
+        .where(eq(deal.orgId, orgId));
 
-    for (const task of overdueTasks) {
+    for (const { task } of overdueTasks) {
         if (task.status !== "done" && task.dueDate) {
             const dueDate = new Date(task.dueDate);
             dueDate.setHours(0, 0, 0, 0);
@@ -212,12 +209,12 @@ export async function getAlertsSummary(
     
     const summary = {
         total: alerts.length,
-        critical: alerts.filter((a) => a.severity === "critical").length,
-        warning: alerts.filter((a) => a.severity === "warning").length,
+        critical: alerts.filter((a: typeof alerts[number]) => a.severity === "critical").length,
+        warning: alerts.filter((a: typeof alerts[number]) => a.severity === "warning").length,
         byType: {
-            missed_deadline: alerts.filter((a) => a.alertType === "missed_deadline").length,
-            low_okr: alerts.filter((a) => a.alertType === "low_okr").length,
-            pending_action: alerts.filter((a) => a.alertType === "pending_action").length,
+            missed_deadline: alerts.filter((a: typeof alerts[number]) => a.alertType === "missed_deadline").length,
+            low_okr: alerts.filter((a: typeof alerts[number]) => a.alertType === "low_okr").length,
+            pending_action: alerts.filter((a: typeof alerts[number]) => a.alertType === "pending_action").length,
         },
     };
 

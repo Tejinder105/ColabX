@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authMiddleware } from "@/middlewares/authMiddleware.js";
-import { requireOrganization, requireRole } from "@/middlewares/requireOrganization.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { requireOrganization, requireRole } from "../middlewares/requireOrganization.js";
 import {
     getNotificationsHandler,
     markNotificationAsReadHandler,
