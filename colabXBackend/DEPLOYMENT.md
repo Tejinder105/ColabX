@@ -6,6 +6,7 @@ Copy `.env.example` to `.env` and set real values.
 
 Required:
 - `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
 
 Recommended for production:
 - `NODE_ENV=production`
@@ -53,3 +54,4 @@ docker run --env-file .env -p 3000:3000 colabx-backend
 - Run migrations before first traffic: `npm run db:migrate`
 - Route health checks to `/health`
 - Ensure frontend origin is in `CORS_ORIGINS` and `TRUSTED_ORIGINS`
+- Keep `BETTER_AUTH_SECRET` stable across restarts/instances so OAuth state cookies remain valid

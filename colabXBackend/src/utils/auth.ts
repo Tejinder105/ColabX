@@ -18,6 +18,7 @@ const socialProviders = config.googleOAuth
   : undefined;
 
 export const auth = betterAuth({
+  secret: config.betterAuthSecret,
   baseURL: authBaseUrl,
 
   database: drizzleAdapter(db, {
@@ -36,6 +37,12 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+  },
+
+  account: {
+    // Local dev OAuth on separate localhost origins can drop the signed
+    // state cookie even when the verification row exists.
+    skipStateCookieCheck: !config.isProduction,
   },
 
   socialProviders,

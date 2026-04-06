@@ -111,7 +111,8 @@ router.post(
     "/:teamId/partners",
     requireOrganization,
     requireTeam,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
+    requireTeamAccess,
     validate(assignTeamPartnerSchema),
     assignTeamPartnerHandler
 );
@@ -129,7 +130,8 @@ router.delete(
     "/:teamId/partners/:partnerId",
     requireOrganization,
     requireTeam,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
+    requireTeamAccess,
     removeTeamPartnerHandler
 );
 

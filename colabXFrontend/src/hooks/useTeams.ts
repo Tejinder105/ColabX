@@ -9,6 +9,8 @@ import {
     updateTeamMemberRole,
     removeTeamMember,
     getTeamPartners,
+    assignPartnerToTeam,
+    removePartnerFromTeam,
     getTeamDeals,
     getTeamObjectives,
     getTeamActivity,
@@ -131,6 +133,38 @@ export function useTeamPartners(teamId: string | undefined) {
         queryFn: () => getTeamPartners(activeOrgId!, teamId!),
         enabled: !!activeOrgId && !!teamId,
         staleTime: 1000 * 60 * 2,
+    });
+}
+
+export function useAssignPartnerToTeamMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ teamId, partnerId }: { teamId: string; partnerId: string }) =>
+            assignPartnerToTeam(activeOrgId!, teamId, partnerId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId] });
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId, variables.teamId] });
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId, variables.teamId, 'partners'] });
+            queryClient.invalidateQueries({ queryKey: ['partners', activeOrgId, variables.partnerId] });
+        },
+    });
+}
+
+export function useRemovePartnerFromTeamMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ teamId, partnerId }: { teamId: string; partnerId: string }) =>
+            removePartnerFromTeam(activeOrgId!, teamId, partnerId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId] });
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId, variables.teamId] });
+            queryClient.invalidateQueries({ queryKey: ['teams', activeOrgId, variables.teamId, 'partners'] });
+            queryClient.invalidateQueries({ queryKey: ['partners', activeOrgId, variables.partnerId] });
+        },
     });
 }
 

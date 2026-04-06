@@ -31,8 +31,13 @@ export interface ApiPartnerDetail {
 
 export interface ApiPartnerTeam {
     id: string;
+    orgId: string;
     name: string;
-    memberCount: number;
+    description: string | null;
+    createdBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+    assignedAt: string;
 }
 
 export interface CreatePartnerInput {

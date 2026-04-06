@@ -9,6 +9,7 @@ export default defineConfig({
     './src/schemas/collaborationSchema.ts',
     './src/teams/teams.schema.ts',
     './src/partners/partners.schema.ts',
+    './src/contacts/contacts.schema.ts',
     './src/deals/deals.schema.ts',
     './src/okr/okr.schema.ts',
   ],

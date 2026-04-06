@@ -41,6 +41,14 @@ export interface ApiTeamPartner {
     status: 'active' | 'inactive' | 'suspended';
 }
 
+export interface ApiTeamPartnerAssignment {
+    id: string;
+    teamId: string;
+    partnerId: string;
+    assignedBy: string | null;
+    assignedAt: string;
+}
+
 export interface ApiTeamDeal {
     id: string;
     title: string;
@@ -269,6 +277,47 @@ export async function getTeamPartners(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to fetch team partners');
+    }
+
+    return response.json();
+}
+
+// POST /api/teams/:teamId/partners
+export async function assignPartnerToTeam(
+    orgId: string,
+    teamId: string,
+    partnerId: string
+): Promise<{ assignment: ApiTeamPartnerAssignment }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/partners`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify({ partnerId }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to assign partner to team');
+    }
+
+    return response.json();
+}
+
+// DELETE /api/teams/:teamId/partners/:partnerId
+export async function removePartnerFromTeam(
+    orgId: string,
+    teamId: string,
+    partnerId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/teams/${teamId}/partners/${partnerId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to remove partner from team');
     }
 
     return response.json();

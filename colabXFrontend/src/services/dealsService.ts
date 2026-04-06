@@ -54,6 +54,7 @@ export interface ApiDealsResponse {
 
 export interface CreateDealInput {
     partnerId: string;
+    teamId?: string;
     title: string;
     description?: string;
     value?: number;

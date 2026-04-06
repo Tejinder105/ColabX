@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Edit, Mail, ExternalLink, FileText, Download, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PerformanceCharts } from './components/performance-charts';
+import { PartnerTeamAssignmentCard } from './components/partner-team-assignment-card';
 import { usePartner, usePartnerDeals } from '@/hooks/usePartners';
 import { usePartnerContacts } from '@/hooks/useContacts';
 import { usePartnerCommunications, usePartnerDocuments, usePartnerActivities } from '@/hooks/useCollaboration';
@@ -277,6 +278,11 @@ export default function PartnerDetailsPage() {
             </div>
 
             <EditPartnerDialog partner={data.partner} open={editOpen} onOpenChange={setEditOpen} />
+
+            <PartnerTeamAssignmentCard
+                partnerId={id!}
+                teams={data.teams ?? []}
+            />
 
             {/* Main Content Tabs */}
             <Tabs defaultValue="overview" className="space-y-4">
