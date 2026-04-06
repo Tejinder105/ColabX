@@ -30,7 +30,7 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["admin", "manager", "partner"], 
+      roles: ["admin", "manager", "member", "partner"], 
     },
     {
       title: "Partners",
@@ -54,19 +54,19 @@ const data = {
       title: "OKRs & Performance",
       url: "/okrs",
       icon: Target,
-      roles: ["admin", "manager", "partner"],
+      roles: ["admin", "manager", "member", "partner"],
     },
     {
       title: "Deals Collaboration",
       url: "/deals",
       icon: Briefcase,
-      roles: ["admin", "manager", "partner"],
+      roles: ["admin", "manager", "member", "partner"],
     },
     {
       title: "Documents",
       url: "/documents",
       icon: FileText,
-      roles: ["admin", "manager", "partner"],
+      roles: ["admin", "manager", "member", "partner"],
     },
     {
       title: "Reports",
