@@ -168,7 +168,7 @@ export function useChangeMemberRoleMutation() {
         }: {
             orgId: string;
             memberId: string;
-            role: 'admin' | 'manager' | 'partner';
+            role: 'admin' | 'manager' | 'member' | 'partner';
         }) => changeMemberRole(orgId, memberId, role),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['org', variables.orgId, 'members'] });

@@ -72,7 +72,7 @@ export interface CreateOrgInput {
 export interface InviteInput {
     orgId: string;
     email: string;
-    role?: 'admin' | 'manager' | 'partner';
+    role?: 'admin' | 'manager' | 'member' | 'partner';
     partnerType?: string;
     partnerIndustry?: string;
 }
@@ -190,7 +190,7 @@ export async function getOrganizationMembers(
 export async function changeMemberRole(
     orgId: string,
     memberId: string,
-    role: 'admin' | 'manager' | 'partner'
+    role: 'admin' | 'manager' | 'member' | 'partner'
 ): Promise<{ member: OrgMember }> {
     const response = await fetch(`${API_BASE}/org/${orgId}/members/${memberId}/role`, {
         method: 'PATCH',
