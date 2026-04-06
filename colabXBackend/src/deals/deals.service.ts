@@ -11,7 +11,7 @@ export async function createDeal(
     userId: string,
     data: {
         partnerId: string;
-        teamId?: string;
+        teamId: string;
         title: string;
         description?: string;
         value?: number;
@@ -23,7 +23,7 @@ export async function createDeal(
             id: crypto.randomUUID(),
             orgId,
             partnerId: data.partnerId,
-            teamId: data.teamId ?? null,
+            teamId: data.teamId,
             title: data.title,
             description: data.description ?? null,
             value: data.value ?? null,

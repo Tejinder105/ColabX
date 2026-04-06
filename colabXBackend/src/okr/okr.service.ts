@@ -573,14 +573,7 @@ export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
         .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
         .limit(1);
 
-    if (!result) {
-        return null;
-    }
-
-    return {
-        ...result,
-        healthLabel: getPartnerHealthLabel(result.score),
-    };
+    return result ?? null;
 }
 
 export async function getTeamByIdForOrg(teamId: string, orgId: string) {

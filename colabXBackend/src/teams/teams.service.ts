@@ -32,7 +32,7 @@ export async function createTeam(
     }
 ) {
     const memberIds = uniqueIds(data.memberIds ?? []);
-    if (!memberIds.includes(data.leadUserId)) {
+    if (data.leadUserId && !memberIds.includes(data.leadUserId)) {
         memberIds.unshift(data.leadUserId);
     }
 

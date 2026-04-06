@@ -71,9 +71,7 @@ export async function ensureRoleAssignmentAllowed(
         return { allowed: true as const };
     }
 
-    const existing = await getUserInternalMemberships(userId, {
-        excludeOrgId: options?.orgId,
-    });
+    const existing = await getUserInternalMemberships(userId, options?.orgId ? { excludeOrgId: options.orgId } : undefined);
 
     if (existing.length > 0) {
         return {

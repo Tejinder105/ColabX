@@ -9,7 +9,7 @@ interface SendInvitationEmailInput {
   orgName: string;
   invitedBy: string;
   token: string;
-  role: 'admin' | 'manager' | 'partner';
+  role: 'admin' | 'manager' | 'member' | 'partner';
 }
 
 async function sendEmail({
@@ -68,6 +68,7 @@ export async function sendInvitationEmail({
   const roleLabels: Record<string, string> = {
     admin: 'Administrator',
     manager: 'Manager',
+    member: 'Member',
     partner: 'Partner',
   };
 

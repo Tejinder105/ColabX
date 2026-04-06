@@ -72,6 +72,10 @@ export async function createDealHandler(
             ...req.body,
             teamId,
         });
+        if (!created) {
+            res.status(500).json({ error: "Failed to create deal" });
+            return;
+        }
         await createActivity(
             req.org.id,
             req.user.id,
@@ -485,6 +489,10 @@ export async function createDealTaskHandler(
         }
 
         const task = await createDealTask(req.deal.id, req.user.id, req.body);
+        if (!task) {
+            res.status(500).json({ error: "Failed to create task" });
+            return;
+        }
         await createActivity(
             req.org.id,
             req.user.id,
@@ -641,6 +649,11 @@ export async function createDealDocumentHandler(
             fileUrl: req.body.fileUrl,
             visibility,
         });
+
+        if (!document) {
+            res.status(500).json({ error: "Failed to upload document" });
+            return;
+        }
 
         await createActivity(
             req.org.id,
