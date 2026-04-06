@@ -73,7 +73,7 @@ export async function requireDealAccess(
                 req.membership.role
             );
 
-            if (!visibleTeamIds?.includes(req.deal.teamId)) {
+            if (req.deal.teamId !== null && !visibleTeamIds?.includes(req.deal.teamId)) {
                 res.status(403).json({ error: "Access denied to this deal" });
                 return;
             }

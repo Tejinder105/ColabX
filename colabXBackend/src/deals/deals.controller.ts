@@ -294,12 +294,14 @@ export async function assignUserHandler(
             return;
         }
 
-        const memberOfDealTeam = await isUserInTeam(req.deal.teamId, userId);
-        if (!memberOfDealTeam) {
-            res.status(400).json({
-                error: "User must be a member of the deal's team",
-            });
-            return;
+        if (req.deal.teamId !== null) {
+            const memberOfDealTeam = await isUserInTeam(req.deal.teamId, userId);
+            if (!memberOfDealTeam) {
+                res.status(400).json({
+                    error: "User must be a member of the deal's team",
+                });
+                return;
+            }
         }
 
         const existing = await getDealAssignmentRecord(req.deal.id, userId);
@@ -478,7 +480,7 @@ export async function createDealTaskHandler(
             return;
         }
 
-        if (req.body.assigneeUserId) {
+        if (req.body.assigneeUserId && req.deal.teamId !== null) {
             const validAssignee = await isUserInTeam(req.deal.teamId, req.body.assigneeUserId);
             if (!validAssignee) {
                 res.status(400).json({
@@ -549,7 +551,7 @@ export async function updateDealTaskHandler(
             return;
         }
 
-        if (req.body.assigneeUserId) {
+        if (req.body.assigneeUserId && req.deal.teamId !== null) {
             const validAssignee = await isUserInTeam(req.deal.teamId, req.body.assigneeUserId);
             if (!validAssignee) {
                 res.status(400).json({
