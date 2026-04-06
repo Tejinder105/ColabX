@@ -3,26 +3,39 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus } from 'lucide-react';
 import { useCreateTeamMutation } from '@/hooks/useTeams';
+import { useOrgMembers } from '@/hooks/useOrg';
+import { useAuthStore } from '@/stores/authStore';
 
 export function AddTeamDialog() {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [leadUserId, setLeadUserId] = useState('');
     const createTeam = useCreateTeamMutation();
+    
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const { data: membersData } = useOrgMembers(activeOrgId);
+    
+    // Filter to only show admins and managers as potential team leads
+    const eligibleLeads = membersData?.members?.filter(
+        (m) => m.role === 'admin' || m.role === 'manager'
+    ) || [];
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) return;
+        if (!name.trim() || !leadUserId) return;
 
         createTeam.mutate(
-            { name: name.trim(), description: description.trim() || undefined },
+            { name: name.trim(), description: description.trim() || undefined, leadUserId },
             {
                 onSuccess: () => {
                     setOpen(false);
                     setName('');
                     setDescription('');
+                    setLeadUserId('');
                 },
             }
         );
@@ -70,6 +83,23 @@ export function AddTeamDialog() {
                                 onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="lead" className="text-right">
+                                Team Lead
+                            </Label>
+                            <Select value={leadUserId} onValueChange={setLeadUserId}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Select team lead" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {eligibleLeads.map((member) => (
+                                        <SelectItem key={member.userId} value={member.userId}>
+                                            {member.userName} ({member.role})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     {createTeam.isError && (
                         <p className="text-sm text-destructive pb-4 px-1">
@@ -87,7 +117,7 @@ export function AddTeamDialog() {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={createTeam.isPending || !name.trim()}>
+                        <Button type="submit" disabled={createTeam.isPending || !name.trim() || !leadUserId}>
                             {createTeam.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}

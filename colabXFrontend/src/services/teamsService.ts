@@ -26,6 +26,8 @@ export interface ApiTeamMember {
 export interface CreateTeamInput {
     name: string;
     description?: string;
+    leadUserId: string;
+    memberIds?: string[];
 }
 
 export interface UpdateTeamInput {
