@@ -1,5 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/services/apiClient";
+import { API_BASE } from "@/lib/api";
+import { useAuthStore } from "@/stores/authStore";
+
+function buildHeaders(orgId: string): HeadersInit {
+    return {
+        "Content-Type": "application/json",
+        "x-org-id": orgId,
+    };
+}
+
+async function apiGet<T>(orgId: string, path: string): Promise<T> {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        credentials: "include",
+        headers: buildHeaders(orgId),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Request failed");
+    }
+    return response.json();
+}
+
+async function apiPost<T>(orgId: string, path: string): Promise<T> {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        credentials: "include",
+        headers: buildHeaders(orgId),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Request failed");
+    }
+    return response.json();
+}
 
 export interface Notification {
     id: string;
@@ -34,16 +68,23 @@ export interface AlertsSummary {
  * Hook to fetch notifications for current user
  */
 export function useNotifications(unreadOnly = false, partnerId?: string) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
     return useQuery({
-        queryKey: ["notifications", { unreadOnly, partnerId }],
+        queryKey: ["notifications", activeOrgId, { unreadOnly, partnerId }],
         queryFn: async () => {
+            if (!activeOrgId) throw new Error("No active organization");
             const params = new URLSearchParams();
             if (unreadOnly) params.append("unreadOnly", "true");
             if (partnerId) params.append("partnerId", partnerId);
 
-            const response = await api.get(`/notifications?${params.toString()}`);
-            return response.data.notifications as Notification[];
+            const response = await apiGet<{ notifications: Notification[] }>(
+                activeOrgId,
+                `/notifications?${params.toString()}`
+            );
+            return response.notifications;
         },
+        enabled: !!activeOrgId,
         refetchInterval: 60000, // Refetch every 60 seconds
     });
 }
@@ -52,18 +93,25 @@ export function useNotifications(unreadOnly = false, partnerId?: string) {
  * Hook to fetch alerts summary for dashboard
  */
 export function useAlertsSummary(partnerId?: string) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
     return useQuery({
-        queryKey: ["alertsSummary", { partnerId }],
+        queryKey: ["alertsSummary", activeOrgId, { partnerId }],
         queryFn: async () => {
+            if (!activeOrgId) throw new Error("No active organization");
             const params = new URLSearchParams();
             if (partnerId) params.append("partnerId", partnerId);
 
-            const response = await api.get(`/notifications/summary?${params.toString()}`);
+            const response = await apiGet<{ alerts: Notification[]; summary: AlertsSummary }>(
+                activeOrgId,
+                `/notifications/summary?${params.toString()}`
+            );
             return {
-                alerts: response.data.alerts as Notification[],
-                summary: response.data.summary as AlertsSummary,
+                alerts: response.alerts,
+                summary: response.summary,
             };
         },
+        enabled: !!activeOrgId,
         refetchInterval: 60000,
     });
 }
@@ -73,10 +121,12 @@ export function useAlertsSummary(partnerId?: string) {
  */
 export function useMarkNotificationAsRead() {
     const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
 
     return useMutation({
         mutationFn: async (notificationId: string) => {
-            await api.post(`/notifications/${notificationId}/read`);
+            if (!activeOrgId) throw new Error("No active organization");
+            await apiPost(activeOrgId, `/notifications/${notificationId}/read`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -90,11 +140,12 @@ export function useMarkNotificationAsRead() {
  */
 export function useCheckAlerts() {
     const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
 
     return useMutation({
         mutationFn: async () => {
-            const response = await api.post("/notifications/check");
-            return response.data;
+            if (!activeOrgId) throw new Error("No active organization");
+            return await apiPost(activeOrgId, "/notifications/check");
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["notifications"] });

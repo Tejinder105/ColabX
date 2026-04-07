@@ -31,6 +31,7 @@ import {
     useUpdateDocumentVisibilityMutation,
 } from '@/hooks/useCollaboration';
 import { usePartners } from '@/hooks/usePartners';
+import { useRbac } from '@/hooks/useRbac';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import {
     ACCEPTED_UPLOAD_EXTENSIONS,
@@ -140,7 +141,7 @@ export default function DocumentsPage() {
         setSelectedFile(file);
     }
 
-    function handleUploadSubmit() {
+    async function handleUploadSubmit() {
         const partnerId = isPartner ? (partners[0]?.id || selectedPartnerId) : selectedPartnerId;
         
         if (!partnerId) {

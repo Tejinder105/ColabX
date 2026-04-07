@@ -145,13 +145,13 @@ export default function MyPartnershipPage() {
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span className="text-sm text-muted-foreground">Calculating score...</span>
                         </div>
-                    ) : scoreQuery.data ? (
+                    ) : scoreQuery.data?.score ? (
                         <div className="space-y-4">
                             <div className="flex items-center justify-center gap-6">
                                 <div className="text-center">
-                                    <p className="text-4xl font-bold">{scoreQuery.data.score}</p>
-                                    <p className={`text-sm font-medium ${getHealthLabel(scoreQuery.data.score).color}`}>
-                                        {getHealthLabel(scoreQuery.data.score).label}
+                                    <p className="text-4xl font-bold">{scoreQuery.data.score.score}</p>
+                                    <p className={`text-sm font-medium ${getHealthLabel(scoreQuery.data.score.score).color}`}>
+                                        {getHealthLabel(scoreQuery.data.score.score).label}
                                     </p>
                                 </div>
                             </div>

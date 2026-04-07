@@ -278,10 +278,12 @@ export function useUpdateKeyResultMutation() {
 }
 
 export function usePartnerScore(partnerId: string | null | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
     return useQuery({
-        queryKey: ['partner-score', partnerId],
-        queryFn: () => getPartnerScore(partnerId!),
-        enabled: !!partnerId,
+        queryKey: ['partner-score', activeOrgId, partnerId],
+        queryFn: () => getPartnerScore(activeOrgId!, partnerId!),
+        enabled: !!partnerId && !!activeOrgId,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }

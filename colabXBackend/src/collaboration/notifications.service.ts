@@ -105,10 +105,11 @@ export async function checkMissedDeadlines(orgId: string) {
                     .where(eq(partner.id, obj.partnerId))
                     .limit(1);
 
-                if (partnerRecord.length > 0 && partnerRecord[0].userId) {
+                const partnerRow = partnerRecord[0];
+                if (partnerRow?.userId) {
                     await createAlert({
                         orgId,
-                        recipientId: partnerRecord[0].userId,
+                        recipientId: partnerRow.userId,
                         partnerId: obj.partnerId,
                         alertType: "missed_deadline",
                         title: "Objective Past Due",
@@ -145,10 +146,11 @@ export async function checkLowOKRProgress(orgId: string) {
                 .where(eq(partner.id, obj.partnerId))
                 .limit(1);
 
-            if (partnerRecord.length > 0 && partnerRecord[0].userId) {
+            const partnerRow = partnerRecord[0];
+            if (partnerRow?.userId) {
                 await createAlert({
                     orgId,
-                    recipientId: partnerRecord[0].userId,
+                    recipientId: partnerRow.userId,
                     partnerId: obj.partnerId,
                     alertType: "low_okr",
                     title: "Key Result Off Track",
