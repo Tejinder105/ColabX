@@ -16,10 +16,12 @@ const mockValues = jest.fn();
 const mockReturning = jest.fn();
 const mockUpdate = jest.fn();
 const mockSet = jest.fn();
+const mockInnerJoin = jest.fn();
 
 // Chain methods
 mockSelect.mockReturnValue({ from: mockFrom });
-mockFrom.mockReturnValue({ where: mockWhere });
+mockFrom.mockReturnValue({ where: mockWhere, innerJoin: mockInnerJoin });
+mockInnerJoin.mockReturnValue({ where: mockWhere });
 mockWhere.mockReturnValue({ limit: mockLimit, returning: mockReturning });
 mockLimit.mockResolvedValue([]);
 mockInsert.mockReturnValue({ values: mockValues });
@@ -28,7 +30,7 @@ mockReturning.mockResolvedValue([]);
 mockUpdate.mockReturnValue({ set: mockSet });
 mockSet.mockReturnValue({ where: mockWhere });
 
-jest.unstable_mockModule('../db/index.js', () => ({
+jest.unstable_mockModule('../../db/index.js', () => ({
     default: {
         select: mockSelect,
         insert: mockInsert,
@@ -37,14 +39,15 @@ jest.unstable_mockModule('../db/index.js', () => ({
 }));
 
 // Import after mocking
-const partnersService = await import('../partners/partners.service.js');
+const partnersService = await import('../../partners/partners.service.js');
 
 describe('Partners Service - Whitebox Tests', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         // Reset chain methods
         mockSelect.mockReturnValue({ from: mockFrom });
-        mockFrom.mockReturnValue({ where: mockWhere });
+        mockFrom.mockReturnValue({ where: mockWhere, innerJoin: mockInnerJoin });
+        mockInnerJoin.mockReturnValue({ where: mockWhere });
         mockWhere.mockReturnValue({ limit: mockLimit, returning: mockReturning });
         mockLimit.mockResolvedValue([]);
         mockInsert.mockReturnValue({ values: mockValues });
@@ -74,6 +77,7 @@ describe('Partners Service - Whitebox Tests', () => {
             const result = await partnersService.createPartner('org-1', 'user-1', {
                 name: 'Acme Corp',
                 type: 'reseller',
+                contactEmail: 'contact@acme.com',
             });
 
             expect(mockInsert).toHaveBeenCalled();
@@ -123,6 +127,7 @@ describe('Partners Service - Whitebox Tests', () => {
             const result = await partnersService.createPartner('org-1', 'user-1', {
                 name: 'Agent Inc',
                 type: 'agent',
+                contactEmail: 'agent@example.com',
             });
 
             expect(result.type).toBe('agent');
@@ -139,6 +144,7 @@ describe('Partners Service - Whitebox Tests', () => {
             const result = await partnersService.createPartner('org-1', 'user-1', {
                 name: 'Distributor LLC',
                 type: 'distributor',
+                contactEmail: 'distributor@example.com',
             });
 
             expect(result.type).toBe('distributor');
@@ -213,6 +219,8 @@ describe('Partners Service - Whitebox Tests', () => {
                 orgId: 'org-1',
             };
             mockLimit.mockResolvedValueOnce([mockPartner]);
+            mockWhere.mockReturnValueOnce({ limit: mockLimit, returning: mockReturning });
+            mockWhere.mockResolvedValueOnce([]);
 
             const result = await partnersService.getPartnerWithTeams('partner-1');
 
@@ -222,6 +230,8 @@ describe('Partners Service - Whitebox Tests', () => {
 
         it('should return empty partner when not found', async () => {
             mockLimit.mockResolvedValueOnce([]);
+            mockWhere.mockReturnValueOnce({ limit: mockLimit, returning: mockReturning });
+            mockWhere.mockResolvedValueOnce([]);
 
             const result = await partnersService.getPartnerWithTeams('nonexistent');
 

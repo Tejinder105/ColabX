@@ -329,7 +329,7 @@ describe('Deals Service - Whitebox Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => { throw new Error('Invalid JSON'); },
-            } as Response);
+            } as unknown as Response);
 
             await expect(dealsService.getDeals(mockOrgId))
                 .rejects
