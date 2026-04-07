@@ -21,6 +21,7 @@ interface ObjectivesTableProps {
     onCreateKeyResult?: (objectiveId: string, title: string, targetValue: number, currentValue: number) => void;
     onUpdateKeyResult?: (keyResultId: string, currentValue: number) => void;
     isMutating?: boolean;
+    canManage?: boolean;
 }
 
 export function ObjectivesTable({
@@ -30,6 +31,7 @@ export function ObjectivesTable({
     onCreateKeyResult,
     onUpdateKeyResult,
     isMutating,
+    canManage = true,
 }: ObjectivesTableProps) {
     // Array of expanded Objective IDs
     const [expandedRows, setExpandedRows] = useState<string[]>([]);
@@ -209,24 +211,28 @@ export function ObjectivesTable({
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        className="h-8 w-8"
-                                                        onClick={() => handleEditStart(objective)}
-                                                        disabled={isMutating}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="destructive"
-                                                        className="h-8 w-8"
-                                                        onClick={() => onDeleteObjective?.(objective.id)}
-                                                        disabled={isMutating}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    {canManage && (
+                                                        <>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="outline"
+                                                                className="h-8 w-8"
+                                                                onClick={() => handleEditStart(objective)}
+                                                                disabled={isMutating}
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="destructive"
+                                                                className="h-8 w-8"
+                                                                onClick={() => onDeleteObjective?.(objective.id)}
+                                                                disabled={isMutating}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -250,66 +256,74 @@ export function ObjectivesTable({
                                                                 <span className="text-xs font-semibold w-8 text-right">{kr.progress}%</span>
                                                             </div>
                                                             <div className="flex items-center justify-end gap-2 text-xs text-right text-muted-foreground">
-                                                                <Input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    value={keyResultDrafts[kr.id] ?? String(kr.currentValue)}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        setKeyResultDrafts((prev) => ({ ...prev, [kr.id]: value }));
-                                                                    }}
-                                                                    className="h-8 w-24 text-right"
-                                                                />
+                                                                {canManage ? (
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        value={keyResultDrafts[kr.id] ?? String(kr.currentValue)}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            setKeyResultDrafts((prev) => ({ ...prev, [kr.id]: value }));
+                                                                        }}
+                                                                        className="h-8 w-24 text-right"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="font-medium text-foreground">{kr.currentValue}</span>
+                                                                )}
                                                                 <span>/ {kr.targetValue}</span>
                                                             </div>
-                                                            <div className="flex justify-end">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleUpdateExistingKeyResult(kr.id, kr.currentValue)}
-                                                                    disabled={isMutating}
-                                                                >
-                                                                    {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                                    Save
-                                                                </Button>
-                                                            </div>
+                                                            {canManage && (
+                                                                <div className="flex justify-end">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleUpdateExistingKeyResult(kr.id, kr.currentValue)}
+                                                                        disabled={isMutating}
+                                                                    >
+                                                                        {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                                        Save
+                                                                    </Button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
 
-                                                    <div className="grid grid-cols-[1fr_140px_140px_auto] items-center gap-6 pt-2 border-t">
-                                                        <Input
-                                                            placeholder="Key result title"
-                                                            value={newKeyResultDrafts[objective.id]?.title ?? ''}
-                                                            onChange={(e) => setNewKeyResultTitle(objective.id, e.target.value)}
-                                                            className="h-8"
-                                                        />
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            placeholder="Target"
-                                                            value={newKeyResultDrafts[objective.id]?.targetValue ?? ''}
-                                                            onChange={(e) => setNewKeyResultField(objective.id, 'targetValue', e.target.value)}
-                                                            className="h-8"
-                                                        />
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            placeholder="Current"
-                                                            value={newKeyResultDrafts[objective.id]?.currentValue ?? ''}
-                                                            onChange={(e) => setNewKeyResultField(objective.id, 'currentValue', e.target.value)}
-                                                            className="h-8"
-                                                        />
-                                                        <div className="flex justify-end">
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() => handleCreateKeyResult(objective.id)}
-                                                                disabled={isMutating}
-                                                            >
-                                                                {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                                                                Add KR
-                                                            </Button>
+                                                    {canManage && (
+                                                        <div className="grid grid-cols-[1fr_140px_140px_auto] items-center gap-6 pt-2 border-t">
+                                                            <Input
+                                                                placeholder="Key result title"
+                                                                value={newKeyResultDrafts[objective.id]?.title ?? ''}
+                                                                onChange={(e) => setNewKeyResultTitle(objective.id, e.target.value)}
+                                                                className="h-8"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                placeholder="Target"
+                                                                value={newKeyResultDrafts[objective.id]?.targetValue ?? ''}
+                                                                onChange={(e) => setNewKeyResultField(objective.id, 'targetValue', e.target.value)}
+                                                                className="h-8"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                placeholder="Current"
+                                                                value={newKeyResultDrafts[objective.id]?.currentValue ?? ''}
+                                                                onChange={(e) => setNewKeyResultField(objective.id, 'currentValue', e.target.value)}
+                                                                className="h-8"
+                                                            />
+                                                            <div className="flex justify-end">
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => handleCreateKeyResult(objective.id)}
+                                                                    disabled={isMutating}
+                                                                >
+                                                                    {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                                                                    Add KR
+                                                                </Button>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </TableCell>

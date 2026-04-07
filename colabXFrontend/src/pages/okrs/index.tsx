@@ -16,7 +16,9 @@ import { toast } from 'sonner';
 
 export default function OkrsPage() {
     const { data, isLoading, isError, error } = useOkrsDashboard();
-    const { isPartner } = useRbac();
+    const { isAdmin, isManager } = useRbac();
+    const canManageOkrs = isAdmin || isManager;
+    const canViewPartnerPerformance = canManageOkrs;
     const updateObjective = useUpdateObjectiveMutation();
     const deleteObjective = useDeleteObjectiveMutation();
     const createKeyResult = useCreateKeyResultMutation();
@@ -104,9 +106,9 @@ export default function OkrsPage() {
             <OkrKpiStrip data={kpis} />
 
             <Tabs defaultValue="objectives" className="w-full mt-6">
-                <TabsList className={`grid w-full h-auto max-w-[400px] ${isPartner ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                <TabsList className={`grid w-full h-auto max-w-[400px] ${canViewPartnerPerformance ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <TabsTrigger value="objectives" className="py-2">Objectives List</TabsTrigger>
-                    {!isPartner && (
+                    {canViewPartnerPerformance && (
                         <TabsTrigger value="performance" className="py-2">Partner Performance</TabsTrigger>
                     )}
                 </TabsList>
@@ -130,11 +132,12 @@ export default function OkrsPage() {
                                     createKeyResult.isPending ||
                                     updateKeyResult.isPending
                                 }
+                                canManage={canManageOkrs}
                             />
                         )}
                     </TabsContent>
 
-                    {!isPartner && (
+                    {canViewPartnerPerformance && (
                         <TabsContent value="performance" className="m-0 space-y-6">
                             {isLoading ? (
                                 <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">

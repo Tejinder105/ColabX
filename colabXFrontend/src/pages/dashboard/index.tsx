@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { RefreshCcw } from "lucide-react"
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
+import { useRbac } from "@/hooks/useRbac"
 
 function relativeTime(input: string): string {
     const then = new Date(input).getTime()
@@ -39,14 +40,15 @@ function sameDate(a: Date, b: Date): boolean {
 function DashboardPage() {
     const navigate = useNavigate()
     const activeOrgId = useAuthStore((state) => state.activeOrgId)
+    const { isAdmin, canViewAllPartners } = useRbac()
     const { data } = useCurrentUser()
-    const { data: partnersData, refetch: refetchPartners, dataUpdatedAt: partnersUpdatedAt } = usePartners()
+    const { data: partnersData, refetch: refetchPartners, dataUpdatedAt: partnersUpdatedAt } = usePartners({ enabled: canViewAllPartners })
     const { data: dealsData, refetch: refetchDeals, dataUpdatedAt: dealsUpdatedAt } = useDealsDashboard()
-    const { data: reportsData, refetch: refetchReports, dataUpdatedAt: reportsUpdatedAt } = useReportsDashboard()
+    const { data: reportsData, refetch: refetchReports, dataUpdatedAt: reportsUpdatedAt } = useReportsDashboard({ enabled: isAdmin })
     const { data: okrsData, refetch: refetchOkrs, dataUpdatedAt: okrsUpdatedAt } = useOkrsDashboard()
     const { data: teamsData, refetch: refetchTeams } = useTeams()
-    const { data: auditData, refetch: refetchAudit, dataUpdatedAt: auditUpdatedAt } = useOrgAuditLogs(activeOrgId)
-    const { data: invitesData, refetch: refetchInvites } = usePendingInvitations(activeOrgId)
+    const { data: auditData, refetch: refetchAudit, dataUpdatedAt: auditUpdatedAt } = useOrgAuditLogs(activeOrgId, 200, { enabled: isAdmin })
+    const { data: invitesData, refetch: refetchInvites } = usePendingInvitations(activeOrgId, { enabled: isAdmin })
 
     const rawDeals = dealsData?.rawDeals ?? []
     const partners = partnersData?.partners ?? []
@@ -219,13 +221,13 @@ function DashboardPage() {
         computed.push({
             title: "Live dashboard synced",
             description: "Cards and activity feed now use backend data.",
-            action: "Open Reports",
+            action: isAdmin ? "Open Reports" : "Open Deals",
             severity: "neutral",
-            onAction: () => navigate("/reports"),
+            onAction: () => navigate(isAdmin ? "/reports" : "/deals"),
         })
 
         return computed.slice(0, 4)
-    }, [atRiskPartners, invites, navigate, objectives])
+    }, [atRiskPartners, invites, isAdmin, navigate, objectives])
 
     const recentActivities = (auditData?.logs ?? []).slice(0, 5).map((log) => {
         const icon: "member" | "document" | "objective" | "message" | "deal" | "info" =
@@ -265,15 +267,21 @@ function DashboardPage() {
     const latestUpdatedAt = Math.max(partnersUpdatedAt, dealsUpdatedAt, reportsUpdatedAt, okrsUpdatedAt, auditUpdatedAt)
 
     const handleRefresh = async () => {
-        await Promise.all([
-            refetchPartners(),
+        const refreshes: Array<Promise<unknown>> = [
             refetchDeals(),
-            refetchReports(),
             refetchOkrs(),
             refetchTeams(),
-            refetchAudit(),
-            refetchInvites(),
-        ])
+        ];
+
+        if (canViewAllPartners) {
+            refreshes.push(refetchPartners());
+        }
+
+        if (isAdmin) {
+            refreshes.push(refetchReports(), refetchAudit(), refetchInvites());
+        }
+
+        await Promise.all(refreshes)
     }
 
     return (
@@ -300,7 +308,7 @@ function DashboardPage() {
                 partnersCount={partners.length}
                 pipelineValue={pipelineValue}
                 revenueValue={revenueValue}
-                okrProgress={reportsData?.okrSummary.averageTeamPerformance ?? 0}
+                okrProgress={reportsData?.okrSummary.averageTeamPerformance ?? okrsData?.kpis.averagePartnerScore ?? 0}
                 activeDealsCount={activeDeals.length}
             />
 

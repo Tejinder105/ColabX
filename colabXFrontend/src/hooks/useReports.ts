@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { getReportsDashboard } from '@/services/reportsService';
 import type { DashboardAnalytics } from '@/types/report';
 
-export function useReportsDashboard() {
+export function useReportsDashboard(options?: { enabled?: boolean }) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
 
     return useQuery<DashboardAnalytics>({
@@ -12,7 +12,7 @@ export function useReportsDashboard() {
             const response = await getReportsDashboard(activeOrgId!);
             return response.analytics;
         },
-        enabled: !!activeOrgId,
+        enabled: !!activeOrgId && (options?.enabled ?? true),
         staleTime: 1000 * 60,
     });
 }

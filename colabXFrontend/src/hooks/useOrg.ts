@@ -80,50 +80,50 @@ export function useOrgDetails(orgId: string | null | undefined) {
 }
 
 // Hook to fetch org members
-export function useOrgMembers(orgId: string | null | undefined) {
+export function useOrgMembers(orgId: string | null | undefined, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['org', orgId, 'members'],
         queryFn: () => getOrganizationMembers(orgId!),
-        enabled: !!orgId,
+        enabled: !!orgId && (options?.enabled ?? true),
         staleTime: 1000 * 60 * 2,
     });
 }
 
 // Hook to fetch pending invitations
-export function usePendingInvitations(orgId: string | null | undefined) {
+export function usePendingInvitations(orgId: string | null | undefined, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['org', orgId, 'invitations'],
         queryFn: () => getPendingInvitations(orgId!),
-        enabled: !!orgId,
+        enabled: !!orgId && (options?.enabled ?? true),
         staleTime: 1000 * 60 * 2,
     });
 }
 
 // Hook to fetch role permissions matrix
-export function useOrgPermissions(orgId: string | null | undefined) {
+export function useOrgPermissions(orgId: string | null | undefined, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['org', orgId, 'permissions'],
         queryFn: () => getOrganizationPermissions(orgId!),
-        enabled: !!orgId,
+        enabled: !!orgId && (options?.enabled ?? true),
         staleTime: 1000 * 60 * 5,
     });
 }
 
 // Hook to fetch organization audit logs
-export function useOrgAuditLogs(orgId: string | null | undefined, limit = 200) {
+export function useOrgAuditLogs(orgId: string | null | undefined, limit = 200, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['org', orgId, 'audit-logs', limit],
         queryFn: () => getOrganizationAuditLogs(orgId!, limit),
-        enabled: !!orgId,
+        enabled: !!orgId && (options?.enabled ?? true),
         staleTime: 1000 * 60 * 1,
     });
 }
 
-export function useOrgIntegrityReport(orgId: string | null | undefined) {
+export function useOrgIntegrityReport(orgId: string | null | undefined, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['org', orgId, 'integrity-report'],
         queryFn: () => getOrganizationIntegrityReport(orgId!),
-        enabled: !!orgId,
+        enabled: !!orgId && (options?.enabled ?? true),
         staleTime: 1000 * 60,
     });
 }

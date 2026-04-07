@@ -49,8 +49,9 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
     const { data: dealDetails } = useDealDetails(deal?.id, open && !!deal?.id);
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
     const { data: currentUser } = useCurrentUser();
-    const { data: membersData } = useOrgMembers(activeOrgId);
-    const { canManageDeals, isPartner } = useRbac();
+    const { canManageDeals, isPartner, isMember } = useRbac();
+    const canManageDealDocuments = canManageDeals || isPartner || isMember;
+    const { data: membersData } = useOrgMembers(activeOrgId, { enabled: canManageDeals });
     
     // Assignment mutations
     const assignUser = useAssignUserToDealMutation();
@@ -463,7 +464,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
 
                             {/* DOCUMENTS TAB */}
                             <TabsContent value="documents" className="m-0 space-y-4">
-                                {(canManageDeals || isPartner) && (
+                                {canManageDealDocuments && (
                                     <div className="rounded-lg border p-4 space-y-3">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                             <div className="flex-1 space-y-2">
@@ -537,7 +538,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                     <Download className="w-4 h-4 text-muted-foreground" />
                                                     </a>
                                                 </Button>
-                                                {(canManageDeals || isPartner) && (
+                                                {canManageDealDocuments && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

@@ -111,15 +111,19 @@ function getLastSixMonths(): string[] {
 
 export function useOkrsDashboard() {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
+    const activeRole = useAuthStore((state) => state.activeOrg?.role);
+    const canViewAllPartners = activeRole === 'admin' || activeRole === 'manager';
 
     return useQuery<OkrsDashboardData>({
-        queryKey: ['okrs-dashboard', activeOrgId],
+        queryKey: ['okrs-dashboard', activeOrgId, activeRole],
         queryFn: async () => {
-            const [{ objectives }, { partners }, { deals }] = await Promise.all([
+            const [{ objectives }, dealsResponse, partnersResponse] = await Promise.all([
                 getObjectives(activeOrgId!),
-                getPartners(activeOrgId!),
                 getDeals(activeOrgId!),
+                canViewAllPartners ? getPartners(activeOrgId!) : Promise.resolve({ partners: [] }),
             ]);
+            const { deals } = dealsResponse;
+            const { partners } = partnersResponse;
 
             const objectiveDetails = await Promise.all(
                 objectives.map((objective) => getObjectiveById(activeOrgId!, objective.id))

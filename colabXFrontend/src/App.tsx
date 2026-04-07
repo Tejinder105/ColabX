@@ -38,12 +38,16 @@ function AdminOnlyGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Admin + Manager pages (Partners list, Teams, Reports) */
+/** Admin + Manager pages (Partners list, Teams) */
 function ManagerGuard({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((state) => state.activeOrg?.role);
 
   if (role === "partner") {
     return <Navigate to="/my-partnership" replace />;
+  }
+
+  if (role && role !== "admin" && role !== "manager") {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
