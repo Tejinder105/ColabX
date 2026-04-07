@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -12,7 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileText, Download, Activity, MessageSquare, UserPlus, X, Users, Send, Loader2 } from "lucide-react";
+import { FileText, Download, Activity, MessageSquare, UserPlus, X, Users, Send, Loader2, Plus, Trash2, CheckCircle2, Upload } from "lucide-react";
 import type { Deal } from "@/types/deal";
 import { 
     useDealDetails, 
@@ -20,12 +21,23 @@ import {
     useRemoveUserFromDealMutation,
     useDealMessages,
     useSendDealMessageMutation,
+    useDealTasks,
+    useCreateDealTaskMutation,
+    useUpdateDealTaskMutation,
+    useDeleteDealTaskMutation,
+    useDealDocuments,
+    useCreateDealDocumentMutation,
+    useDeleteDealDocumentMutation,
+    useDeleteDealMutation,
 } from "@/hooks/useDeals";
 import { useOrgMembers } from "@/hooks/useOrg";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/authStore";
 import { useRbac } from "@/hooks/useRbac";
 import { useState, useRef, useEffect } from "react";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+import { validateUploadFile } from "@/lib/documentUpload";
+import { toast } from "sonner";
 
 interface DealDetailsSheetProps {
     deal: Deal | null;
@@ -47,9 +59,22 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
     // Message queries and mutations
     const { data: messagesData, isLoading: messagesLoading } = useDealMessages(deal?.id, open && !!deal?.id);
     const sendMessage = useSendDealMessageMutation();
+    const { data: tasksData, isLoading: tasksLoading } = useDealTasks(deal?.id, open && !!deal?.id && !isPartner);
+    const createTask = useCreateDealTaskMutation();
+    const updateTask = useUpdateDealTaskMutation();
+    const deleteTask = useDeleteDealTaskMutation();
+    const { data: documentsData, isLoading: documentsLoading } = useDealDocuments(deal?.id, open && !!deal?.id);
+    const createDocument = useCreateDealDocumentMutation();
+    const deleteDocument = useDeleteDealDocumentMutation();
+    const deleteDeal = useDeleteDealMutation();
     
     const [selectedUserId, setSelectedUserId] = useState<string>("");
     const [messageText, setMessageText] = useState<string>("");
+    const [newTaskTitle, setNewTaskTitle] = useState("");
+    const [newTaskAssigneeId, setNewTaskAssigneeId] = useState("");
+    const [newTaskDueDate, setNewTaskDueDate] = useState("");
+    const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
+    const [documentVisibility, setDocumentVisibility] = useState<"shared" | "internal">("shared");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Scroll to bottom when messages change
@@ -64,6 +89,8 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
     const assignments = dealDetails?.assignments ?? [];
     const activities = dealDetails?.activities ?? deal.activity ?? [];
     const messages = messagesData?.messages ?? [];
+    const tasks = tasksData?.tasks ?? dealDetails?.tasks ?? [];
+    const documents = documentsData?.documents ?? dealDetails?.documents ?? [];
     
     // Get members not already assigned to this deal
     const assignedUserIds = new Set(assignments.map(a => a.userId));
@@ -90,6 +117,101 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
             { dealId: deal.id, content: messageText.trim() },
             { onSuccess: () => setMessageText("") }
         );
+    };
+
+    const handleCreateTask = () => {
+        if (!newTaskTitle.trim() || !deal.id) return;
+        createTask.mutate(
+            {
+                dealId: deal.id,
+                input: {
+                    title: newTaskTitle.trim(),
+                    assigneeUserId: newTaskAssigneeId || undefined,
+                    dueDate: newTaskDueDate ? new Date(`${newTaskDueDate}T23:59:00`).toISOString() : undefined,
+                },
+            },
+            {
+                onSuccess: () => {
+                    setNewTaskTitle("");
+                    setNewTaskAssigneeId("");
+                    setNewTaskDueDate("");
+                    toast.success("Task created");
+                },
+                onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to create task"),
+            }
+        );
+    };
+
+    const handleUpdateTaskStatus = (taskId: string, status: "todo" | "in_progress" | "done") => {
+        if (!deal.id) return;
+        updateTask.mutate(
+            { dealId: deal.id, taskId, input: { status } },
+            { onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to update task") }
+        );
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        if (!deal.id) return;
+        deleteTask.mutate(
+            { dealId: deal.id, taskId },
+            { onSuccess: () => toast.success("Task deleted") }
+        );
+    };
+
+    const handleDocumentFileSelected = (file: File | null) => {
+        if (!file) {
+            setSelectedDocumentFile(null);
+            return;
+        }
+
+        const error = validateUploadFile(file);
+        if (error) {
+            toast.error(error);
+            setSelectedDocumentFile(null);
+            return;
+        }
+
+        setSelectedDocumentFile(file);
+    };
+
+    const handleUploadDocument = async () => {
+        if (!selectedDocumentFile || !deal.id) return;
+        try {
+            const uploaded = await uploadToCloudinary({ file: selectedDocumentFile });
+            await createDocument.mutateAsync({
+                dealId: deal.id,
+                input: {
+                    fileName: selectedDocumentFile.name || uploaded.originalFilename,
+                    fileUrl: uploaded.secureUrl,
+                    visibility: documentVisibility,
+                },
+            });
+            setSelectedDocumentFile(null);
+            setDocumentVisibility("shared");
+            toast.success("Document uploaded");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to upload document");
+        }
+    };
+
+    const handleDeleteDocument = (documentId: string) => {
+        if (!deal.id) return;
+        deleteDocument.mutate(
+            { dealId: deal.id, documentId },
+            { onSuccess: () => toast.success("Document deleted") }
+        );
+    };
+
+    const handleDeleteDeal = () => {
+        if (!deal.id) return;
+        if (!window.confirm(`Delete deal "${deal.name}"? This action cannot be undone.`)) return;
+        deleteDeal.mutate(deal.id, {
+            onSuccess: () => {
+                toast.success("Deal deleted");
+                onOpenChange(false);
+            },
+            onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to delete deal"),
+        });
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -139,13 +261,25 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                             <span className="text-muted-foreground">•</span>
                             <span className="text-emerald-500 font-medium">{formatCurrency(deal.value)}</span>
                         </SheetDescription>
+                        {canManageDeals && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="mt-3 w-fit"
+                                onClick={handleDeleteDeal}
+                                disabled={deleteDeal.isPending}
+                            >
+                                {deleteDeal.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete Deal
+                            </Button>
+                        )}
                     </SheetHeader>
                 </div>
 
                 <div className="flex-1 overflow-hidden">
                     <Tabs defaultValue={isPartner ? "messages" : "assignees"} className="w-full h-full flex flex-col">
                         <div className="px-6 pt-4 border-b border-white/5">
-                            <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
+                            <TabsList className="grid w-full grid-cols-5 max-w-[650px]">
                                 {!isPartner && (
                                     <TabsTrigger value="assignees" className="flex items-center gap-2">
                                         <Users className="w-4 h-4" /> Assignees
@@ -157,6 +291,11 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                 <TabsTrigger value="documents" className="flex items-center gap-2">
                                     <FileText className="w-4 h-4" /> Documents
                                 </TabsTrigger>
+                                {!isPartner && (
+                                    <TabsTrigger value="tasks" className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4" /> Tasks
+                                    </TabsTrigger>
+                                )}
                                 {!isPartner && (
                                     <TabsTrigger value="activity" className="flex items-center gap-2">
                                         <Activity className="w-4 h-4" /> Activity
@@ -324,28 +463,73 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
 
                             {/* DOCUMENTS TAB */}
                             <TabsContent value="documents" className="m-0 space-y-4">
-                                {deal.documents && deal.documents.length > 0 ? (
+                                {(canManageDeals || isPartner) && (
+                                    <div className="rounded-lg border p-4 space-y-3">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                            <div className="flex-1 space-y-2">
+                                                <Label htmlFor="dealDocument">Upload Document</Label>
+                                                <Input
+                                                    id="dealDocument"
+                                                    type="file"
+                                                    onChange={(event) => handleDocumentFileSelected(event.target.files?.[0] || null)}
+                                                    disabled={createDocument.isPending}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Visibility</Label>
+                                                <Select
+                                                    value={documentVisibility}
+                                                    onValueChange={(value) => setDocumentVisibility(value as "shared" | "internal")}
+                                                    disabled={isPartner}
+                                                >
+                                                    <SelectTrigger className="w-[140px]">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="shared">Shared</SelectItem>
+                                                        {!isPartner && <SelectItem value="internal">Internal</SelectItem>}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <Button onClick={handleUploadDocument} disabled={!selectedDocumentFile || createDocument.isPending}>
+                                                {createDocument.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                                Upload
+                                            </Button>
+                                        </div>
+                                        {selectedDocumentFile ? (
+                                            <p className="text-xs text-muted-foreground">Selected: {selectedDocumentFile.name}</p>
+                                        ) : null}
+                                    </div>
+                                )}
+
+                                {documentsLoading ? (
+                                    <div className="flex items-center justify-center py-10">
+                                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : documents.length > 0 ? (
                                     <div className="space-y-3">
-                                        {deal.documents.map((doc) => (
+                                        {documents.map((doc) => (
                                             <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
                                                 <div className="flex items-center gap-4">
                                                     <div className="p-2 bg-blue-500/10 text-blue-500 rounded-md">
                                                         <FileText className="w-5 h-5" />
                                                     </div>
                                                     <div>
-                                                        <p className="font-semibold text-sm">{doc.name}</p>
+                                                        <p className="font-semibold text-sm">{doc.fileName}</p>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                                            <span>{doc.type}</span>•<span>{doc.size}</span>•<span>Uploaded by {doc.uploadedBy} {doc.uploadedAt}</span>
+                                                            <span>{doc.visibility}</span>
+                                                            <span>Uploaded by {doc.uploaderName ?? doc.uploadedBy} {new Date(doc.uploadedAt).toLocaleDateString()}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" asChild disabled={!doc.url}>
+                                                <div className="flex items-center gap-1">
+                                                <Button variant="ghost" size="icon" asChild disabled={!doc.fileUrl}>
                                                     <a
-                                                        href={doc.url ?? '#'}
+                                                        href={doc.fileUrl ?? '#'}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         onClick={(event) => {
-                                                            if (!doc.url) {
+                                                            if (!doc.fileUrl) {
                                                                 event.preventDefault();
                                                             }
                                                         }}
@@ -353,6 +537,18 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                     <Download className="w-4 h-4 text-muted-foreground" />
                                                     </a>
                                                 </Button>
+                                                {(canManageDeals || isPartner) && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDeleteDocument(doc.id)}
+                                                        disabled={deleteDocument.isPending}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -360,6 +556,104 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     <div className="text-center py-10 text-muted-foreground">No documents attached to this deal.</div>
                                 )}
                             </TabsContent>
+
+                            {/* TASKS TAB */}
+                            {!isPartner && (
+                                <TabsContent value="tasks" className="m-0 space-y-4">
+                                    {canManageDeals && (
+                                        <div className="rounded-lg border p-4 space-y-3">
+                                            <div className="grid gap-3 md:grid-cols-[1fr_180px_160px_auto] md:items-end">
+                                                <div className="space-y-2">
+                                                    <Label>Task</Label>
+                                                    <Input
+                                                        placeholder="Follow up with procurement"
+                                                        value={newTaskTitle}
+                                                        onChange={(event) => setNewTaskTitle(event.target.value)}
+                                                        disabled={createTask.isPending}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Assignee</Label>
+                                                    <Select value={newTaskAssigneeId} onValueChange={setNewTaskAssigneeId}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Optional" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {(membersData?.members ?? []).map((member) => (
+                                                                <SelectItem key={member.userId} value={member.userId}>
+                                                                    {member.userName}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Due Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={newTaskDueDate}
+                                                        onChange={(event) => setNewTaskDueDate(event.target.value)}
+                                                        disabled={createTask.isPending}
+                                                    />
+                                                </div>
+                                                <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || createTask.isPending}>
+                                                    {createTask.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                                                    Add
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {tasksLoading ? (
+                                        <div className="flex items-center justify-center py-10">
+                                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                        </div>
+                                    ) : tasks.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {tasks.map((task) => (
+                                                <div key={task.id} className="rounded-lg border p-4 space-y-3">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="font-medium">{task.title}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {task.assigneeName ?? task.assigneeUserId ?? "Unassigned"}
+                                                                {task.dueDate ? ` - Due ${new Date(task.dueDate).toLocaleDateString()}` : ""}
+                                                            </p>
+                                                        </div>
+                                                        {canManageDeals && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-destructive hover:text-destructive"
+                                                                onClick={() => handleDeleteTask(task.id)}
+                                                                disabled={deleteTask.isPending}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    <Select
+                                                        value={task.status}
+                                                        onValueChange={(value) => handleUpdateTaskStatus(task.id, value as "todo" | "in_progress" | "done")}
+                                                        disabled={updateTask.isPending}
+                                                    >
+                                                        <SelectTrigger className="w-[180px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="todo">To do</SelectItem>
+                                                            <SelectItem value="in_progress">In progress</SelectItem>
+                                                            <SelectItem value="done">Done</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-10 text-muted-foreground">No tasks attached to this deal.</div>
+                                    )}
+                                </TabsContent>
+                            )}
 
                             {/* ACTIVITY TAB */}
                             <TabsContent value="activity" className="m-0 space-y-4">

@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { useAlertsSummary, useMarkNotificationAsRead } from "@/hooks/useNotifications";
+import { useAlertsSummary, useCheckAlerts, useMarkNotificationAsRead } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
+import { useRbac } from "@/hooks/useRbac";
 
 interface AlertsWidgetProps {
     partnerId?: string;
@@ -13,6 +14,8 @@ interface AlertsWidgetProps {
 export function AlertsWidget({ partnerId }: AlertsWidgetProps) {
     const { data, isLoading } = useAlertsSummary(partnerId);
     const markAsRead = useMarkNotificationAsRead();
+    const checkAlerts = useCheckAlerts();
+    const { isAdmin } = useRbac();
 
     if (isLoading) {
         return (
@@ -31,7 +34,14 @@ export function AlertsWidget({ partnerId }: AlertsWidgetProps) {
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Alerts</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                        <CardTitle>Alerts</CardTitle>
+                        {isAdmin && (
+                            <Button variant="outline" size="sm" onClick={() => checkAlerts.mutate()} disabled={checkAlerts.isPending}>
+                                {checkAlerts.isPending ? "Checking..." : "Check Alerts"}
+                            </Button>
+                        )}
+                    </div>
                     <CardDescription>No alerts at this time</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -54,6 +64,11 @@ export function AlertsWidget({ partnerId }: AlertsWidgetProps) {
                         </CardDescription>
                     </div>
                     <div className="flex gap-2">
+                        {isAdmin && (
+                            <Button variant="outline" size="sm" onClick={() => checkAlerts.mutate()} disabled={checkAlerts.isPending}>
+                                {checkAlerts.isPending ? "Checking..." : "Check Alerts"}
+                            </Button>
+                        )}
                         {summary.critical > 0 && (
                             <Badge variant="destructive" className="flex gap-1">
                                 <AlertCircle className="h-3 w-3" />

@@ -54,7 +54,7 @@ export function useRbac(): RbacPermissions {
     
     canViewAllPartners: isAdmin || isManager,
     canManageDeals: isAdmin || isManager,
-    canViewReports: isAdmin || isManager,
+    canViewReports: isAdmin,
     
     canManageDocuments: true,
     

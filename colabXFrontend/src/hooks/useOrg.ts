@@ -12,6 +12,7 @@ import {
     getPendingInvitations,
     getOrganizationPermissions,
     getOrganizationAuditLogs,
+    getOrganizationIntegrityReport,
     createInvite,
     type CreateOrgInput,
     type InviteInput,
@@ -115,6 +116,15 @@ export function useOrgAuditLogs(orgId: string | null | undefined, limit = 200) {
         queryFn: () => getOrganizationAuditLogs(orgId!, limit),
         enabled: !!orgId,
         staleTime: 1000 * 60 * 1,
+    });
+}
+
+export function useOrgIntegrityReport(orgId: string | null | undefined) {
+    return useQuery({
+        queryKey: ['org', orgId, 'integrity-report'],
+        queryFn: () => getOrganizationIntegrityReport(orgId!),
+        enabled: !!orgId,
+        staleTime: 1000 * 60,
     });
 }
 

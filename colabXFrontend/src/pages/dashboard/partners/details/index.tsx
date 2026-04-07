@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Edit, Mail, ExternalLink, FileText, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Mail, ExternalLink, FileText, Download, Loader2, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PerformanceCharts } from './components/performance-charts';
 import { PartnerTeamAssignmentCard } from './components/partner-team-assignment-card';
 import { usePartner, usePartnerDeals } from '@/hooks/usePartners';
-import { usePartnerContacts } from '@/hooks/useContacts';
+import { usePartnerPerformance } from '@/hooks/useOkrs';
+import { useDeleteContactMutation, usePartnerContacts, useUpdateContactMutation } from '@/hooks/useContacts';
 import { usePartnerCommunications, usePartnerDocuments, usePartnerActivities } from '@/hooks/useCollaboration';
 import { EditPartnerDialog } from '../components/edit-partner-dialog';
 import { AddContactDialog } from '../components/add-contact-dialog';
@@ -17,6 +18,7 @@ import type { Partner, PartnerType, Industry, PartnerStage, UIStatus, HealthStat
 import type { ApiPartnerDetail, ApiPartnerDeal, ApiDealStage } from '@/services/partnersService';
 import type { ApiContact } from '@/services/contactsService';
 import type { ApiCommunication, ApiDocument, ApiActivity } from '@/services/collaborationService';
+import type { ApiPartnerPerformanceSummary } from '@/services/okrService';
 
 // --- Mapping helpers (same as PartnersPage) ---
 
@@ -112,6 +114,7 @@ function mapApiDocumentToPartnerDocument(doc: ApiDocument): PartnerDocument {
         type: doc.visibility,
         size: '',
         uploadDate: doc.uploadedAt,
+        url: doc.fileUrl,
     };
 }
 
@@ -134,9 +137,14 @@ interface PartnerCollaborationData {
 function toUiPartner(
     p: ApiPartnerDetail,
     deals: ApiPartnerDeal[] = [],
-    collab: PartnerCollaborationData = { contacts: [], communications: [], documents: [], activities: [] }
+    collab: PartnerCollaborationData = { contacts: [], communications: [], documents: [], activities: [] },
+    performance?: ApiPartnerPerformanceSummary
 ): Partner {
     const openDeals = deals.filter(d => d.stage !== 'won' && d.stage !== 'lost');
+    const wonRevenue = deals
+        .filter((deal) => deal.stage === 'won')
+        .reduce((sum, deal) => sum + (deal.value ?? 0), 0);
+    const performanceScore = Math.round(performance?.score?.score ?? performance?.completionRate ?? (p.status?.toLowerCase() === 'active' ? 80 : 40));
     return {
         id: p.id,
         name: p.name,
@@ -147,7 +155,7 @@ function toUiPartner(
         healthScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
         healthStatus: mapHealthStatus(p.status),
         uiStatus: mapUiStatus(p.status),
-        performanceScore: p.status?.toLowerCase() === 'active' ? 80 : 40,
+        performanceScore,
         openDealsCount: openDeals.length,
         openDealsValue: openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0),
         lastActivityDate: p.updatedAt,
@@ -160,8 +168,8 @@ function toUiPartner(
         okrs: [],
         documents: collab.documents.map(mapApiDocumentToPartnerDocument),
         communications: collab.communications.map(mapApiCommunicationToPartnerCommunication),
-        performanceHistory: [],
-        revenueHistory: [],
+        performanceHistory: performance ? [{ date: 'Current', score: performanceScore }] : [],
+        revenueHistory: deals.length > 0 ? [{ date: 'Current', revenue: wonRevenue }] : [],
         notes: '',
     };
 }
@@ -206,11 +214,14 @@ export default function PartnerDetailsPage() {
     const { data, isLoading, isError } = usePartner(id);
     const { data: dealsData, isLoading: dealsLoading } = usePartnerDeals(id);
     const { data: contactsData, isLoading: contactsLoading } = usePartnerContacts(id);
+    const updateContact = useUpdateContactMutation();
+    const deleteContact = useDeleteContactMutation();
     const { data: communicationsData, isLoading: communicationsLoading } = usePartnerCommunications(id);
     const { data: documentsData, isLoading: documentsLoading } = usePartnerDocuments(id);
     const { data: activitiesData, isLoading: activitiesLoading } = usePartnerActivities(id);
+    const { data: performanceData, isLoading: performanceLoading } = usePartnerPerformance(id);
 
-    const loading = isLoading || dealsLoading || contactsLoading || communicationsLoading || documentsLoading || activitiesLoading;
+    const loading = isLoading || dealsLoading || contactsLoading || communicationsLoading || documentsLoading || activitiesLoading || performanceLoading;
 
     if (loading) {
         return (
@@ -237,7 +248,7 @@ export default function PartnerDetailsPage() {
         communications: communicationsData?.communications ?? [],
         documents: documentsData?.documents ?? [],
         activities: activitiesData?.activities ?? [],
-    });
+    }, performanceData);
 
     const partnerDeals = dealsData?.deals ?? [];
     const totalDeals = partnerDeals.length;
@@ -245,6 +256,32 @@ export default function PartnerDetailsPage() {
     const revenueFromPartner = partnerDeals
         .filter((deal) => deal.stage === 'won')
         .reduce((sum, deal) => sum + (deal.value ?? 0), 0);
+
+    const handleEditContact = (contact: PartnerContact) => {
+        const name = window.prompt('Contact name', contact.name);
+        if (!name?.trim()) return;
+        const email = window.prompt('Contact email', contact.email);
+        if (!email?.trim()) return;
+        const role = window.prompt('Contact role', contact.role || '');
+        updateContact.mutate(
+            {
+                contactId: contact.id,
+                input: {
+                    name: name.trim(),
+                    email: email.trim(),
+                    role: role?.trim() || null,
+                },
+            },
+            {
+                onError: (error) => alert(error instanceof Error ? error.message : 'Failed to update contact'),
+            }
+        );
+    };
+
+    const handleDeleteContact = (contact: PartnerContact) => {
+        if (!window.confirm(`Delete contact "${contact.name}"?`)) return;
+        deleteContact.mutate(contact.id);
+    };
 
     return (
         <div className="flex-1 space-y-6 p-8 pt-6 max-w-[1600px] mx-auto">
@@ -317,6 +354,14 @@ export default function PartnerDetailsPage() {
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-sm truncate">{contact.name}</p>
                                                 <p className="text-xs text-muted-foreground truncate">{contact.role || contact.email}</p>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditContact(contact)} disabled={updateContact.isPending}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteContact(contact)} disabled={deleteContact.isPending}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </div>
                                     ))}
@@ -460,8 +505,10 @@ export default function PartnerDetailsPage() {
                                             <p className="text-xs text-muted-foreground">{doc.size} • Uploaded {new Date(doc.uploadDate).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="icon">
-                                        <Download className="h-4 w-4" />
+                                    <Button variant="ghost" size="icon" asChild disabled={!doc.url}>
+                                        <a href={doc.url ?? '#'} target="_blank" rel="noreferrer">
+                                            <Download className="h-4 w-4" />
+                                        </a>
                                     </Button>
                                 </div>
                             ))}

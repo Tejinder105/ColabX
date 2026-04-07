@@ -5,8 +5,10 @@ import { useDealsDashboard } from '@/hooks/useDeals';
 import { PartnersHeader } from './components/partners-header';
 import { KpiStrip } from './components/kpi-strip';
 import { PartnersTable } from './components/partners-table';
+import { EditPartnerDialog } from './components/edit-partner-dialog';
+import { DisablePartnerDialog } from './components/disable-partner-dialog';
 import type { Partner, PartnerType, Industry, PartnerStage, UIStatus, HealthStatus } from '@/types/partner';
-import type { ApiPartner } from '@/services/partnersService';
+import type { ApiPartner, ApiPartnerDetail } from '@/services/partnersService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -86,6 +88,8 @@ function toUiPartner(p: ApiPartner, dealStats?: PartnerDealStats): Partner {
 export default function PartnersPage() {
     const [activeTab, setActiveTab] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingPartner, setEditingPartner] = useState<ApiPartnerDetail | null>(null);
+    const [disablingPartner, setDisablingPartner] = useState<Partner | null>(null);
     const navigate = useNavigate();
 
     const { data, isLoading, isError, refetch } = usePartners();
@@ -133,6 +137,11 @@ export default function PartnersPage() {
 
     const handleRowClick = (partner: Partner) => {
         navigate(`/partners/${partner.id}`);
+    };
+
+    const findApiPartner = (partnerId: string): ApiPartnerDetail | null => {
+        const partner = data?.partners.find((item) => item.id === partnerId);
+        return partner ? { ...partner } : null;
     };
 
     const loading = isLoading || dealsLoading;
@@ -195,7 +204,26 @@ export default function PartnersPage() {
                             searchQuery={searchQuery}
                             onSearchChange={setSearchQuery}
                             onRowClick={handleRowClick}
+                            onEditPartner={(partner) => setEditingPartner(findApiPartner(partner.id))}
+                            onAssignTeam={(partner) => navigate(`/partners/${partner.id}`)}
+                            onAddDeal={(partner) => navigate(`/deals?partnerId=${partner.id}`)}
+                            onDisablePartner={setDisablingPartner}
                         />
+                        {editingPartner && (
+                            <EditPartnerDialog
+                                partner={editingPartner}
+                                open={!!editingPartner}
+                                onOpenChange={(open) => !open && setEditingPartner(null)}
+                            />
+                        )}
+                        {disablingPartner && (
+                            <DisablePartnerDialog
+                                partnerId={disablingPartner.id}
+                                partnerName={disablingPartner.name}
+                                open={!!disablingPartner}
+                                onOpenChange={(open) => !open && setDisablingPartner(null)}
+                            />
+                        )}
                     </div>
                 </>
             )}

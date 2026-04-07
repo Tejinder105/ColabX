@@ -5,15 +5,26 @@ import {
     getDealById,
     getDeals,
     updateDeal,
+    deleteDeal,
     assignUserToDeal,
     removeUserFromDeal,
     getDealMessages,
     createDealMessage,
     deleteDealMessage,
+    getDealTasks,
+    createDealTask,
+    updateDealTask,
+    deleteDealTask,
+    getDealDocuments,
+    createDealDocument,
+    deleteDealDocument,
     type ApiDeal,
     type ApiDealStage,
+    type CreateDealDocumentInput,
     type CreateDealInput,
+    type CreateDealTaskInput,
     type UpdateDealInput,
+    type UpdateDealTaskInput,
 } from '@/services/dealsService';
 import type { Deal, DealStage, PipelineSummary } from '@/types/deal';
 
@@ -150,6 +161,18 @@ export function useUpdateDealMutation() {
     });
 }
 
+export function useDeleteDealMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: (dealId: string) => deleteDeal(activeOrgId!, dealId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['deals', activeOrgId] });
+        },
+    });
+}
+
 export function useDealDetails(dealId: string | undefined, enabled = true) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
 
@@ -225,6 +248,98 @@ export function useDeleteDealMessageMutation() {
             deleteDealMessage(activeOrgId!, dealId, messageId),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['deal-messages', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useDealTasks(dealId: string | undefined, enabled = true) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['deal-tasks', activeOrgId, dealId],
+        queryFn: () => getDealTasks(activeOrgId!, dealId!),
+        enabled: !!activeOrgId && !!dealId && enabled,
+        staleTime: 1000 * 30,
+    });
+}
+
+export function useCreateDealTaskMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, input }: { dealId: string; input: CreateDealTaskInput }) =>
+            createDealTask(activeOrgId!, dealId, input),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-tasks', activeOrgId, variables.dealId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useUpdateDealTaskMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, taskId, input }: { dealId: string; taskId: string; input: UpdateDealTaskInput }) =>
+            updateDealTask(activeOrgId!, dealId, taskId, input),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-tasks', activeOrgId, variables.dealId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useDeleteDealTaskMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, taskId }: { dealId: string; taskId: string }) =>
+            deleteDealTask(activeOrgId!, dealId, taskId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-tasks', activeOrgId, variables.dealId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useDealDocuments(dealId: string | undefined, enabled = true) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['deal-documents', activeOrgId, dealId],
+        queryFn: () => getDealDocuments(activeOrgId!, dealId!),
+        enabled: !!activeOrgId && !!dealId && enabled,
+        staleTime: 1000 * 30,
+    });
+}
+
+export function useCreateDealDocumentMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, input }: { dealId: string; input: CreateDealDocumentInput }) =>
+            createDealDocument(activeOrgId!, dealId, input),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-documents', activeOrgId, variables.dealId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
+        },
+    });
+}
+
+export function useDeleteDealDocumentMutation() {
+    const queryClient = useQueryClient();
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useMutation({
+        mutationFn: ({ dealId, documentId }: { dealId: string; documentId: string }) =>
+            deleteDealDocument(activeOrgId!, dealId, documentId),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['deal-documents', activeOrgId, variables.dealId] });
+            queryClient.invalidateQueries({ queryKey: ['deal', activeOrgId, variables.dealId] });
         },
     });
 }

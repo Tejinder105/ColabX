@@ -34,6 +34,7 @@ export interface PartnerDocument {
     type: string;
     size: string;
     uploadDate: string;
+    url?: string;
 }
 
 export interface PartnerCommunication {

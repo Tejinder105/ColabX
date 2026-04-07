@@ -30,7 +30,7 @@ import {
     useOrgDocuments,
     useUpdateDocumentVisibilityMutation,
 } from '@/hooks/useCollaboration';
-import { usePartners } from '@/hooks/usePartners';
+import { useMyPartner, usePartners } from '@/hooks/usePartners';
 import { useRbac } from '@/hooks/useRbac';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import {
@@ -68,15 +68,18 @@ export default function DocumentsPage() {
     const [isDragActive, setIsDragActive] = useState(false);
 
     const { data: orgDocumentsData, isLoading, isError, error } = useOrgDocuments();
-    const { data: partnersData } = usePartners();
-    const { isPartner } = useRbac();
+    const { isPartner, canViewAllPartners } = useRbac();
+    const { data: partnersData } = usePartners({ enabled: canViewAllPartners });
+    const { data: myPartnerData } = useMyPartner();
 
     const createDocumentMutation = useCreateDocumentForPartnerMutation();
     const deleteDocumentMutation = useDeleteDocumentMutation();
     const updateVisibilityMutation = useUpdateDocumentVisibilityMutation();
 
     let documents = orgDocumentsData?.documents ?? [];
-    const partners = partnersData?.partners ?? [];
+    const partners = isPartner
+        ? (myPartnerData?.partner ? [myPartnerData.partner] : [])
+        : (canViewAllPartners ? (partnersData?.partners ?? []) : []);
     
     // For partners, filter to only show documents from their own partner records
     if (isPartner) {

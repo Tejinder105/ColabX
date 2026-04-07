@@ -72,7 +72,7 @@ const data = {
       title: "Reports",
       url: "/reports",
       icon: BarChart2,
-      roles: ["admin", "manager"], 
+      roles: ["admin"], 
     },
     {
       title: "Organization Settings",

@@ -193,9 +193,9 @@ const router = createBrowserRouter([
       {
         path: "/reports",
         element: (
-          <ManagerGuard>
+          <AdminOnlyGuard>
             <ReportsPage />
-          </ManagerGuard>
+          </AdminOnlyGuard>
         ),
       },
       // Admin only: Organization Settings

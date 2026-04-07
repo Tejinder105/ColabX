@@ -12,12 +12,12 @@ import {
 } from '@/services/partnersService';
 import { useAuthStore } from '@/stores/authStore';
 
-export function usePartners() {
+export function usePartners(options?: { enabled?: boolean }) {
     const activeOrgId = useAuthStore((state) => state.activeOrgId);
     return useQuery({
         queryKey: ['partners', activeOrgId],
         queryFn: () => getPartners(activeOrgId!),
-        enabled: !!activeOrgId,
+        enabled: !!activeOrgId && (options?.enabled ?? true),
         staleTime: 1000 * 60 * 2,
     });
 }

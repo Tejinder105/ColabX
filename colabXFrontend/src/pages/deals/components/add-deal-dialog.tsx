@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import type { DealStage } from '@/types/deal';
 
 export function AddDealDialog() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [partnerId, setPartnerId] = useState('');
@@ -44,6 +46,14 @@ export function AddDealDialog() {
     useEffect(() => {
         setTeamId('');
     }, [partnerId]);
+
+    useEffect(() => {
+        const partnerFromUrl = searchParams.get('partnerId');
+        if (partnerFromUrl) {
+            setPartnerId(partnerFromUrl);
+            setOpen(true);
+        }
+    }, [searchParams]);
 
     const handleSubmit = async () => {
         if (!title.trim() || !partnerId || isPartnerDetailsLoading) {

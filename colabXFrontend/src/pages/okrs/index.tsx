@@ -61,9 +61,9 @@ export default function OkrsPage() {
         });
     };
 
-    const handleCreateKeyResult = (objectiveId: string, targetValue: number, currentValue: number) => {
+    const handleCreateKeyResult = (objectiveId: string, title: string, targetValue: number, currentValue: number) => {
         createKeyResult.mutate(
-            { objectiveId, input: { targetValue, currentValue } },
+            { objectiveId, input: { title, targetValue, currentValue } },
             {
                 onSuccess: () => {
                     toast.success('Key result created');

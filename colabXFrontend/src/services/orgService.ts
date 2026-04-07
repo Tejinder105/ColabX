@@ -65,6 +65,14 @@ export interface OrgAuditLog {
     userEmail: string | null;
 }
 
+export interface OrgIntegrityReport {
+    internalUsersInMultipleOrgs: unknown[];
+    partnersInTeams: unknown[];
+    partnersLeadingTeams: unknown[];
+    partnersAssignedToMultipleTeams: Array<{ partnerId: string; assignmentCount: number }>;
+    teamsWithoutLead: unknown[];
+}
+
 export interface CreateOrgInput {
     name: string;
 }
@@ -276,6 +284,24 @@ export async function getOrganizationAuditLogs(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to fetch audit logs');
+    }
+
+    return response.json();
+}
+
+// Get organization integrity report (requires x-org-id header)
+export async function getOrganizationIntegrityReport(
+    orgId: string
+): Promise<OrgIntegrityReport> {
+    const response = await fetch(`${API_BASE}/org/${orgId}/integrity-report`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch integrity report');
     }
 
     return response.json();

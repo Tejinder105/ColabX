@@ -50,6 +50,10 @@ interface PartnersTableProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onRowClick?: (partner: Partner) => void;
+  onEditPartner?: (partner: Partner) => void;
+  onAssignTeam?: (partner: Partner) => void;
+  onAddDeal?: (partner: Partner) => void;
+  onDisablePartner?: (partner: Partner) => void;
 }
 
 export function PartnersTable({
@@ -59,6 +63,10 @@ export function PartnersTable({
   searchQuery,
   onSearchChange,
   onRowClick,
+  onEditPartner,
+  onAssignTeam,
+  onAddDeal,
+  onDisablePartner,
 }: PartnersTableProps) {
   const { canManagePartners } = useRbac();
 
@@ -368,7 +376,10 @@ export function PartnersTable({
                           </DropdownMenuItem>
                           {canManagePartners && (
                             <DropdownMenuItem
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditPartner?.(partner);
+                              }}
                             >
                               Edit partner
                             </DropdownMenuItem>
@@ -376,13 +387,19 @@ export function PartnersTable({
                           <DropdownMenuSeparator />
                           {canManagePartners && (
                             <DropdownMenuItem
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAssignTeam?.(partner);
+                              }}
                             >
                               Assign Team
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddDeal?.(partner);
+                            }}
                           >
                             Add Deal
                           </DropdownMenuItem>
@@ -390,7 +407,10 @@ export function PartnersTable({
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDisablePartner?.(partner);
+                                }}
                                 className="text-destructive"
                               >
                                 Disable Partner

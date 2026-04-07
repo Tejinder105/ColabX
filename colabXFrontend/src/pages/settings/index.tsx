@@ -4,15 +4,20 @@ import { ProfileSettings } from './components/profile-settings';
 import { UserManagement } from './components/user-management';
 import { TeamManagement } from './components/team-management';
 import { AuditLogs } from './components/audit-logs';
-import { Building2, Users, FileClock, Network } from 'lucide-react';
+import { IntegrityReport } from './components/integrity-report';
+import { PermissionsSettings } from './components/permissions-settings';
+import { Building2, Users, FileClock, Network, ShieldCheck, ScanLine } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
     useOrgDetails,
     useOrgMembers,
     usePendingInvitations,
     useOrgAuditLogs,
+    useOrgPermissions,
+    useOrgIntegrityReport,
     useUpdateOrgMutation,
     useDeleteOrgMutation,
+    useChangeMemberRoleMutation,
     useRemoveMemberMutation,
     useCreateInviteMutation,
 } from '@/hooks/useOrg';
@@ -42,11 +47,14 @@ export default function SettingsPage() {
     const { data: membersData } = useOrgMembers(activeOrgId);
     const { data: invitesData } = usePendingInvitations(activeOrgId);
     const { data: auditData, isLoading: isAuditLoading } = useOrgAuditLogs(activeOrgId);
+    const { data: permissionsData, isLoading: isPermissionsLoading } = useOrgPermissions(activeOrgId);
+    const { data: integrityData, isLoading: isIntegrityLoading } = useOrgIntegrityReport(activeOrgId);
     const { data: teamsData } = useTeams();
 
     // Mutations
     const updateOrg = useUpdateOrgMutation();
     const deleteOrg = useDeleteOrgMutation();
+    const changeMemberRole = useChangeMemberRoleMutation();
     const removeMember = useRemoveMemberMutation();
     const createInvite = useCreateInviteMutation();
     const createTeam = useCreateTeamMutation();
@@ -95,6 +103,13 @@ export default function SettingsPage() {
         target: `${log.entityType}:${log.entityId}`,
     }));
 
+    const permissions = (permissionsData?.permissions ?? []).map((permission) => ({
+        feature: permission.feature,
+        admin: permission.admin,
+        manager: permission.manager,
+        partner: permission.partner,
+    }));
+
     // Callbacks
     const handleSaveProfile = (name: string) => {
         if (!activeOrgId) return;
@@ -112,6 +127,11 @@ export default function SettingsPage() {
     const handleRemoveMember = (userId: string) => {
         if (!activeOrgId) return;
         removeMember.mutate({ orgId: activeOrgId, memberId: userId });
+    };
+
+    const handleChangeMemberRole = (userId: string, role: 'admin' | 'manager' | 'member' | 'partner') => {
+        if (!activeOrgId) return;
+        changeMemberRole.mutate({ orgId: activeOrgId, memberId: userId, role });
     };
 
     const handleInvite = (email: string, role: string, partnerType?: string, partnerIndustry?: string) => {
@@ -159,6 +179,14 @@ export default function SettingsPage() {
                         <FileClock className="mr-2 h-4 w-4" />
                         Audit Logs
                     </TabsTrigger>
+                    <TabsTrigger value="permissions" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:shadow-none px-4 py-3 rounded-none border-l-2 data-[state=active]:border-primary border-transparent">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Permissions
+                    </TabsTrigger>
+                    <TabsTrigger value="integrity" className="w-full justify-start text-left data-[state=active]:bg-muted/50 data-[state=active]:shadow-none px-4 py-3 rounded-none border-l-2 data-[state=active]:border-primary border-transparent">
+                        <ScanLine className="mr-2 h-4 w-4" />
+                        Integrity
+                    </TabsTrigger>
                 </TabsList>
 
                 <div className="flex-1 w-full min-w-0">
@@ -176,8 +204,10 @@ export default function SettingsPage() {
                         <UserManagement
                             users={orgUsers}
                             onRemove={handleRemoveMember}
+                            onChangeRole={handleChangeMemberRole}
                             onInvite={handleInvite}
                             isRemoving={removeMember.isPending}
+                            isChangingRole={changeMemberRole.isPending}
                             isInviting={createInvite.isPending}
                             invitationToken={invitationToken}
                             onTokenDismiss={() => setInvitationToken(null)}
@@ -194,6 +224,14 @@ export default function SettingsPage() {
 
                     <TabsContent value="audit" className="m-0 border-none p-0 outline-none">
                         <AuditLogs logs={auditLogs} isLoading={isAuditLoading} />
+                    </TabsContent>
+
+                    <TabsContent value="permissions" className="m-0 border-none p-0 outline-none">
+                        <PermissionsSettings permissions={permissions} isLoading={isPermissionsLoading} />
+                    </TabsContent>
+
+                    <TabsContent value="integrity" className="m-0 border-none p-0 outline-none">
+                        <IntegrityReport report={integrityData} isLoading={isIntegrityLoading} />
                     </TabsContent>
                 </div>
             </Tabs>

@@ -33,8 +33,10 @@ import { useState } from 'react';
 interface UserManagementProps {
     users: OrgUser[];
     onRemove?: (userId: string) => void;
+    onChangeRole?: (userId: string, role: 'admin' | 'manager' | 'member' | 'partner') => void;
     onInvite?: (email: string, role: string, partnerType?: string, partnerIndustry?: string) => void;
     isRemoving?: boolean;
+    isChangingRole?: boolean;
     isInviting?: boolean;
     invitationToken?: string | null;
     onTokenDismiss?: () => void;
@@ -58,7 +60,7 @@ const PARTNER_INDUSTRIES = [
     { value: 'Other', label: 'Other' },
 ] as const;
 
-export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
+export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemoving, isChangingRole, isInviting, invitationToken, onTokenDismiss }: UserManagementProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -107,6 +109,15 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
             case 'Manager': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">Manager</Badge>;
             case 'Partner': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500">Partner</Badge>;
             default: return <Badge variant="outline">User</Badge>;
+        }
+    };
+
+    const toApiRole = (role: UserRole): 'admin' | 'manager' | 'member' | 'partner' => {
+        switch (role) {
+            case 'Admin': return 'admin';
+            case 'Manager': return 'manager';
+            case 'Partner': return 'partner';
+            default: return 'member';
         }
     };
 
@@ -254,7 +265,27 @@ export function UserManagement({ users, onRemove, onInvite, isRemoving, isInviti
                                         <span className="text-xs text-muted-foreground font-normal">{user.email}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell>{getRoleBadge(user.role)}</TableCell>
+                                <TableCell>
+                                    {user.status === 'Invited' ? (
+                                        getRoleBadge(user.role)
+                                    ) : (
+                                        <Select
+                                            value={toApiRole(user.role)}
+                                            onValueChange={(role) => onChangeRole?.(user.id, role as 'admin' | 'manager' | 'member' | 'partner')}
+                                            disabled={isChangingRole}
+                                        >
+                                            <SelectTrigger className="h-8 w-32">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="manager">Manager</SelectItem>
+                                                <SelectItem value="member">Member</SelectItem>
+                                                <SelectItem value="partner">Partner</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                </TableCell>
                                 <TableCell>{getStatusIndicator(user.status)}</TableCell>
                                 <TableCell className="text-muted-foreground">{user.lastActive || '-'}</TableCell>
                                 <TableCell className="text-right pr-4">

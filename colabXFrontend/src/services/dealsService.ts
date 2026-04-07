@@ -45,6 +45,8 @@ export interface ApiDealDetailsResponse {
         name: string;
     } | null;
     assignments: ApiDealAssignment[];
+    tasks: ApiDealTask[];
+    documents: ApiDealDocument[];
     activities: Array<{ id: string; action: string; user: string; timestamp: string }>;
 }
 
@@ -65,6 +67,51 @@ export interface UpdateDealInput {
     description?: string | null;
     value?: number | null;
     stage?: ApiDealStage;
+}
+
+export interface ApiDealTask {
+    id: string;
+    dealId: string;
+    title: string;
+    description: string | null;
+    assigneeUserId: string | null;
+    assigneeName?: string | null;
+    status: 'todo' | 'in_progress' | 'done';
+    dueDate: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateDealTaskInput {
+    title: string;
+    description?: string;
+    assigneeUserId?: string;
+    dueDate?: string;
+}
+
+export interface UpdateDealTaskInput {
+    title?: string;
+    description?: string | null;
+    assigneeUserId?: string | null;
+    status?: 'todo' | 'in_progress' | 'done';
+    dueDate?: string | null;
+}
+
+export interface ApiDealDocument {
+    id: string;
+    dealId: string;
+    fileName: string;
+    fileUrl: string;
+    visibility: 'shared' | 'internal';
+    uploadedBy: string;
+    uploaderName?: string | null;
+    uploadedAt: string;
+}
+
+export interface CreateDealDocumentInput {
+    fileName: string;
+    fileUrl: string;
+    visibility?: 'shared' | 'internal';
 }
 
 function buildHeaders(orgId: string): HeadersInit {
@@ -141,6 +188,24 @@ export async function updateDeal(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to update deal');
+    }
+
+    return response.json();
+}
+
+export async function deleteDeal(
+    orgId: string,
+    dealId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete deal');
     }
 
     return response.json();
@@ -270,6 +335,141 @@ export async function deleteDealMessage(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to delete message');
+    }
+
+    return response.json();
+}
+
+export async function getDealTasks(
+    orgId: string,
+    dealId: string
+): Promise<{ tasks: ApiDealTask[] }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/tasks`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch tasks');
+    }
+
+    return response.json();
+}
+
+export async function createDealTask(
+    orgId: string,
+    dealId: string,
+    input: CreateDealTaskInput
+): Promise<{ task: ApiDealTask }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/tasks`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create task');
+    }
+
+    return response.json();
+}
+
+export async function updateDealTask(
+    orgId: string,
+    dealId: string,
+    taskId: string,
+    input: UpdateDealTaskInput
+): Promise<{ task: ApiDealTask }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/tasks/${taskId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update task');
+    }
+
+    return response.json();
+}
+
+export async function deleteDealTask(
+    orgId: string,
+    dealId: string,
+    taskId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/tasks/${taskId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete task');
+    }
+
+    return response.json();
+}
+
+export async function getDealDocuments(
+    orgId: string,
+    dealId: string
+): Promise<{ documents: ApiDealDocument[] }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/documents`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch deal documents');
+    }
+
+    return response.json();
+}
+
+export async function createDealDocument(
+    orgId: string,
+    dealId: string,
+    input: CreateDealDocumentInput
+): Promise<{ document: ApiDealDocument }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+        body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload deal document');
+    }
+
+    return response.json();
+}
+
+export async function deleteDealDocument(
+    orgId: string,
+    dealId: string,
+    documentId: string
+): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/deals/${dealId}/documents/${documentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete deal document');
     }
 
     return response.json();

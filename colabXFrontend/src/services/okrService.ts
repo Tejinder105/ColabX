@@ -5,8 +5,10 @@ export type ApiKeyResultStatus = 'on_track' | 'at_risk' | 'off_track';
 export interface ApiObjective {
     id: string;
     orgId: string;
-    partnerId: string;
+    partnerId: string | null;
+    teamId?: string | null;
     partnerName: string | null;
+    teamName?: string | null;
     title: string;
     description: string | null;
     startDate: string;
@@ -16,7 +18,8 @@ export interface ApiObjective {
 }
 
 export interface CreateObjectiveInput {
-    partnerId: string;
+    partnerId?: string;
+    teamId?: string;
     title: string;
     description?: string;
     startDate: string;
@@ -38,7 +41,9 @@ export interface ApiObjectiveDetails {
         id: string;
         orgId: string;
         partnerId: string;
+        teamId?: string | null;
         partnerName: string | null;
+        teamName?: string | null;
         title: string;
         description: string | null;
         startDate: string;
@@ -59,15 +64,33 @@ export interface ApiPartnerScore {
     calculatedOn: string;
 }
 
+export interface ApiPartnerPerformanceSummary {
+    partner: unknown;
+    score: ApiPartnerScore | null;
+    activeObjectives: ApiObjective[];
+    completionRate: number;
+    objectiveCount: number;
+}
+
+export interface ApiTeamPerformanceSummary {
+    team: unknown;
+    objectives: ApiObjective[];
+    completionRate: number;
+    activeObjectives: number;
+    atRiskObjectives: number;
+}
+
 export interface UpdateObjectiveInput {
     title?: string;
     description?: string | null;
     partnerId?: string;
+    teamId?: string | null;
     startDate?: string;
     endDate?: string;
 }
 
 export interface CreateKeyResultInput {
+    title: string;
     targetValue: number;
     currentValue?: number;
     status?: ApiKeyResultStatus;
@@ -229,6 +252,42 @@ export async function getPartnerScore(
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to fetch partner score');
+    }
+
+    return response.json();
+}
+
+export async function getPartnerPerformance(
+    orgId: string,
+    partnerId: string
+): Promise<ApiPartnerPerformanceSummary> {
+    const response = await fetch(`${API_BASE}/okr/partners/${partnerId}/performance`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch partner performance');
+    }
+
+    return response.json();
+}
+
+export async function getTeamPerformance(
+    orgId: string,
+    teamId: string
+): Promise<ApiTeamPerformanceSummary> {
+    const response = await fetch(`${API_BASE}/okr/teams/${teamId}/performance`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: buildHeaders(orgId),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch team performance');
     }
 
     return response.json();

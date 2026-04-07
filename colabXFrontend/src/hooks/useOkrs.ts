@@ -8,7 +8,9 @@ import {
     deleteObjective,
     getObjectives,
     getObjectiveById,
+    getPartnerPerformance,
     getPartnerScore,
+    getTeamPerformance,
     updateKeyResult,
     updateObjective,
     type CreateKeyResultInput,
@@ -87,7 +89,7 @@ function mapObjective(details: ApiObjectiveDetails): Objective {
     return {
         id: details.objective.id,
         title: details.objective.title,
-        owner: details.objective.partnerName ?? 'Unknown Partner',
+        owner: details.objective.partnerName ?? details.objective.teamName ?? 'Unassigned',
         progress,
         deadline: details.objective.endDate,
         status,
@@ -285,5 +287,27 @@ export function usePartnerScore(partnerId: string | null | undefined) {
         queryFn: () => getPartnerScore(activeOrgId!, partnerId!),
         enabled: !!partnerId && !!activeOrgId,
         staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+}
+
+export function usePartnerPerformance(partnerId: string | null | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['partner-performance', activeOrgId, partnerId],
+        queryFn: () => getPartnerPerformance(activeOrgId!, partnerId!),
+        enabled: !!partnerId && !!activeOrgId,
+        staleTime: 1000 * 60 * 5,
+    });
+}
+
+export function useTeamPerformance(teamId: string | null | undefined) {
+    const activeOrgId = useAuthStore((state) => state.activeOrgId);
+
+    return useQuery({
+        queryKey: ['team-performance', activeOrgId, teamId],
+        queryFn: () => getTeamPerformance(activeOrgId!, teamId!),
+        enabled: !!teamId && !!activeOrgId,
+        staleTime: 1000 * 60 * 5,
     });
 }

@@ -18,7 +18,7 @@ interface ObjectivesTableProps {
     objectives: Objective[];
     onUpdateObjective?: (objectiveId: string, input: { title?: string; endDate?: string }) => void;
     onDeleteObjective?: (objectiveId: string) => void;
-    onCreateKeyResult?: (objectiveId: string, targetValue: number, currentValue: number) => void;
+    onCreateKeyResult?: (objectiveId: string, title: string, targetValue: number, currentValue: number) => void;
     onUpdateKeyResult?: (keyResultId: string, currentValue: number) => void;
     isMutating?: boolean;
 }
@@ -38,7 +38,7 @@ export function ObjectivesTable({
     const [editDeadline, setEditDeadline] = useState('');
     const [keyResultDrafts, setKeyResultDrafts] = useState<Record<string, string>>({});
     const [newKeyResultDrafts, setNewKeyResultDrafts] = useState<
-        Record<string, { targetValue: string; currentValue: string }>
+        Record<string, { title: string; targetValue: string; currentValue: string }>
     >({});
 
     const toggleRow = (id: string) => {
@@ -75,23 +75,37 @@ export function ObjectivesTable({
             [objectiveId]: {
                 targetValue: prev[objectiveId]?.targetValue ?? '',
                 currentValue: prev[objectiveId]?.currentValue ?? '',
+                title: prev[objectiveId]?.title ?? '',
                 [field]: value,
+            },
+        }));
+    };
+
+    const setNewKeyResultTitle = (objectiveId: string, title: string) => {
+        setNewKeyResultDrafts((prev) => ({
+            ...prev,
+            [objectiveId]: {
+                title,
+                targetValue: prev[objectiveId]?.targetValue ?? '',
+                currentValue: prev[objectiveId]?.currentValue ?? '',
             },
         }));
     };
 
     const handleCreateKeyResult = (objectiveId: string) => {
         const draft = newKeyResultDrafts[objectiveId];
+        const title = draft?.title?.trim() ?? '';
         const targetValue = Number(draft?.targetValue ?? NaN);
         const currentValue = Number(draft?.currentValue ?? NaN);
 
+        if (!title) return;
         if (!Number.isFinite(targetValue) || targetValue <= 0) return;
         if (!Number.isFinite(currentValue) || currentValue < 0) return;
 
-        onCreateKeyResult?.(objectiveId, targetValue, currentValue);
+        onCreateKeyResult?.(objectiveId, title, targetValue, currentValue);
         setNewKeyResultDrafts((prev) => ({
             ...prev,
-            [objectiveId]: { targetValue: '', currentValue: '' },
+            [objectiveId]: { title: '', targetValue: '', currentValue: '' },
         }));
     };
 
@@ -262,8 +276,13 @@ export function ObjectivesTable({
                                                         </div>
                                                     ))}
 
-                                                    <div className="grid grid-cols-[1fr_200px_170px_auto] items-center gap-6 pt-2 border-t">
-                                                        <span className="text-sm text-muted-foreground font-medium">New Key Result</span>
+                                                    <div className="grid grid-cols-[1fr_140px_140px_auto] items-center gap-6 pt-2 border-t">
+                                                        <Input
+                                                            placeholder="Key result title"
+                                                            value={newKeyResultDrafts[objective.id]?.title ?? ''}
+                                                            onChange={(e) => setNewKeyResultTitle(objective.id, e.target.value)}
+                                                            className="h-8"
+                                                        />
                                                         <Input
                                                             type="number"
                                                             min={0}

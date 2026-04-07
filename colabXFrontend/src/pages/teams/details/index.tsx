@@ -25,6 +25,7 @@ import {
     useTeamActivity,
 } from '@/hooks/useTeams';
 import { useOrgMembers } from '@/hooks/useOrg';
+import { useTeamPerformance } from '@/hooks/useOkrs';
 import { useAuthStore } from '@/stores/authStore';
 import type { TeamMember, TeamPartner, TeamDeal, TeamObjective, TeamActivity as TeamActivityType } from '@/types/team';
 import type {
@@ -123,6 +124,7 @@ export default function TeamDetailsPage() {
     const { data: partnersData } = useTeamPartners(id);
     const { data: dealsData } = useTeamDeals(id);
     const { data: objectivesData } = useTeamObjectives(id);
+    const { data: teamPerformanceData } = useTeamPerformance(id);
     const { data: activityData } = useTeamActivity(id);
     const { data: orgMembersData } = useOrgMembers(activeOrgId);
 
@@ -311,6 +313,23 @@ export default function TeamDetailsPage() {
             {!isEditing && team.description && (
                 <div className="bg-muted/50 p-4 rounded-lg border text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">Mission:</span> {team.description}
+                </div>
+            )}
+
+            {!isEditing && teamPerformanceData && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border bg-card p-4">
+                        <p className="text-xs text-muted-foreground">Completion Rate</p>
+                        <p className="text-2xl font-semibold">{Math.round(teamPerformanceData.completionRate)}%</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-4">
+                        <p className="text-xs text-muted-foreground">Active Objectives</p>
+                        <p className="text-2xl font-semibold">{teamPerformanceData.activeObjectives}</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-4">
+                        <p className="text-xs text-muted-foreground">At Risk Objectives</p>
+                        <p className="text-2xl font-semibold">{teamPerformanceData.atRiskObjectives}</p>
+                    </div>
                 </div>
             )}
 
