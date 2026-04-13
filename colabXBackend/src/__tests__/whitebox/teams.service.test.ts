@@ -51,17 +51,20 @@ mockSet.mockReturnValue({ where: mockWhere });
 mockDelete.mockReturnValue({ where: mockWhere });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
 
-jest.unstable_mockModule('../db/index.js', () => ({
-    default: {
-        select: mockSelect,
-        insert: mockInsert,
-        update: mockUpdate,
-        delete: mockDelete,
-    },
+const mockDb = {
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+    transaction: jest.fn(async (callback: (tx: typeof mockDb) => unknown) => callback(mockDb)),
+};
+
+jest.unstable_mockModule('../../db/index.js', () => ({
+    default: mockDb,
 }));
 
 // Import after mocking
-const teamsService = await import('../teams/teams.service.js');
+const teamsService = await import('../../teams/teams.service.js');
 
 describe('Teams Service - Whitebox Tests', () => {
     beforeEach(() => {
@@ -95,6 +98,7 @@ describe('Teams Service - Whitebox Tests', () => {
         mockSet.mockReturnValue({ where: mockWhere });
         mockDelete.mockReturnValue({ where: mockWhere });
         mockOrderBy.mockReturnValue({ limit: mockLimit });
+        mockDb.transaction.mockImplementation(async (callback: (tx: typeof mockDb) => unknown) => callback(mockDb));
     });
 
     describe('createTeam', () => {
@@ -114,7 +118,8 @@ describe('Teams Service - Whitebox Tests', () => {
 
             expect(mockInsert).toHaveBeenCalled();
             expect(mockValues).toHaveBeenCalled();
-            expect(result).toEqual(mockTeam);
+            expect(result.team).toEqual(mockTeam);
+            expect(result.members).toEqual([]);
         });
 
         it('should create a team with optional description', async () => {
@@ -134,7 +139,7 @@ describe('Teams Service - Whitebox Tests', () => {
                 description: 'Team description',
             });
 
-            expect(result.description).toBe('Team description');
+            expect(result.team.description).toBe('Team description');
         });
 
         it('should handle empty description as null', async () => {
@@ -154,7 +159,7 @@ describe('Teams Service - Whitebox Tests', () => {
                 description: undefined,
             });
 
-            expect(result.description).toBeNull();
+            expect(result.team.description).toBeNull();
         });
     });
 
@@ -164,16 +169,38 @@ describe('Teams Service - Whitebox Tests', () => {
                 { id: 'team-1', name: 'Team 1', memberCount: 3 },
                 { id: 'team-2', name: 'Team 2', memberCount: 5 },
             ];
-            mockGroupBy.mockResolvedValueOnce(mockTeams);
+            mockOrderBy
+                .mockResolvedValueOnce(mockTeams)
+                .mockResolvedValueOnce([]);
+            mockGroupBy
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce([]);
 
             const result = await teamsService.getOrgTeams('org-1');
 
             expect(mockSelect).toHaveBeenCalled();
-            expect(result).toEqual(mockTeams);
+            expect(result).toEqual([
+                {
+                    ...mockTeams[0],
+                    lead: null,
+                    memberCount: 0,
+                    partnerCount: 0,
+                    dealCount: 0,
+                    isActive: false,
+                },
+                {
+                    ...mockTeams[1],
+                    lead: null,
+                    memberCount: 0,
+                    partnerCount: 0,
+                    dealCount: 0,
+                    isActive: false,
+                },
+            ]);
         });
 
         it('should return empty array for org with no teams', async () => {
-            mockGroupBy.mockResolvedValueOnce([]);
+            mockOrderBy.mockResolvedValueOnce([]);
 
             const result = await teamsService.getOrgTeams('org-no-teams');
 
@@ -331,6 +358,7 @@ describe('Teams Service - Whitebox Tests', () => {
     describe('updateTeamMemberRole', () => {
         it('should update role from member to lead', async () => {
             const mockUpdated = { id: 'member-1', role: 'lead' };
+            mockLimit.mockResolvedValueOnce([{ id: 'member-1', role: 'member' }]);
             mockReturning.mockResolvedValueOnce([mockUpdated]);
 
             const result = await teamsService.updateTeamMemberRole('team-1', 'user-1', 'lead');
@@ -339,18 +367,19 @@ describe('Teams Service - Whitebox Tests', () => {
         });
 
         it('should update role from lead to member', async () => {
-            const mockUpdated = { id: 'member-1', role: 'member' };
-            mockReturning.mockResolvedValueOnce([mockUpdated]);
+            mockLimit.mockResolvedValueOnce([{ id: 'member-1', role: 'member' }]);
+            mockReturning.mockResolvedValueOnce([{ id: 'member-1', role: 'member' }]);
 
             const result = await teamsService.updateTeamMemberRole('team-1', 'user-1', 'member');
 
-            expect(result.role).toBe('member');
+            expect(result?.role).toBe('member');
         });
     });
 
     describe('removeTeamMember', () => {
         it('should remove member and return deleted record', async () => {
             const mockDeleted = [{ id: 'member-1', userId: 'user-1' }];
+            mockLimit.mockResolvedValueOnce([{ id: 'member-1', userId: 'user-1', role: 'member' }]);
             mockReturning.mockResolvedValueOnce(mockDeleted);
 
             const result = await teamsService.removeTeamMember('team-1', 'user-1');
@@ -385,7 +414,7 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('getTeamPartners', () => {
         it('should return empty array when team has no members', async () => {
-            mockWhere.mockResolvedValueOnce([]);
+            mockOrderBy.mockResolvedValueOnce([]);
 
             const result = await teamsService.getTeamPartners('team-no-members', 'org-1');
 
@@ -395,7 +424,8 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('getTeamDeals', () => {
         it('should return empty array when team has no members', async () => {
-            mockWhere.mockResolvedValueOnce([]);
+            mockGroupBy.mockReturnValueOnce({ orderBy: mockOrderBy });
+            mockOrderBy.mockResolvedValueOnce([]);
 
             const result = await teamsService.getTeamDeals('team-no-members', 'org-1');
 
@@ -405,7 +435,9 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('getTeamObjectives', () => {
         it('should return empty array when team has no members', async () => {
-            mockWhere.mockResolvedValueOnce([]);
+            mockWhere
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce([]);
 
             const result = await teamsService.getTeamObjectives('team-no-members', 'org-1');
 
@@ -415,7 +447,11 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('getTeamActivity', () => {
         it('should return empty array when team has no members', async () => {
-            mockWhere.mockResolvedValueOnce([]);
+            mockWhere
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce([]);
+            mockGroupBy.mockReturnValueOnce({ orderBy: mockOrderBy });
+            mockOrderBy.mockResolvedValueOnce([]);
 
             const result = await teamsService.getTeamActivity('team-no-members', 'org-1');
 

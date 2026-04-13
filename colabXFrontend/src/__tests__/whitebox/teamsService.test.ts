@@ -101,7 +101,7 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('createTeam', () => {
         it('should create team with name only', async () => {
-            const input = { name: 'New Team' };
+            const input = { name: 'New Team', leadUserId: 'u-lead' };
             const mockCreated = { id: 'team-new', ...input, memberCount: 0 };
 
             mockFetch.mockResolvedValueOnce({
@@ -122,7 +122,11 @@ describe('Teams Service - Whitebox Tests', () => {
         });
 
         it('should create team with description', async () => {
-            const input = { name: 'Full Team', description: 'A complete team' };
+            const input = {
+                name: 'Full Team',
+                description: 'A complete team',
+                leadUserId: 'u-lead',
+            };
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,

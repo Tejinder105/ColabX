@@ -48,7 +48,7 @@ mockUpdate.mockReturnValue({ set: mockSet });
 mockSet.mockReturnValue({ where: mockWhere });
 mockDelete.mockReturnValue({ where: mockWhere });
 
-jest.unstable_mockModule('../db/index.js', () => ({
+jest.unstable_mockModule('../../db/index.js', () => ({
     default: {
         select: mockSelect,
         insert: mockInsert,
@@ -58,7 +58,7 @@ jest.unstable_mockModule('../db/index.js', () => ({
 }));
 
 // Import after mocking
-const dealsService = await import('../deals/deals.service.js');
+const dealsService = await import('../../deals/deals.service.js');
 
 describe('Deals Service - Whitebox Tests', () => {
     beforeEach(() => {
@@ -109,6 +109,7 @@ describe('Deals Service - Whitebox Tests', () => {
 
             const result = await dealsService.createDeal('org-1', 'user-1', {
                 partnerId: 'partner-1',
+                teamId: 'team-1',
                 title: 'Enterprise License',
             });
 
@@ -128,6 +129,7 @@ describe('Deals Service - Whitebox Tests', () => {
 
             const result = await dealsService.createDeal('org-1', 'user-1', {
                 partnerId: 'partner-1',
+                teamId: 'team-1',
                 title: 'Cloud Migration',
                 description: 'Full cloud migration project',
             });
@@ -145,6 +147,7 @@ describe('Deals Service - Whitebox Tests', () => {
 
             const result = await dealsService.createDeal('org-1', 'user-1', {
                 partnerId: 'partner-1',
+                teamId: 'team-1',
                 title: 'Big Deal',
                 value: 50000,
             });
@@ -162,6 +165,7 @@ describe('Deals Service - Whitebox Tests', () => {
 
             const result = await dealsService.createDeal('org-1', 'user-1', {
                 partnerId: 'partner-1',
+                teamId: 'team-1',
                 title: 'Free Trial',
                 value: 0,
             });
@@ -256,10 +260,16 @@ describe('Deals Service - Whitebox Tests', () => {
                 partnerId: 'partner-1',
             };
             mockLimit.mockResolvedValueOnce([mockDeal]); // Deal query
-            mockWhere.mockResolvedValueOnce([
-                { id: 'assign-1', userId: 'user-1', userName: 'John' },
-            ]); // Assignments query
             mockLimit.mockResolvedValueOnce([{ id: 'partner-1', name: 'Partner Corp' }]); // Partner query
+            mockWhere
+                .mockReturnValueOnce({
+                    limit: mockLimit,
+                    groupBy: mockGroupBy,
+                    returning: mockReturning,
+                })
+                .mockResolvedValueOnce([
+                    { id: 'assign-1', userId: 'user-1', userName: 'John' },
+                ]); // Assignments query
 
             const result = await dealsService.getDealWithDetails('deal-1');
 
@@ -269,8 +279,14 @@ describe('Deals Service - Whitebox Tests', () => {
 
         it('should handle deal without partner', async () => {
             mockLimit.mockResolvedValueOnce([{ id: 'deal-1', partnerId: null }]);
-            mockWhere.mockResolvedValueOnce([]);
             mockLimit.mockResolvedValueOnce([]);
+            mockWhere
+                .mockReturnValueOnce({
+                    limit: mockLimit,
+                    groupBy: mockGroupBy,
+                    returning: mockReturning,
+                })
+                .mockResolvedValueOnce([]);
 
             const result = await dealsService.getDealWithDetails('deal-1');
 

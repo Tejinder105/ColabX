@@ -8,18 +8,35 @@
  * 4. User is linked to partner with status="active"
  */
 
-import { describe, it, expect, beforeEach, afterAll } from "@jest/globals";
-import { eq, and } from "drizzle-orm";
-import db from "../db/index.js";
-import { user } from "../schemas/authSchema.js";
-import { organization, orgUser, invitation } from "../schemas/orgSchema.js";
-import { partner } from "../partners/partners.schema.js";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 
-describe("Partner Auto-Creation on Invitation Acceptance", () => {
+let eq: typeof import("drizzle-orm").eq;
+let and: typeof import("drizzle-orm").and;
+let db: typeof import("../db/index.js").default;
+let user: typeof import("../schemas/authSchema.js").user;
+let organization: typeof import("../schemas/orgSchema.js").organization;
+let orgUser: typeof import("../schemas/orgSchema.js").orgUser;
+let invitation: typeof import("../schemas/orgSchema.js").invitation;
+let partner: typeof import("../partners/partners.schema.js").partner;
+
+const runDatabaseIntegrationTests =
+  !!process.env.DATABASE_URL && !!process.env.BETTER_AUTH_SECRET;
+
+const describeIfDatabase = runDatabaseIntegrationTests ? describe : describe.skip;
+
+describeIfDatabase("Partner Auto-Creation on Invitation Acceptance", () => {
   let testOrg: typeof organization.$inferSelect;
   let adminUser: typeof user.$inferSelect;
   let partnerUser: typeof user.$inferSelect;
   let invitationRecord: typeof invitation.$inferSelect;
+
+  beforeAll(async () => {
+    ({ eq, and } = await import("drizzle-orm"));
+    ({ default: db } = await import("../db/index.js"));
+    ({ user } = await import("../schemas/authSchema.js"));
+    ({ organization, orgUser, invitation } = await import("../schemas/orgSchema.js"));
+    ({ partner } = await import("../partners/partners.schema.js"));
+  });
 
   beforeEach(async () => {
     // Create test organization
