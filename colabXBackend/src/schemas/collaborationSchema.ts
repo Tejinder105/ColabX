@@ -100,7 +100,7 @@ export const documentRelations = relations(document, ({ one }) => ({
     }),
     uploader: one(user, {
         fields: [document.uploadedByUserId],
-        references: [user.id],
+                         references: [user.id],
     }),
 }));
 
