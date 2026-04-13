@@ -49,15 +49,15 @@ export async function getReportsDashboardHandler(req: AuthRequest, res: Response
         }
 
         const [partners, deals, objectives] = await Promise.all([
-            getOrgPartners(req.org.id),
-            getOrgDeals(req.org.id),
-            getOrgObjectives(req.org.id),
+            getOrgPartners(req.org.organizationId),
+            getOrgDeals(req.org.organizationId),
+            getOrgObjectives(req.org.organizationId),
         ]);
 
         const partnerScores = await Promise.all(
             partners.map(async (partner) => {
-                const score = await getLatestPartnerScore(partner.id);
-                return { partnerId: partner.id, score: Math.round(score?.score ?? 0) };
+                const score = await getLatestPartnerScore(partner.partnerId);
+                return { partnerId: partner.partnerId, score: Math.round(score?.score ?? 0) };
             })
         );
         const scoreMap = new Map(partnerScores.map((item) => [item.partnerId, item.score]));
@@ -68,7 +68,7 @@ export async function getReportsDashboardHandler(req: AuthRequest, res: Response
         const previousStart = now - windowMs * 2;
 
         const partnerMetrics = partners.map((partner) => {
-            const partnerDeals = deals.filter((deal) => deal.partnerId === partner.id);
+            const partnerDeals = deals.filter((deal) => deal.partnerId === partner.partnerId);
             const wonDeals = partnerDeals.filter((deal) => deal.stage === "won");
             const revenue = wonDeals.reduce((sum, deal) => sum + (deal.value ?? 0), 0);
             const dealsClosed = wonDeals.length;
@@ -89,7 +89,7 @@ export async function getReportsDashboardHandler(req: AuthRequest, res: Response
 
             return {
                 partnerName: partner.name,
-                performanceScore: scoreMap.get(partner.id) ?? 0,
+                performanceScore: scoreMap.get(partner.partnerId) ?? 0,
                 revenue,
                 dealsClosed,
                 growthPercent: growthPercent(currentRevenue, previousRevenue),
@@ -124,7 +124,7 @@ export async function getReportsDashboardHandler(req: AuthRequest, res: Response
         }));
 
         const objectiveDetails = await Promise.all(
-            objectives.map((objective) => getObjectiveWithKeyResults(objective.id))
+            objectives.map((objective) => getObjectiveWithKeyResults(objective.objectiveId))
         );
 
         let objectivesCompleted = 0;

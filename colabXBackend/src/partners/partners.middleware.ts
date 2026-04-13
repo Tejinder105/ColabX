@@ -21,7 +21,7 @@ export async function requirePartner(
         }
 
         // orgId filter enforces cross-tenant isolation
-        const partnerRow = await getPartnerById(partnerId, req.org.id);
+        const partnerRow = await getPartnerById(partnerId, req.org.organizationId);
 
         if (!partnerRow) {
             res.status(404).json({ error: "Partner not found" });
@@ -29,12 +29,12 @@ export async function requirePartner(
         }
 
         req.partner = {
-            id: partnerRow.id,
+            partnerId: partnerRow.partnerId,
             name: partnerRow.name,
             type: partnerRow.type,
             status: partnerRow.status,
-            orgId: partnerRow.orgId,
-            createdBy: partnerRow.createdBy,
+            organizationId: partnerRow.organizationId,
+            createdByUserId: partnerRow.createdByUserId,
             userId: partnerRow.userId,
         };
 

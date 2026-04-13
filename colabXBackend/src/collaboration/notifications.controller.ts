@@ -25,7 +25,7 @@ export async function getNotificationsHandler(req: AuthRequest, res: Response) {
 
         const notifications = await getUserNotifications(
             req.user.id,
-            req.org.id,
+            req.org.organizationId,
             partnerId,
             unreadOnly
         );
@@ -78,7 +78,7 @@ export async function getAlertsSummaryHandler(req: AuthRequest, res: Response) {
 
         const { alerts, summary } = await getAlertsSummary(
             req.user.id,
-            req.org.id,
+            req.org.organizationId,
             partnerId
         );
 
@@ -101,9 +101,9 @@ export async function checkAlertsHandler(req: AuthRequest, res: Response) {
             return;
         }
 
-        await checkMissedDeadlines(req.org.id);
-        await checkLowOKRProgress(req.org.id);
-        await checkPendingActions(req.org.id);
+        await checkMissedDeadlines(req.org.organizationId);
+        await checkLowOKRProgress(req.org.organizationId);
+        await checkPendingActions(req.org.organizationId);
 
         res.json({ success: true, message: "Alerts checked and created" });
     } catch (error) {

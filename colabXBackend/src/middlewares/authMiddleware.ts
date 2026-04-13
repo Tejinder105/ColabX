@@ -15,49 +15,49 @@ export interface AuthRequest extends Request {
         userId: string;
     };
     org?: {
-        id: string;
+        organizationId: string;
         name: string;
         slug: string;
     };
     membership?: {
-        id: string;
+        orgUserId: string;
         role: OrgRole;
         joinedAt: Date;
     };
     team?: {
-        id: string;
+        teamId: string;
         name: string;
         description: string | null;
-        orgId: string;
-        createdBy: string | null;
+        organizationId: string;
+        createdByUserId: string | null;
     };
     partner?: {
-        id: string;
+        partnerId: string;
         name: string;
         type: "reseller" | "agent" | "technology" | "distributor";
         status: "pending" | "active" | "inactive" | "suspended";
-        orgId: string;
-        createdBy: string | null;
+        organizationId: string;
+        createdByUserId: string | null;
         userId: string | null;
     };
     deal?: {
-        id: string;
+        dealId: string;
         title: string;
         partnerId: string;
         teamId: string | null;
         stage: "lead" | "proposal" | "negotiation" | "won" | "lost";
-        orgId: string;
-        createdBy: string | null;
+        organizationId: string;
+        createdByUserId: string | null;
     };
     objective?: {
-        id: string;
+        objectiveId: string;
         title: string;
         partnerId: string | null;
         teamId: string | null;
-        orgId: string;
+        organizationId: string;
     };
     keyResult?: {
-        id: string;
+        keyResultId: string;
         objectiveId: string;
         title: string;
         targetValue: number;

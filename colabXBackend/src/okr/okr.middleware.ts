@@ -25,7 +25,7 @@ export async function requireObjective(
             return;
         }
 
-        const objectiveRow = await getObjectiveById(objectiveId, req.org.id);
+        const objectiveRow = await getObjectiveById(objectiveId, req.org.organizationId);
 
         if (!objectiveRow) {
             res.status(404).json({ error: "Objective not found" });
@@ -33,11 +33,11 @@ export async function requireObjective(
         }
 
         req.objective = {
-            id: objectiveRow.id,
+            objectiveId: objectiveRow.objectiveId,
             title: objectiveRow.title,
             partnerId: objectiveRow.partnerId,
             teamId: objectiveRow.teamId,
-            orgId: objectiveRow.orgId,
+            organizationId: objectiveRow.organizationId,
         };
 
         next();
@@ -70,13 +70,13 @@ export async function requireKeyResult(
 
         const krRow = await getKeyResultById(keyResultId);
 
-        if (!krRow || krRow.orgId !== req.org.id) {
+        if (!krRow || krRow.organizationId !== req.org.organizationId) {
             res.status(404).json({ error: "Key result not found" });
             return;
         }
 
         req.keyResult = {
-            id: krRow.id,
+            keyResultId: krRow.keyResultId,
             objectiveId: krRow.objectiveId,
             title: krRow.title,
             targetValue: krRow.targetValue,
@@ -109,7 +109,7 @@ export async function requireObjectiveAccess(
 
         if (req.membership.role === "manager" || req.membership.role === "member") {
             const scopedTeamIds = await getScopedTeamIdsForUser(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 req.membership.role
             );
@@ -140,9 +140,9 @@ export async function requireObjectiveAccess(
             return;
         }
 
-        const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
+        const userPartners = await getOrgPartnersForUser(req.org.organizationId, req.user.id);
         const canAccess = userPartners.some(
-            (partnerRow) => partnerRow.id === req.objective?.partnerId
+            (partnerRow) => partnerRow.partnerId === req.objective?.partnerId
         );
 
         if (!canAccess) {
@@ -173,7 +173,7 @@ export async function requireKeyResultAccess(
             return;
         }
 
-        const objectiveRow = await getObjectiveById(req.keyResult.objectiveId, req.org.id);
+        const objectiveRow = await getObjectiveById(req.keyResult.objectiveId, req.org.organizationId);
         if (!objectiveRow) {
             res.status(403).json({ error: "Access denied to this key result" });
             return;
@@ -181,7 +181,7 @@ export async function requireKeyResultAccess(
 
         if (req.membership.role === "manager" || req.membership.role === "member") {
             const scopedTeamIds = await getScopedTeamIdsForUser(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 req.membership.role
             );
@@ -210,9 +210,9 @@ export async function requireKeyResultAccess(
             return;
         }
 
-        const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
+        const userPartners = await getOrgPartnersForUser(req.org.organizationId, req.user.id);
         const canAccess = userPartners.some(
-            (partnerRow) => partnerRow.id === objectiveRow.partnerId
+            (partnerRow) => partnerRow.partnerId === objectiveRow.partnerId
         );
 
         if (!canAccess) {

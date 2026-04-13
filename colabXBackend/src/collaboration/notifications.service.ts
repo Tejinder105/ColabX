@@ -9,8 +9,8 @@ export type AlertType = "missed_deadline" | "low_okr" | "pending_action";
 export type Severity = "info" | "warning" | "critical";
 
 export interface CreateAlertInput {
-    orgId: string;
-    recipientId: string;
+    organizationId: string;
+    recipientUserId: string;
     partnerId?: string;
     alertType: AlertType;
     title: string;
@@ -27,9 +27,9 @@ export async function createAlert(input: CreateAlertInput) {
     const notificationId = crypto.randomUUID();
     
     await db.insert(notification).values({
-        id: notificationId,
-        orgId: input.orgId,
-        recipientId: input.recipientId,
+        notificationId,
+        organizationId: input.organizationId,
+        recipientUserId: input.recipientUserId,
         partnerId: input.partnerId,
         alertType: input.alertType,
         title: input.title,
@@ -47,7 +47,7 @@ export async function createAlert(input: CreateAlertInput) {
  */
 export async function getUserNotifications(
     userId: string,
-    orgId: string,
+    organizationId: string,
     partnerId?: string,
     unreadOnly = false
 ) {
@@ -55,8 +55,8 @@ export async function getUserNotifications(
         .select()
         .from(notification)
         .where(and(
-            eq(notification.recipientId, userId),
-            eq(notification.orgId, orgId),
+            eq(notification.recipientUserId, userId),
+            eq(notification.organizationId, organizationId),
             unreadOnly ? eq(notification.read, false) : undefined,
             partnerId ? eq(notification.partnerId, partnerId) : undefined
         ))
@@ -73,13 +73,13 @@ export async function markAsRead(notificationId: string) {
     await db
         .update(notification)
         .set({ read: true, readAt: new Date() })
-        .where(eq(notification.id, notificationId));
+        .where(eq(notification.notificationId, notificationId));
 }
 
 /**
  * Check for missed objective deadlines
  */
-export async function checkMissedDeadlines(orgId: string) {
+export async function checkMissedDeadlines(organizationId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -88,7 +88,7 @@ export async function checkMissedDeadlines(orgId: string) {
         .select()
         .from(objective)
         .where(and(
-            eq(objective.orgId, orgId),
+            eq(objective.organizationId, organizationId),
             // endDate < today (in past)
         ));
 
@@ -102,21 +102,21 @@ export async function checkMissedDeadlines(orgId: string) {
                 const partnerRecord = await db
                     .select()
                     .from(partner)
-                    .where(eq(partner.id, obj.partnerId))
+                    .where(eq(partner.partnerId, obj.partnerId))
                     .limit(1);
 
                 const partnerRow = partnerRecord[0];
                 if (partnerRow?.userId) {
                     await createAlert({
-                        orgId,
-                        recipientId: partnerRow.userId,
+                        organizationId,
+                        recipientUserId: partnerRow.userId,
                         partnerId: obj.partnerId,
                         alertType: "missed_deadline",
                         title: "Objective Past Due",
                         message: `Your objective "${obj.title}" was due on ${obj.endDate} and is now overdue.`,
                         severity: "warning",
                         relatedEntityType: "objective",
-                        relatedEntityId: obj.id,
+                        relatedEntityId: obj.objectiveId,
                     });
                 }
             }
@@ -127,14 +127,14 @@ export async function checkMissedDeadlines(orgId: string) {
 /**
  * Check for low OKR progress (off-track key results)
  */
-export async function checkLowOKRProgress(orgId: string) {
+export async function checkLowOKRProgress(organizationId: string) {
     // Find all off-track key results
     const offTrackKRs = await db
         .select({ kr: keyResult, obj: objective })
         .from(keyResult)
-        .innerJoin(objective, eq(keyResult.objectiveId, objective.id))
+        .innerJoin(objective, eq(keyResult.objectiveId, objective.objectiveId))
         .where(and(
-            eq(objective.orgId, orgId),
+            eq(objective.organizationId, organizationId),
             eq(keyResult.status, "off_track")
         ));
 
@@ -143,21 +143,21 @@ export async function checkLowOKRProgress(orgId: string) {
             const partnerRecord = await db
                 .select()
                 .from(partner)
-                .where(eq(partner.id, obj.partnerId))
+                .where(eq(partner.partnerId, obj.partnerId))
                 .limit(1);
 
             const partnerRow = partnerRecord[0];
             if (partnerRow?.userId) {
                 await createAlert({
-                    orgId,
-                    recipientId: partnerRow.userId,
+                    organizationId,
+                    recipientUserId: partnerRow.userId,
                     partnerId: obj.partnerId,
                     alertType: "low_okr",
                     title: "Key Result Off Track",
                     message: `Key Result "${kr.title}" in objective "${obj.title}" is off track. Current: ${kr.currentValue}/${kr.targetValue}`,
                     severity: "warning",
                     relatedEntityType: "keyResult",
-                    relatedEntityId: kr.id,
+                    relatedEntityId: kr.keyResultId,
                 });
             }
         }
@@ -167,16 +167,16 @@ export async function checkLowOKRProgress(orgId: string) {
 /**
  * Check for pending/overdue deal tasks
  */
-export async function checkPendingActions(orgId: string) {
+export async function checkPendingActions(organizationId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     // Find overdue tasks that aren't done by joining with deal to get orgId
     const overdueTasks = await db
-        .select({ task: dealTask, dealOrgId: deal.orgId })
+        .select({ task: dealTask, dealOrgId: deal.organizationId })
         .from(dealTask)
-        .innerJoin(deal, eq(dealTask.dealId, deal.id))
-        .where(eq(deal.orgId, orgId));
+        .innerJoin(deal, eq(dealTask.dealId, deal.dealId))
+        .where(eq(deal.organizationId, organizationId));
 
     for (const { task } of overdueTasks) {
         if (task.status !== "done" && task.dueDate) {
@@ -185,14 +185,14 @@ export async function checkPendingActions(orgId: string) {
             
             if (dueDate < today && task.assigneeUserId) {
                 await createAlert({
-                    orgId,
-                    recipientId: task.assigneeUserId,
+                    organizationId,
+                    recipientUserId: task.assigneeUserId,
                     alertType: "pending_action",
                     title: "Task Overdue",
                     message: `Task "${task.title}" was due on ${task.dueDate} and is now overdue.`,
                     severity: "critical",
                     relatedEntityType: "dealTask",
-                    relatedEntityId: task.id,
+                    relatedEntityId: task.dealTaskId,
                 });
             }
         }
@@ -204,10 +204,10 @@ export async function checkPendingActions(orgId: string) {
  */
 export async function getAlertsSummary(
     userId: string,
-    orgId: string,
+    organizationId: string,
     partnerId?: string
 ) {
-    const alerts = await getUserNotifications(userId, orgId, partnerId, true);
+    const alerts = await getUserNotifications(userId, organizationId, partnerId, true);
     
     const summary = {
         total: alerts.length,

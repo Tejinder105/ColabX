@@ -4,3 +4,4 @@ tmpclaude-*-cwd
 *.resolved
 mermaid-diagram-*.png
 .md
+/colabxReport

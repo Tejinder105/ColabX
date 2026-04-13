@@ -27,14 +27,14 @@ function generateId(): string {
 }
 
 async function logActivitySafe(
-  orgId: string,
+  organizationId: string,
   userId: string,
   entityType: string,
   entityId: string,
   action: string,
 ): Promise<void> {
   try {
-    await createActivity(orgId, userId, entityType, entityId, action);
+    await createActivity(organizationId, userId, entityType, entityId, action);
   } catch (error) {
     console.error("Activity log write failed:", error);
   }
@@ -85,7 +85,7 @@ export async function createOrganization(
       const [created] = await tx
         .insert(organization)
         .values({
-          id: orgId,
+          organizationId: orgId,
           name,
           slug,
           logo: req.body.logo ?? null,
@@ -99,9 +99,9 @@ export async function createOrganization(
       }
 
       await tx.insert(orgUser).values({
-        id: generateId(),
+        orgUserId: generateId(),
         userId,
-        orgId: created.id,
+        organizationId: created.organizationId,
         role: "admin",
       });
 
@@ -130,14 +130,14 @@ export async function getUserOrganizations(
 
     const userOrgs = await db
       .select({
-        id: organization.id,
+        id: organization.organizationId,
         name: organization.name,
         slug: organization.slug,
         role: orgUser.role,
         joinedAt: orgUser.joinedAt,
       })
       .from(orgUser)
-      .innerJoin(organization, eq(orgUser.orgId, organization.id))
+      .innerJoin(organization, eq(orgUser.organizationId, organization.organizationId))
       .where(eq(orgUser.userId, userId));
 
     res.json({ organizations: userOrgs });
@@ -161,7 +161,7 @@ export async function getOrganizationById(
     const [orgRow] = await db
       .select()
       .from(organization)
-      .where(eq(organization.id, req.org.id))
+      .where(eq(organization.organizationId, req.org.organizationId))
       .limit(1);
 
     res.json({ organization: orgRow ?? req.org, role: req.membership.role });
@@ -189,7 +189,7 @@ export async function getOrganizationMembers(
 
     const members = await db
       .select({
-        id: orgUser.id,
+        id: orgUser.orgUserId,
         userId: orgUser.userId,
         role: orgUser.role,
         joinedAt: orgUser.joinedAt,
@@ -199,7 +199,7 @@ export async function getOrganizationMembers(
       })
       .from(orgUser)
       .innerJoin(user, eq(orgUser.userId, user.id))
-      .where(eq(orgUser.orgId, req.org.id));
+      .where(eq(orgUser.organizationId, req.org.organizationId));
 
     res.json({ members });
   } catch (error) {
@@ -239,7 +239,7 @@ export async function updateOrganization(
         .select()
         .from(organization)
         .where(
-          and(eq(organization.slug, slug), ne(organization.id, req.org.id)),
+          and(eq(organization.slug, slug), ne(organization.organizationId, req.org.organizationId)),
         )
         .limit(1);
 
@@ -269,15 +269,15 @@ export async function updateOrganization(
     const [updated] = await db
       .update(organization)
       .set(updates)
-      .where(eq(organization.id, req.org.id))
+      .where(eq(organization.organizationId, req.org.organizationId))
       .returning();
 
     if (updated && req.user) {
       await logActivitySafe(
-        req.org.id,
+        req.org.organizationId,
         req.user.id,
         "organization",
-        req.org.id,
+        req.org.organizationId,
         "updated organization profile",
       );
     }
@@ -309,15 +309,15 @@ export async function deleteOrganization(
 
     if (req.user) {
       await logActivitySafe(
-        req.org.id,
+        req.org.organizationId,
         req.user.id,
         "organization",
-        req.org.id,
+        req.org.organizationId,
         "deleted organization",
       );
     }
 
-    await db.delete(organization).where(eq(organization.id, req.org.id));
+    await db.delete(organization).where(eq(organization.organizationId, req.org.organizationId));
 
     res.json({ success: true });
   } catch (error) {
@@ -346,19 +346,19 @@ export async function changeMemberRole(
     const { role } = req.body as { role: OrgRole };
 
     // Prevent admin from changing their own role
-    if (memberId === req.membership.id) {
+    if (memberId === req.membership.orgUserId) {
       res.status(400).json({ error: "Cannot change your own role" });
       return;
     }
 
     const [memberRecord] = await db
       .select({
-        id: orgUser.id,
+        id: orgUser.orgUserId,
         userId: orgUser.userId,
         role: orgUser.role,
       })
       .from(orgUser)
-      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .where(and(eq(orgUser.orgUserId, memberId), eq(orgUser.organizationId, req.org.organizationId)))
       .limit(1);
 
     if (!memberRecord) {
@@ -369,7 +369,7 @@ export async function changeMemberRole(
     const assignmentCheck = await ensureRoleAssignmentAllowed(
       memberRecord.userId,
       role,
-      { orgId: req.org.id }
+      { organizationId: req.org.organizationId }
     );
 
     if (!assignmentCheck.allowed) {
@@ -379,9 +379,9 @@ export async function changeMemberRole(
 
     if (memberRecord.role === "admin" && role !== "admin") {
       const adminCount = await db
-        .select({ id: orgUser.id })
+        .select({ id: orgUser.orgUserId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.role, "admin")));
+        .where(and(eq(orgUser.organizationId, req.org.organizationId), eq(orgUser.role, "admin")));
 
       if (adminCount.length <= 1) {
         res.status(400).json({
@@ -394,7 +394,7 @@ export async function changeMemberRole(
     const [updated] = await db
       .update(orgUser)
       .set({ role })
-      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .where(and(eq(orgUser.orgUserId, memberId), eq(orgUser.organizationId, req.org.organizationId)))
       .returning();
 
     if (!updated) {
@@ -404,7 +404,7 @@ export async function changeMemberRole(
 
     if (req.user) {
       await logActivitySafe(
-        req.org.id,
+        req.org.organizationId,
         req.user.id,
         "organization_member",
         memberId,
@@ -438,7 +438,7 @@ export async function removeMember(
     const memberId = req.params.memberId as string;
 
     // Prevent admin from removing themselves
-    if (memberId === req.membership.id) {
+    if (memberId === req.membership.orgUserId) {
       res
         .status(400)
         .json({ error: "Cannot remove yourself from the organization" });
@@ -447,11 +447,11 @@ export async function removeMember(
 
     const [memberRecord] = await db
       .select({
-        id: orgUser.id,
+        id: orgUser.orgUserId,
         role: orgUser.role,
       })
       .from(orgUser)
-      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .where(and(eq(orgUser.orgUserId, memberId), eq(orgUser.organizationId, req.org.organizationId)))
       .limit(1);
 
     if (!memberRecord) {
@@ -461,9 +461,9 @@ export async function removeMember(
 
     if (memberRecord.role === "admin") {
       const adminCount = await db
-        .select({ id: orgUser.id })
+        .select({ id: orgUser.orgUserId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, req.org.id), eq(orgUser.role, "admin")));
+        .where(and(eq(orgUser.organizationId, req.org.organizationId), eq(orgUser.role, "admin")));
 
       if (adminCount.length <= 1) {
         res.status(400).json({
@@ -475,7 +475,7 @@ export async function removeMember(
 
     const deleted = await db
       .delete(orgUser)
-      .where(and(eq(orgUser.id, memberId), eq(orgUser.orgId, req.org.id)))
+      .where(and(eq(orgUser.orgUserId, memberId), eq(orgUser.organizationId, req.org.organizationId)))
       .returning();
 
     if (deleted.length === 0) {
@@ -485,7 +485,7 @@ export async function removeMember(
 
     if (req.user) {
       await logActivitySafe(
-        req.org.id,
+        req.org.organizationId,
         req.user.id,
         "organization_member",
         memberId,
@@ -553,7 +553,7 @@ export async function getOrganizationAuditLogs(
 
     const logs = await db
       .select({
-        id: activityLog.id,
+        id: activityLog.activityLogId,
         action: activityLog.action,
         entityType: activityLog.entityType,
         entityId: activityLog.entityId,
@@ -564,7 +564,7 @@ export async function getOrganizationAuditLogs(
       })
       .from(activityLog)
       .leftJoin(user, eq(activityLog.userId, user.id))
-      .where(eq(activityLog.orgId, req.org.id))
+      .where(eq(activityLog.organizationId, req.org.organizationId))
       .orderBy(desc(activityLog.createdAt))
       .limit(limit);
 
@@ -595,14 +595,14 @@ export async function getOrganizationIntegrityReport(
       db
         .select({
           userId: orgUser.userId,
-          orgId: orgUser.orgId,
+          organizationId: orgUser.organizationId,
           role: orgUser.role,
           email: user.email,
           name: user.name,
         })
         .from(orgUser)
         .innerJoin(user, eq(orgUser.userId, user.id))
-        .where(and(eq(orgUser.orgId, req.org.id))),
+        .where(and(eq(orgUser.organizationId, req.org.organizationId))),
       db
         .select({
           teamId: teamMember.teamId,
@@ -614,13 +614,13 @@ export async function getOrganizationIntegrityReport(
           userEmail: user.email,
         })
         .from(teamMember)
-        .innerJoin(team, eq(teamMember.teamId, team.id))
+        .innerJoin(team, eq(teamMember.teamId, team.teamId))
         .innerJoin(
           orgUser,
-          and(eq(orgUser.orgId, team.orgId), eq(orgUser.userId, teamMember.userId))
+          and(eq(orgUser.organizationId, team.organizationId), eq(orgUser.userId, teamMember.userId))
         )
         .innerJoin(user, eq(teamMember.userId, user.id))
-        .where(eq(team.orgId, req.org.id)),
+        .where(eq(team.organizationId, req.org.organizationId)),
       db
         .select({
           partnerId: teamPartner.partnerId,
@@ -628,17 +628,17 @@ export async function getOrganizationIntegrityReport(
           partnerName: user.name,
         })
         .from(teamPartner)
-        .innerJoin(team, eq(teamPartner.teamId, team.id))
-        .leftJoin(orgUser, and(eq(orgUser.orgId, team.orgId), eq(orgUser.userId, teamPartner.assignedBy)))
-        .where(eq(team.orgId, req.org.id)),
-      db.select({ id: team.id, name: team.name }).from(team).where(eq(team.orgId, req.org.id)),
+        .innerJoin(team, eq(teamPartner.teamId, team.teamId))
+        .leftJoin(orgUser, and(eq(orgUser.organizationId, team.organizationId), eq(orgUser.userId, teamPartner.assignedByUserId)))
+        .where(eq(team.organizationId, req.org.organizationId)),
+      db.select({ id: team.teamId, name: team.name }).from(team).where(eq(team.organizationId, req.org.organizationId)),
       db
         .select({
           teamId: teamMember.teamId,
         })
         .from(teamMember)
-        .innerJoin(team, eq(teamMember.teamId, team.id))
-        .where(and(eq(team.orgId, req.org.id), eq(teamMember.role, "lead"))),
+        .innerJoin(team, eq(teamMember.teamId, team.teamId))
+        .where(and(eq(team.organizationId, req.org.organizationId), eq(teamMember.role, "lead"))),
     ]);
 
     const internalUsersInMultipleOrgs = new Map<
@@ -652,7 +652,7 @@ export async function getOrganizationIntegrityReport(
 
     for (const membership of orgInternalMembers) {
       const hasOtherInternalMembership = await hasInternalMembership(membership.userId, {
-        excludeOrgId: req.org.id,
+        excludeOrgId: req.org.organizationId,
       });
 
       if (hasOtherInternalMembership) {

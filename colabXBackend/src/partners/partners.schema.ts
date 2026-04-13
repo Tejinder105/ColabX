@@ -28,10 +28,10 @@ export const partnerStatusEnum = pgEnum("partnerStatus", [
 export const partner = pgTable(
     "partner",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        partnerId: text("partnerId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         name: text("name").notNull(),
         type: partnerTypeEnum("type").notNull(),
         status: partnerStatusEnum("status").notNull().default("pending"),
@@ -43,7 +43,7 @@ export const partner = pgTable(
         onboardingDate: timestamp("onboardingDate"),
         score: real("score"),
         scoreCalculatedAt: timestamp("scoreCalculatedAt"),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -53,8 +53,8 @@ export const partner = pgTable(
             .notNull(),
     },
     (table) => [
-        index("partner_orgId_idx").on(table.orgId),
-        index("partner_createdBy_idx").on(table.createdBy),
+        index("partner_organizationId_idx").on(table.organizationId),
+        index("partner_createdByUserId_idx").on(table.createdByUserId),
         index("partner_userId_idx").on(table.userId),
         index("partner_status_idx").on(table.status),
     ]
@@ -63,8 +63,8 @@ export const partner = pgTable(
 // Relations
 export const partnerRelations = relations(partner, ({ one }) => ({
     organization: one(organization, {
-        fields: [partner.orgId],
-        references: [organization.id],
+        fields: [partner.organizationId],
+        references: [organization.organizationId],
     }),
     linkedUser: one(user, {
         fields: [partner.userId],
@@ -72,7 +72,7 @@ export const partnerRelations = relations(partner, ({ one }) => ({
         relationName: "partnerUser",
     }),
     creator: one(user, {
-        fields: [partner.createdBy],
+        fields: [partner.createdByUserId],
         references: [user.id],
         relationName: "partnerCreator",
     }),

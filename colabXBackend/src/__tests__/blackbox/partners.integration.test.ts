@@ -48,14 +48,14 @@ mockApp.post('/api/partners', (req: express.Request, res: express.Response) => {
 
     const partner = {
         id: `partner-${Date.now()}`,
-        orgId: mockOrg.id,
+        organizationId: mockOrg.id,
         name,
         type,
         status: 'active',
         contactEmail: contactEmail || null,
         industry: industry || null,
         onboardingDate: onboardingDate ? new Date(onboardingDate).toISOString() : null,
-        createdBy: mockUser.id,
+        createdByUserId: mockUser.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
@@ -293,7 +293,7 @@ describe('Partners API - Blackbox Tests', () => {
                 .expect(200);
 
             const partner = response.body.partners[0];
-            expect(partner.id).toBeDefined();
+            expect(partner.partnerId).toBeDefined();
             expect(partner.name).toBe('Full Partner');
             expect(partner.type).toBe('distributor');
             expect(partner.status).toBe('active');
@@ -309,7 +309,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .get(`/api/partners/${partnerId}`)
@@ -335,7 +335,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Old Name', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -349,7 +349,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -363,7 +363,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -377,7 +377,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -391,7 +391,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -405,7 +405,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller', contactEmail: 'old@test.com' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -419,7 +419,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -433,7 +433,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -445,7 +445,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Test Partner', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             await request(mockApp)
                 .patch(`/api/partners/${partnerId}`)
@@ -466,7 +466,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Partner to Delete', type: 'reseller' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .delete(`/api/partners/${partnerId}`)
@@ -485,7 +485,7 @@ describe('Partners API - Blackbox Tests', () => {
                     contactEmail: 'contact@full.com',
                     industry: 'Tech',
                 });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             const response = await request(mockApp)
                 .delete(`/api/partners/${partnerId}`)
@@ -501,7 +501,7 @@ describe('Partners API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/partners')
                 .send({ name: 'Deleted Partner', type: 'agent' });
-            const partnerId = createResponse.body.partner.id;
+            const partnerId = createResponse.body.partner.partnerId;
 
             await request(mockApp)
                 .delete(`/api/partners/${partnerId}`)

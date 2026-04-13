@@ -95,13 +95,13 @@ describe('Deals Service - Whitebox Tests', () => {
         it('should create a deal with required fields', async () => {
             const mockDeal = {
                 id: 'deal-123',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 partnerId: 'partner-1',
                 title: 'Enterprise License',
                 description: null,
                 value: null,
                 stage: 'lead',
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -221,7 +221,7 @@ describe('Deals Service - Whitebox Tests', () => {
             const mockDeal = {
                 id: 'deal-1',
                 title: 'Test Deal',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 stage: 'negotiation',
             };
             mockLimit.mockResolvedValueOnce([mockDeal]);
@@ -489,7 +489,7 @@ describe('Deals Service - Whitebox Tests', () => {
             const mockPartner = {
                 id: 'partner-1',
                 name: 'Partner Corp',
-                orgId: 'org-1',
+                organizationId: 'org-1',
             };
             mockLimit.mockResolvedValueOnce([mockPartner]);
 

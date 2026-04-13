@@ -3,22 +3,24 @@ import { API_BASE } from '@/lib/api';
 export type ApiDealStage = 'lead' | 'proposal' | 'negotiation' | 'won' | 'lost';
 
 export interface ApiDeal {
-    id: string;
-    orgId: string;
+    dealId: string;
+    organizationId: string;
     partnerId: string;
     partnerName: string | null;
+    teamId: string | null;
+    teamName?: string | null;
     title: string;
     description: string | null;
     value: number | null;
     stage: ApiDealStage;
-    createdBy: string | null;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
     assigneeCount: number;
 }
 
 export interface ApiDealAssignment {
-    id: string;
+    dealAssignmentId: string;
     dealId: string;
     userId: string;
     assignedAt: string;
@@ -29,25 +31,36 @@ export interface ApiDealAssignment {
 
 export interface ApiDealDetailsResponse {
     deal: {
-        id: string;
-        orgId: string;
+        dealId: string;
+        organizationId: string;
         partnerId: string;
+        teamId: string | null;
         title: string;
         description: string | null;
         value: number | null;
         stage: ApiDealStage;
-        createdBy: string | null;
+        createdByUserId: string | null;
         createdAt: string;
         updatedAt: string;
     };
     partner: {
-        id: string;
+        partnerId: string;
         name: string;
+    } | null;
+    team: {
+        teamId: string;
+        name: string;
+        description: string | null;
+        lead?: {
+            userId: string;
+            name: string | null;
+            email: string | null;
+        } | null;
     } | null;
     assignments: ApiDealAssignment[];
     tasks: ApiDealTask[];
     documents: ApiDealDocument[];
-    activities: Array<{ id: string; action: string; user: string; timestamp: string }>;
+    activities: Array<{ activityLogId: string; action: string; userName: string | null; createdAt: string }>;
 }
 
 export interface ApiDealsResponse {
@@ -70,7 +83,7 @@ export interface UpdateDealInput {
 }
 
 export interface ApiDealTask {
-    id: string;
+    dealTaskId: string;
     dealId: string;
     title: string;
     description: string | null;
@@ -78,8 +91,10 @@ export interface ApiDealTask {
     assigneeName?: string | null;
     status: 'todo' | 'in_progress' | 'done';
     dueDate: string | null;
+    createdByUserId?: string | null;
     createdAt: string;
     updatedAt: string;
+    completedAt?: string | null;
 }
 
 export interface CreateDealTaskInput {
@@ -98,13 +113,14 @@ export interface UpdateDealTaskInput {
 }
 
 export interface ApiDealDocument {
-    id: string;
+    dealDocumentId: string;
     dealId: string;
     fileName: string;
     fileUrl: string;
     visibility: 'shared' | 'internal';
-    uploadedBy: string;
+    uploadedByUserId: string;
     uploaderName?: string | null;
+    uploaderEmail?: string | null;
     uploadedAt: string;
 }
 
@@ -273,9 +289,9 @@ export async function removeUserFromDeal(
 // ── Deal Message Operations ─────────────────────────────────────────────────────
 
 export interface ApiDealMessage {
-    id: string;
+    dealMessageId: string;
     dealId: string;
-    senderId: string;
+    senderUserId: string;
     content: string;
     createdAt: string;
     senderName: string;

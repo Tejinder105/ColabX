@@ -101,10 +101,10 @@ describe('Teams Service - Whitebox Tests', () => {
         it('should create a team with required fields', async () => {
             const mockTeam = {
                 id: 'team-123',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 name: 'Test Team',
                 description: null,
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -120,10 +120,10 @@ describe('Teams Service - Whitebox Tests', () => {
         it('should create a team with optional description', async () => {
             const mockTeam = {
                 id: 'team-456',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 name: 'Test Team',
                 description: 'Team description',
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -140,10 +140,10 @@ describe('Teams Service - Whitebox Tests', () => {
         it('should handle empty description as null', async () => {
             const mockTeam = {
                 id: 'team-789',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 name: 'Test Team',
                 description: null,
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -183,7 +183,7 @@ describe('Teams Service - Whitebox Tests', () => {
 
     describe('getTeamById', () => {
         it('should return team when found', async () => {
-            const mockTeam = { id: 'team-1', name: 'Test Team', orgId: 'org-1' };
+            const mockTeam = { id: 'team-1', name: 'Test Team', organizationId: 'org-1' };
             mockLimit.mockResolvedValueOnce([mockTeam]);
 
             const result = await teamsService.getTeamById('team-1', 'org-1');

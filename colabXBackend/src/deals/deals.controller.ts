@@ -47,20 +47,20 @@ export async function createDealHandler(
             return;
         }
 
-        const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
+        const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.organizationId);
         if (!partnerRow) {
             res.status(404).json({ error: "Partner not found in this organization" });
             return;
         }
 
         const teamId = req.body.teamId as string;
-        const teamRow = await getTeamByIdForOrg(teamId, req.org.id);
+        const teamRow = await getTeamByIdForOrg(teamId, req.org.organizationId);
         if (!teamRow) {
             res.status(404).json({ error: "Team not found in this organization" });
             return;
         }
 
-        const assignment = await getPartnerTeamAssignment(req.body.partnerId, req.org.id);
+        const assignment = await getPartnerTeamAssignment(req.body.partnerId, req.org.organizationId);
         if (!assignment || assignment.teamId !== teamId) {
             res.status(400).json({
                 error: "Partner must be assigned to the selected team before creating a deal",
@@ -68,7 +68,7 @@ export async function createDealHandler(
             return;
         }
 
-        const created = await createDeal(req.org.id, req.user.id, {
+        const created = await createDeal(req.org.organizationId, req.user.id, {
             ...req.body,
             teamId,
         });
@@ -77,10 +77,10 @@ export async function createDealHandler(
             return;
         }
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal",
-            created.id,
+            created.dealId,
             `created deal "${created.title}"`
         );
         res.status(201).json({ deal: created });
@@ -119,7 +119,7 @@ export async function getOrgDealsHandler(
         if (requestedTeamId) filters.teamId = requestedTeamId;
 
         if (req.membership.role === "partner") {
-            const linkedPartner = await getPartnerForUserInOrg(req.org.id, req.user.id);
+            const linkedPartner = await getPartnerForUserInOrg(req.org.organizationId, req.user.id);
 
             // If partner explicitly requests partnerId, it must be their own partner record.
             // Otherwise default to assignments-only view.
@@ -136,7 +136,7 @@ export async function getOrgDealsHandler(
             }
         } else if (req.membership.role === "manager" || req.membership.role === "member") {
             const visibleTeamIds = await getScopedDealTeamIds(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 req.membership.role
             );
@@ -144,7 +144,7 @@ export async function getOrgDealsHandler(
             filters.teamIds = visibleTeamIds ?? [];
         }
 
-        const deals = await getOrgDeals(req.org.id, filters);
+        const deals = await getOrgDeals(req.org.organizationId, filters);
         res.json({ deals });
     } catch (error) {
         console.error("Get deals error:", error);
@@ -163,7 +163,7 @@ export async function getDealByIdHandler(
             return;
         }
 
-        const result = await getDealWithDetails(req.deal.id, {
+        const result = await getDealWithDetails(req.deal.dealId, {
             audience: req.membership?.role === "partner" ? "partner" : "internal",
         });
         res.json({
@@ -203,7 +203,7 @@ export async function updateDealHandler(
                 return;
             }
 
-            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.organizationId);
             if (!teamRow) {
                 res.status(404).json({ error: "Team not found in this organization" });
                 return;
@@ -228,13 +228,13 @@ export async function updateDealHandler(
             return;
         }
 
-        const updated = await updateDeal(req.deal.id, updates);
+        const updated = await updateDeal(req.deal.dealId, updates);
         if (updated && req.org) {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "deal",
-                req.deal.id,
+                req.deal.dealId,
                 `updated deal "${updated.title}"`
             );
         }
@@ -256,13 +256,13 @@ export async function deleteDealHandler(
             return;
         }
 
-        const updated = await softDeleteDeal(req.deal.id);
+        const updated = await softDeleteDeal(req.deal.dealId);
         if (updated && req.org && req.user) {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "deal",
-                req.deal.id,
+                req.deal.dealId,
                 `archived deal "${req.deal.title}"`
             );
         }
@@ -288,7 +288,7 @@ export async function assignUserHandler(
 
         const { userId } = req.body;
 
-        const orgMember = await isOrgMember(req.org.id, userId);
+        const orgMember = await isOrgMember(req.org.organizationId, userId);
         if (!orgMember) {
             res.status(400).json({ error: "User is not a member of this organization" });
             return;
@@ -304,18 +304,18 @@ export async function assignUserHandler(
             }
         }
 
-        const existing = await getDealAssignmentRecord(req.deal.id, userId);
+        const existing = await getDealAssignmentRecord(req.deal.dealId, userId);
         if (existing) {
             res.status(409).json({ error: "User is already assigned to this deal" });
             return;
         }
 
-        const assignment = await assignUserToDeal(req.deal.id, userId);
+        const assignment = await assignUserToDeal(req.deal.dealId, userId);
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal",
-            req.deal.id,
+            req.deal.dealId,
             `assigned user ${userId} to deal "${req.deal.title}"`
         );
 
@@ -337,7 +337,7 @@ export async function getDealAssignmentsHandler(
             return;
         }
 
-        const assignments = await getDealAssignments(req.deal.id);
+        const assignments = await getDealAssignments(req.deal.dealId);
         res.json({ assignments });
     } catch (error) {
         console.error("Get deal assignments error:", error);
@@ -357,7 +357,7 @@ export async function removeAssignmentHandler(
         }
 
         const userId = req.params.userId as string;
-        const deleted = await removeUserFromDeal(req.deal.id, userId);
+        const deleted = await removeUserFromDeal(req.deal.dealId, userId);
 
         if (deleted.length === 0) {
             res.status(404).json({ error: "Assignment not found" });
@@ -366,10 +366,10 @@ export async function removeAssignmentHandler(
 
         if (req.org && req.user) {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "deal",
-                req.deal.id,
+                req.deal.dealId,
                 `removed user ${userId} from deal "${req.deal.title}"`
             );
         }
@@ -395,13 +395,13 @@ export async function createMessageHandler(
         }
 
         const { content } = req.body;
-        const message = await createDealMessage(req.deal.id, req.user.id, content);
+        const message = await createDealMessage(req.deal.dealId, req.user.id, content);
         if (req.org) {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "deal",
-                req.deal.id,
+                req.deal.dealId,
                 "posted a deal comment"
             );
         }
@@ -424,7 +424,7 @@ export async function getDealMessagesHandler(
             return;
         }
 
-        const messages = await getDealMessages(req.deal.id);
+        const messages = await getDealMessages(req.deal.dealId);
         res.json({ messages });
     } catch (error) {
         console.error("Get deal messages error:", error);
@@ -446,13 +446,13 @@ export async function deleteMessageHandler(
         const messageId = req.params.messageId as string;
         const message = await getDealMessageById(messageId);
 
-        if (!message || message.dealId !== req.deal.id) {
+        if (!message || message.dealId !== req.deal.dealId) {
             res.status(404).json({ error: "Message not found" });
             return;
         }
 
         // Only allow sender or admin/manager to delete
-        const isOwner = message.senderId === req.user.id;
+        const isOwner = message.senderUserId === req.user.id;
         const isAdminOrManager = req.membership.role === "admin" || req.membership.role === "manager";
 
         if (!isOwner && !isAdminOrManager) {
@@ -490,16 +490,16 @@ export async function createDealTaskHandler(
             }
         }
 
-        const task = await createDealTask(req.deal.id, req.user.id, req.body);
+        const task = await createDealTask(req.deal.dealId, req.user.id, req.body);
         if (!task) {
             res.status(500).json({ error: "Failed to create task" });
             return;
         }
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal_task",
-            req.deal.id,
+            req.deal.dealId,
             `created task "${task.title}" on deal "${req.deal.title}"`
         );
 
@@ -525,7 +525,7 @@ export async function getDealTasksHandler(
             return;
         }
 
-        const tasks = await getDealTasks(req.deal.id);
+        const tasks = await getDealTasks(req.deal.dealId);
         res.json({ tasks });
     } catch (error) {
         console.error("Get deal tasks error:", error);
@@ -546,7 +546,7 @@ export async function updateDealTaskHandler(
         const taskId = req.params.taskId as string;
         const task = await getDealTaskById(taskId);
 
-        if (!task || task.dealId !== req.deal.id) {
+        if (!task || task.dealId !== req.deal.dealId) {
             res.status(404).json({ error: "Task not found" });
             return;
         }
@@ -581,10 +581,10 @@ export async function updateDealTaskHandler(
         }
 
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal_task",
-            req.deal.id,
+            req.deal.dealId,
             `updated task "${updated.title}" on deal "${req.deal.title}"`
         );
 
@@ -608,17 +608,17 @@ export async function deleteDealTaskHandler(
         const taskId = req.params.taskId as string;
         const task = await getDealTaskById(taskId);
 
-        if (!task || task.dealId !== req.deal.id) {
+        if (!task || task.dealId !== req.deal.dealId) {
             res.status(404).json({ error: "Task not found" });
             return;
         }
 
         await deleteDealTask(taskId);
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal_task",
-            req.deal.id,
+            req.deal.dealId,
             `deleted task "${task.title}" from deal "${req.deal.title}"`
         );
 
@@ -646,7 +646,7 @@ export async function createDealDocumentHandler(
                 ? "shared"
                 : ((req.body.visibility ?? "shared") as "shared" | "internal");
 
-        const document = await createDealDocument(req.deal.id, req.user.id, {
+        const document = await createDealDocument(req.deal.dealId, req.user.id, {
             fileName: req.body.fileName,
             fileUrl: req.body.fileUrl,
             visibility,
@@ -658,10 +658,10 @@ export async function createDealDocumentHandler(
         }
 
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal_document",
-            req.deal.id,
+            req.deal.dealId,
             `uploaded ${visibility} document "${document.fileName}" to deal "${req.deal.title}"`
         );
 
@@ -683,7 +683,7 @@ export async function getDealDocumentsHandler(
         }
 
         const documents = await getDealDocuments(
-            req.deal.id,
+            req.deal.dealId,
             req.membership.role === "partner" ? { visibility: "shared" } : undefined
         );
         res.json({ documents });
@@ -706,7 +706,7 @@ export async function deleteDealDocumentHandler(
         const documentId = req.params.documentId as string;
         const document = await getDealDocumentById(documentId);
 
-        if (!document || document.dealId !== req.deal.id) {
+        if (!document || document.dealId !== req.deal.dealId) {
             res.status(404).json({ error: "Document not found" });
             return;
         }
@@ -714,7 +714,7 @@ export async function deleteDealDocumentHandler(
         const canDelete =
             req.membership.role === "admin" ||
             req.membership.role === "manager" ||
-            document.uploadedBy === req.user.id;
+            document.uploadedByUserId === req.user.id;
 
         if (!canDelete) {
             res.status(403).json({ error: "Insufficient permissions" });
@@ -723,10 +723,10 @@ export async function deleteDealDocumentHandler(
 
         await deleteDealDocument(documentId);
         await createActivity(
-            req.org.id,
+            req.org.organizationId,
             req.user.id,
             "deal_document",
-            req.deal.id,
+            req.deal.dealId,
             `deleted document "${document.fileName}" from deal "${req.deal.title}"`
         );
 

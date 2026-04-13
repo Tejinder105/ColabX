@@ -49,7 +49,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
     await db.insert(orgUser).values({
       id: `orguser-admin-${Date.now()}`,
       userId: adminUser.id,
-      orgId: testOrg.id,
+      organizationId: testOrg.id,
       role: "admin",
     });
 
@@ -80,7 +80,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .insert(invitation)
         .values({
           id: `invite-${Date.now()}`,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           email: partnerUser.email,
           token,
           role: "partner",
@@ -96,7 +96,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx.insert(orgUser).values({
           id: `orguser-partner-${Date.now()}`,
           userId: partnerUser.id,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           role: "partner",
         });
 
@@ -104,15 +104,15 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx
           .update(invitation)
           .set({ usedAt: new Date() })
-          .where(eq(invitation.id, invite.id));
+          .where(eq(invitation.invitationId, invite.id));
 
         // AUTO-CREATE PARTNER if doesn't exist
         const [existingPartner] = await tx
-          .select({ id: partner.id })
+          .select({ id: partner.partnerId })
           .from(partner)
           .where(
             and(
-              eq(partner.orgId, testOrg.id),
+              eq(partner.organizationId, testOrg.id),
               eq(partner.contactEmail, partnerUser.email)
             )
           )
@@ -121,20 +121,20 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         if (!existingPartner) {
           await tx.insert(partner).values({
             id: `partner-${Date.now()}`,
-            orgId: testOrg.id,
+            organizationId: testOrg.id,
             name: partnerUser.name || partnerUser.email,
             type: "reseller", // Default type
             status: "active",
             contactEmail: partnerUser.email,
             userId: partnerUser.id,
-            createdBy: partnerUser.id,
+            createdByUserId: partnerUser.id,
           });
         } else {
           // Link existing partner to user
           await tx
             .update(partner)
             .set({ userId: partnerUser.id, status: "active" })
-            .where(eq(partner.id, existingPartner.id));
+            .where(eq(partner.partnerId, existingPartner.id));
         }
       });
 
@@ -145,7 +145,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .where(
           and(
             eq(orgUser.userId, partnerUser.id),
-            eq(orgUser.orgId, testOrg.id)
+            eq(orgUser.organizationId, testOrg.id)
           )
         )
         .limit(1);
@@ -157,7 +157,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
       const [updatedInvite] = await db
         .select()
         .from(invitation)
-        .where(eq(invitation.id, invite.id))
+        .where(eq(invitation.invitationId, invite.id))
         .limit(1);
 
       expect(updatedInvite.usedAt).not.toBeNull();
@@ -168,7 +168,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .from(partner)
         .where(
           and(
-            eq(partner.orgId, testOrg.id),
+            eq(partner.organizationId, testOrg.id),
             eq(partner.contactEmail, partnerUser.email)
           )
         )
@@ -184,7 +184,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
       expect(createdPartner.userId).toBe(partnerUser.id);
 
       // 7. Verify creator is set
-      expect(createdPartner.createdBy).toBe(partnerUser.id);
+      expect(createdPartner.createdByUserId).toBe(partnerUser.id);
     });
 
     it("should link existing partner record when user accepts partner invitation", async () => {
@@ -193,13 +193,13 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .insert(partner)
         .values({
           id: `partner-pending-${Date.now()}`,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           name: "Pending Partner Corp",
           type: "reseller",
           status: "active",
           contactEmail: partnerUser.email,
           userId: null, // No user yet
-          createdBy: adminUser.id,
+          createdByUserId: adminUser.id,
         })
         .returning();
 
@@ -211,7 +211,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .insert(invitation)
         .values({
           id: `invite-existing-${Date.now()}`,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           email: partnerUser.email,
           token,
           role: "partner",
@@ -225,7 +225,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx.insert(orgUser).values({
           id: `orguser-partner-existing-${Date.now()}`,
           userId: partnerUser.id,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           role: "partner",
         });
 
@@ -233,15 +233,15 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx
           .update(invitation)
           .set({ usedAt: new Date() })
-          .where(eq(invitation.id, invite.id));
+          .where(eq(invitation.invitationId, invite.id));
 
         // Look for existing partner
         const [found] = await tx
-          .select({ id: partner.id })
+          .select({ id: partner.partnerId })
           .from(partner)
           .where(
             and(
-              eq(partner.orgId, testOrg.id),
+              eq(partner.organizationId, testOrg.id),
               eq(partner.contactEmail, partnerUser.email)
             )
           )
@@ -252,7 +252,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
           await tx
             .update(partner)
             .set({ userId: partnerUser.id, status: "active" })
-            .where(eq(partner.id, found.id));
+            .where(eq(partner.partnerId, found.id));
         } else {
           // This branch won't execute since we pre-created the partner
         }
@@ -262,7 +262,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
       const [linkedPartner] = await db
         .select()
         .from(partner)
-        .where(eq(partner.id, existingPartner.id))
+        .where(eq(partner.partnerId, existingPartner.id))
         .limit(1);
 
       expect(linkedPartner.userId).toBe(partnerUser.id);
@@ -281,7 +281,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .insert(invitation)
         .values({
           id: `invite-multi-${Date.now()}`,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           email: partnerUser.email,
           token,
           role: "partner",
@@ -294,21 +294,21 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx.insert(orgUser).values({
           id: `orguser-multi-${Date.now()}`,
           userId: partnerUser.id,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           role: "partner",
         });
 
         await tx
           .update(invitation)
           .set({ usedAt: new Date() })
-          .where(eq(invitation.id, invite.id));
+          .where(eq(invitation.invitationId, invite.id));
 
         const [existingPartner] = await tx
-          .select({ id: partner.id })
+          .select({ id: partner.partnerId })
           .from(partner)
           .where(
             and(
-              eq(partner.orgId, testOrg.id),
+              eq(partner.organizationId, testOrg.id),
               eq(partner.contactEmail, partnerUser.email)
             )
           )
@@ -317,13 +317,13 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         if (!existingPartner) {
           await tx.insert(partner).values({
             id: `partner-multi-${Date.now()}`,
-            orgId: testOrg.id,
+            organizationId: testOrg.id,
             name: partnerUser.name || partnerUser.email,
             type: "reseller",
             status: "active",
             contactEmail: partnerUser.email,
             userId: partnerUser.id,
-            createdBy: partnerUser.id,
+            createdByUserId: partnerUser.id,
           });
         }
       });
@@ -334,7 +334,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .from(partner)
         .where(
           and(
-            eq(partner.orgId, testOrg.id),
+            eq(partner.organizationId, testOrg.id),
             eq(partner.contactEmail, partnerUser.email)
           )
         )
@@ -367,7 +367,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .insert(invitation)
         .values({
           id: `invite-manager-${Date.now()}`,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           email: managerUser.email,
           token,
           role: "manager",
@@ -380,7 +380,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         await tx.insert(orgUser).values({
           id: `orguser-manager-${Date.now()}`,
           userId: managerUser.id,
-          orgId: testOrg.id,
+          organizationId: testOrg.id,
           role: "manager",
         });
         // Note: No partner auto-creation for manager role
@@ -392,7 +392,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .from(partner)
         .where(
           and(
-            eq(partner.orgId, testOrg.id),
+            eq(partner.organizationId, testOrg.id),
             eq(partner.contactEmail, managerUser.email)
           )
         )
@@ -407,7 +407,7 @@ describe("Partner Auto-Creation on Invitation Acceptance", () => {
         .where(
           and(
             eq(orgUser.userId, managerUser.id),
-            eq(orgUser.orgId, testOrg.id)
+            eq(orgUser.organizationId, testOrg.id)
           )
         )
         .limit(1);

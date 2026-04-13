@@ -12,8 +12,8 @@ export function normalizeEmail(email: string): string {
 }
 
 export async function createPartner(
-    orgId: string,
-    createdBy: string,
+    organizationId: string,
+    createdByUserId: string,
     data: {
         name: string;
         type: "reseller" | "agent" | "technology" | "distributor";
@@ -25,8 +25,8 @@ export async function createPartner(
     const [created] = await db
         .insert(partner)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            partnerId: crypto.randomUUID(),
+            organizationId,
             name: data.name,
             type: data.type,
             contactEmail: normalizeEmail(data.contactEmail),
@@ -34,21 +34,21 @@ export async function createPartner(
             onboardingDate: data.onboardingDate
                 ? new Date(data.onboardingDate)
                 : null,
-            createdBy,
+            createdByUserId,
         })
         .returning();
 
     return created;
 }
 
-export async function getPartnerByEmail(orgId: string, email: string) {
+export async function getPartnerByEmail(organizationId: string, email: string) {
     const normalizedEmail = normalizeEmail(email);
     const [result] = await db
         .select()
         .from(partner)
         .where(
             and(
-                eq(partner.orgId, orgId),
+                eq(partner.organizationId, organizationId),
                 sql`lower(${partner.contactEmail}) = ${normalizedEmail}`
             )
         )
@@ -61,31 +61,31 @@ export async function linkUserToPartner(partnerId: string, userId: string) {
     const [updated] = await db
         .update(partner)
         .set({ userId, status: "active" })
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .returning();
 
     return updated;
 }
 
-export async function getOrgPartners(orgId: string) {
+export async function getOrgPartners(organizationId: string) {
     return db
         .select()
         .from(partner)
-        .where(eq(partner.orgId, orgId));
+        .where(eq(partner.organizationId, organizationId));
 }
 
-export async function getOrgPartnersForUser(orgId: string, userId: string) {
+export async function getOrgPartnersForUser(organizationId: string, userId: string) {
     return db
         .select()
         .from(partner)
-        .where(and(eq(partner.orgId, orgId), eq(partner.userId, userId)));
+        .where(and(eq(partner.organizationId, organizationId), eq(partner.userId, userId)));
 }
 
-export async function getPartnerById(partnerId: string, orgId: string) {
+export async function getPartnerById(partnerId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(partner)
-        .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
+        .where(and(eq(partner.partnerId, partnerId), eq(partner.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -95,22 +95,22 @@ export async function getPartnerWithTeams(partnerId: string) {
     const [partnerRow] = await db
         .select()
         .from(partner)
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .limit(1);
 
     const teams = await db
         .select({
-            id: team.id,
-            orgId: team.orgId,
+            id: team.teamId,
+            organizationId: team.organizationId,
             name: team.name,
             description: team.description,
-            createdBy: team.createdBy,
+            createdByUserId: team.createdByUserId,
             createdAt: team.createdAt,
             updatedAt: team.updatedAt,
             assignedAt: teamPartner.assignedAt,
         })
         .from(teamPartner)
-        .innerJoin(team, eq(teamPartner.teamId, team.id))
+        .innerJoin(team, eq(teamPartner.teamId, team.teamId))
         .where(eq(teamPartner.partnerId, partnerId));
 
     return { partner: partnerRow, teams };
@@ -128,7 +128,7 @@ export async function updatePartner(
     const [updated] = await db
         .update(partner)
         .set(data)
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .returning();
 
     return updated;
@@ -138,7 +138,7 @@ export async function softDeletePartner(partnerId: string) {
     const [updated] = await db
         .update(partner)
         .set({ status: "inactive" })
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .returning();
 
     return updated;
@@ -147,17 +147,17 @@ export async function softDeletePartner(partnerId: string) {
 export async function hardDeletePartner(partnerId: string) {
     const [deleted] = await db
         .delete(partner)
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .returning();
 
     return deleted;
 }
 
-export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
+export async function isOrgMember(organizationId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: orgUser.id })
+        .select({ id: orgUser.orgUserId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), eq(orgUser.userId, userId)))
+        .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);
 
     return !!result;

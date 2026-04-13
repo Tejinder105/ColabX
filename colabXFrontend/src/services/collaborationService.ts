@@ -3,10 +3,10 @@ import { API_BASE } from '@/lib/api';
 // ── Communications ──────────────────────────────────────────────────────────
 
 export interface ApiCommunication {
-    id: string;
+    communicationId: string;
     message: string;
     createdAt: string;
-    senderId: string;
+    senderUserId: string;
     senderName: string | null;
     senderEmail: string | null;
 }
@@ -18,14 +18,14 @@ export interface CreateCommunicationInput {
 // ── Documents ───────────────────────────────────────────────────────────────
 
 export interface ApiDocument {
-    id: string;
+    documentId: string;
     partnerId?: string;
     partnerName?: string | null;
     fileName: string;
     fileUrl: string;
     visibility: string;
     uploadedAt: string;
-    uploadedBy: string;
+    uploadedByUserId: string;
     uploaderName: string | null;
 }
 
@@ -38,7 +38,7 @@ export interface CreateDocumentInput {
 // ── Activities ──────────────────────────────────────────────────────────────
 
 export interface ApiActivity {
-    id: string;
+    activityLogId: string;
     action: string;
     createdAt: string;
     userId: string;

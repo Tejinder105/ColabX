@@ -78,7 +78,7 @@ function mapDealStage(stage: ApiDealStage): PartnerDeal['stage'] {
 
 function mapApiDealToPartnerDeal(deal: ApiPartnerDeal): PartnerDeal {
     return {
-        id: deal.id,
+        id: deal.dealId,
         name: deal.title,
         amount: deal.value ?? 0,
         stage: mapDealStage(deal.stage),
@@ -88,7 +88,7 @@ function mapApiDealToPartnerDeal(deal: ApiPartnerDeal): PartnerDeal {
 
 function mapApiContactToPartnerContact(contact: ApiContact): PartnerContact {
     return {
-        id: contact.id,
+        id: contact.contactId,
         name: contact.name,
         email: contact.email,
         role: contact.role ?? '',
@@ -98,7 +98,7 @@ function mapApiContactToPartnerContact(contact: ApiContact): PartnerContact {
 
 function mapApiCommunicationToPartnerCommunication(comm: ApiCommunication): PartnerCommunication {
     return {
-        id: comm.id,
+        id: comm.communicationId,
         sender: comm.senderName ?? 'Unknown',
         subject: '',
         snippet: comm.message,
@@ -109,7 +109,7 @@ function mapApiCommunicationToPartnerCommunication(comm: ApiCommunication): Part
 
 function mapApiDocumentToPartnerDocument(doc: ApiDocument): PartnerDocument {
     return {
-        id: doc.id,
+        id: doc.documentId,
         name: doc.fileName,
         type: doc.visibility,
         size: '',
@@ -120,7 +120,7 @@ function mapApiDocumentToPartnerDocument(doc: ApiDocument): PartnerDocument {
 
 function mapApiActivityToPartnerActivity(activity: ApiActivity): PartnerActivity {
     return {
-        id: activity.id,
+        id: activity.activityLogId,
         type: 'Note',
         description: activity.action,
         date: activity.createdAt,
@@ -146,7 +146,7 @@ function toUiPartner(
         .reduce((sum, deal) => sum + (deal.value ?? 0), 0);
     const performanceScore = Math.round(performance?.score?.score ?? performance?.completionRate ?? (p.status?.toLowerCase() === 'active' ? 80 : 40));
     return {
-        id: p.id,
+        id: p.partnerId,
         name: p.name,
         type: mapType(p.type),
         industry: mapIndustry(p.industry),
@@ -439,7 +439,7 @@ export default function PartnerDetailsPage() {
                             {partnerDeals.map((deal) => {
                                 const isClosed = deal.stage === 'won' || deal.stage === 'lost';
                                 return (
-                                    <div key={deal.id} className="grid grid-cols-1 gap-2 rounded-md border p-3 md:grid-cols-4 md:items-center">
+                                    <div key={deal.dealId} className="grid grid-cols-1 gap-2 rounded-md border p-3 md:grid-cols-4 md:items-center">
                                         <div>
                                             <p className="font-medium">{deal.title}</p>
                                             <p className="text-xs text-muted-foreground">Updated: {formatDate(deal.updatedAt)}</p>

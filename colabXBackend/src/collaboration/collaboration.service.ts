@@ -7,18 +7,18 @@ import { partner } from "../partners/partners.schema.js";
 // Communications ->
 
 export async function createCommunication(
-    orgId: string,
+    organizationId: string,
     partnerId: string,
-    senderId: string,
+    senderUserId: string,
     message: string
 ) {
     const [created] = await db
         .insert(communication)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            communicationId: crypto.randomUUID(),
+            organizationId,
             partnerId,
-            senderId,
+            senderUserId,
             message,
         })
         .returning();
@@ -29,15 +29,15 @@ export async function createCommunication(
 export async function getPartnerCommunications(partnerId: string) {
     return db
         .select({
-            id: communication.id,
+            communicationId: communication.communicationId,
             message: communication.message,
             createdAt: communication.createdAt,
-            senderId: communication.senderId,
+            senderUserId: communication.senderUserId,
             senderName: user.name,
             senderEmail: user.email,
         })
         .from(communication)
-        .leftJoin(user, eq(communication.senderId, user.id))
+        .leftJoin(user, eq(communication.senderUserId, user.id))
         .where(eq(communication.partnerId, partnerId))
         .orderBy(desc(communication.createdAt));
 }
@@ -45,9 +45,9 @@ export async function getPartnerCommunications(partnerId: string) {
 // Documents ->
 
 export async function createDocument(
-    orgId: string,
+    organizationId: string,
     partnerId: string,
-    uploadedBy: string,
+    uploadedByUserId: string,
     data: {
         fileName: string;
         fileUrl: string;
@@ -57,10 +57,10 @@ export async function createDocument(
     const [created] = await db
         .insert(document)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            documentId: crypto.randomUUID(),
+            organizationId,
             partnerId,
-            uploadedBy,
+            uploadedByUserId,
             fileName: data.fileName,
             fileUrl: data.fileUrl,
             visibility: data.visibility,
@@ -73,53 +73,53 @@ export async function createDocument(
 export async function getPartnerDocuments(partnerId: string) {
     return db
         .select({
-            id: document.id,
+            documentId: document.documentId,
             partnerId: document.partnerId,
             partnerName: partner.name,
             fileName: document.fileName,
             fileUrl: document.fileUrl,
             visibility: document.visibility,
             uploadedAt: document.uploadedAt,
-            uploadedBy: document.uploadedBy,
+            uploadedByUserId: document.uploadedByUserId,
             uploaderName: user.name,
         })
         .from(document)
-        .leftJoin(partner, eq(document.partnerId, partner.id))
-        .leftJoin(user, eq(document.uploadedBy, user.id))
+        .leftJoin(partner, eq(document.partnerId, partner.partnerId))
+        .leftJoin(user, eq(document.uploadedByUserId, user.id))
         .where(eq(document.partnerId, partnerId))
         .orderBy(desc(document.uploadedAt));
 }
 
-export async function getOrgDocuments(orgId: string, visibilityFilter?: string) {
-    const conditions = [eq(document.orgId, orgId)];
+export async function getOrgDocuments(organizationId: string, visibilityFilter?: string) {
+    const conditions = [eq(document.organizationId, organizationId)];
     if (visibilityFilter) {
         conditions.push(eq(document.visibility, visibilityFilter));
     }
 
     return db
         .select({
-            id: document.id,
+            documentId: document.documentId,
             partnerId: document.partnerId,
             partnerName: partner.name,
             fileName: document.fileName,
             fileUrl: document.fileUrl,
             visibility: document.visibility,
             uploadedAt: document.uploadedAt,
-            uploadedBy: document.uploadedBy,
+            uploadedByUserId: document.uploadedByUserId,
             uploaderName: user.name,
         })
         .from(document)
-        .leftJoin(partner, eq(document.partnerId, partner.id))
-        .leftJoin(user, eq(document.uploadedBy, user.id))
+        .leftJoin(partner, eq(document.partnerId, partner.partnerId))
+        .leftJoin(user, eq(document.uploadedByUserId, user.id))
         .where(and(...conditions))
         .orderBy(desc(document.uploadedAt));
 }
 
-export async function getDocumentById(documentId: string, orgId: string) {
+export async function getDocumentById(documentId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(document)
-        .where(and(eq(document.id, documentId), eq(document.orgId, orgId)))
+        .where(and(eq(document.documentId, documentId), eq(document.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -128,7 +128,7 @@ export async function getDocumentById(documentId: string, orgId: string) {
 export async function deleteDocument(documentId: string) {
     const [deleted] = await db
         .delete(document)
-        .where(eq(document.id, documentId))
+        .where(eq(document.documentId, documentId))
         .returning();
 
     return deleted;
@@ -141,7 +141,7 @@ export async function updateDocumentVisibility(
     const [updated] = await db
         .update(document)
         .set({ visibility })
-        .where(eq(document.id, documentId))
+        .where(eq(document.documentId, documentId))
         .returning();
 
     return updated;
@@ -150,7 +150,7 @@ export async function updateDocumentVisibility(
 // Activity Logs ->
 
 export async function createActivity(
-    orgId: string,
+    organizationId: string,
     userId: string,
     entityType: string,
     entityId: string,
@@ -159,8 +159,8 @@ export async function createActivity(
     const [created] = await db
         .insert(activityLog)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            activityLogId: crypto.randomUUID(),
+            organizationId,
             userId,
             entityType,
             entityId,
@@ -174,7 +174,7 @@ export async function createActivity(
 export async function getPartnerActivities(partnerId: string) {
     return db
         .select({
-            id: activityLog.id,
+            activityLogId: activityLog.activityLogId,
             action: activityLog.action,
             createdAt: activityLog.createdAt,
             userId: activityLog.userId,

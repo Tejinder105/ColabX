@@ -43,7 +43,7 @@ export async function createTeamHandler(
             ...(req.body.memberIds ?? []),
             ...(req.body.leadUserId ? [req.body.leadUserId] : []),
         ];
-        const memberships = await getOrgMembershipsByUserIds(req.org.id, requestedUserIds);
+        const memberships = await getOrgMembershipsByUserIds(req.org.organizationId, requestedUserIds);
         const membershipByUserId = new Map(memberships.map((membership) => [membership.userId, membership]));
 
         if (memberships.length !== [...new Set(requestedUserIds)].length) {
@@ -73,17 +73,17 @@ export async function createTeamHandler(
             return;
         }
 
-        const created = await createTeam(req.org.id, req.user.id, req.body);
+        const created = await createTeam(req.org.organizationId, req.user.id, req.body);
         if (!created.team) {
             throw new Error("Failed to create team");
         }
 
         try {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "team",
-                created.team.id,
+                created.team.teamId,
                 `created team "${created.team.name}"`
             );
         } catch (activityError) {
@@ -113,7 +113,7 @@ export async function getOrgTeamsHandler(
                 ? req.user.id
                 : undefined;
 
-        const teams = await getOrgTeams(req.org.id, visibleToUserId);
+        const teams = await getOrgTeams(req.org.organizationId, visibleToUserId);
         res.json({
             teams,
             summary: {
@@ -139,11 +139,11 @@ export async function getTeamByIdHandler(
             return;
         }
 
-        const result = await getTeamWithMembers(req.team.id, req.org.id);
+        const result = await getTeamWithMembers(req.team.teamId, req.org.organizationId);
         const currentTeamMemberIds = new Set(result.members.map((member) => member.userId));
-        const eligibleMembers = (await getOrgMembersByRoles(req.org.id, ["manager", "member"]))
+        const eligibleMembers = (await getOrgMembersByRoles(req.org.organizationId, ["manager", "member"]))
             .filter((member) => !currentTeamMemberIds.has(member.userId));
-        const leadCandidates = (await getOrgMembersByRoles(req.org.id, ["admin", "manager"]))
+        const leadCandidates = (await getOrgMembersByRoles(req.org.organizationId, ["admin", "manager"]))
             .filter((member) => member.userId === result.team?.lead?.userId || !currentTeamMemberIds.has(member.userId));
 
         res.json({
@@ -178,7 +178,7 @@ export async function updateTeamHandler(
             return;
         }
 
-        const updated = await updateTeam(req.team.id, updates);
+        const updated = await updateTeam(req.team.teamId, updates);
         if (!updated) {
             res.status(404).json({ error: "Team not found" });
             return;
@@ -188,10 +188,10 @@ export async function updateTeamHandler(
             try {
                 const changedFields = Object.keys(updates).join(", ");
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "team",
-                    req.team.id,
+                    req.team.teamId,
                     `updated team "${updated.name}" (${changedFields})`
                 );
             } catch (activityError) {
@@ -217,15 +217,15 @@ export async function deleteTeamHandler(
             return;
         }
 
-        const deleted = await deleteTeam(req.team.id);
+        const deleted = await deleteTeam(req.team.teamId);
 
         if (req.org && req.user && deleted) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "team",
-                    req.team.id,
+                    req.team.teamId,
                     `deleted team "${req.team.name}"`
                 );
             } catch (activityError) {
@@ -253,7 +253,7 @@ export async function addTeamMemberHandler(
 
         const { userId, role } = req.body;
 
-        const memberships = await getOrgMembershipsByUserIds(req.org.id, [userId]);
+        const memberships = await getOrgMembershipsByUserIds(req.org.organizationId, [userId]);
         const membership = memberships[0];
         if (!membership) {
             res.status(400).json({
@@ -275,7 +275,7 @@ export async function addTeamMemberHandler(
             return;
         }
 
-        const existing = await getTeamMemberRecord(req.team.id, userId);
+        const existing = await getTeamMemberRecord(req.team.teamId, userId);
         if (existing) {
             res.status(409).json({
                 error: "User is already a member of this team",
@@ -283,15 +283,15 @@ export async function addTeamMemberHandler(
             return;
         }
 
-        const member = await addTeamMember(req.team.id, userId, role);
+        const member = await addTeamMember(req.team.teamId, userId, role);
 
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "team",
-                    req.team.id,
+                    req.team.teamId,
                     `added user ${userId} to team "${req.team.name}" as ${role}`
                 );
             } catch (activityError) {
@@ -317,7 +317,7 @@ export async function getTeamMembersHandler(
             return;
         }
 
-        const members = await getTeamMembers(req.team.id);
+        const members = await getTeamMembers(req.team.teamId);
         res.json({ members });
     } catch (error) {
         console.error("Get team members error:", error);
@@ -339,7 +339,7 @@ export async function updateTeamMemberRoleHandler(
         const userId = req.params.userId as string;
         const { role } = req.body;
 
-        const memberships = await getOrgMembershipsByUserIds(req.team.orgId, [userId]);
+        const memberships = await getOrgMembershipsByUserIds(req.team.organizationId, [userId]);
         const membership = memberships[0];
         if (!membership) {
             res.status(400).json({ error: "User is not a member of this organization" });
@@ -359,7 +359,7 @@ export async function updateTeamMemberRoleHandler(
             return;
         }
 
-        const updated = await updateTeamMemberRole(req.team.id, userId, role);
+        const updated = await updateTeamMemberRole(req.team.teamId, userId, role);
         if (!updated) {
             res.status(404).json({ error: "Team member not found" });
             return;
@@ -368,10 +368,10 @@ export async function updateTeamMemberRoleHandler(
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "team",
-                    req.team.id,
+                    req.team.teamId,
                     `updated user ${userId} role in team "${req.team.name}" to ${role}`
                 );
             } catch (activityError) {
@@ -399,7 +399,7 @@ export async function removeTeamMemberHandler(
 
         const userId = req.params.userId as string;
 
-        const deleted = await removeTeamMember(req.team.id, userId);
+        const deleted = await removeTeamMember(req.team.teamId, userId);
         if (deleted.length === 0) {
             res.status(404).json({ error: "Team member not found" });
             return;
@@ -408,10 +408,10 @@ export async function removeTeamMemberHandler(
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "team",
-                    req.team.id,
+                    req.team.teamId,
                     `removed user ${userId} from team "${req.team.name}"`
                 );
             } catch (activityError) {
@@ -438,29 +438,29 @@ export async function assignTeamPartnerHandler(
         }
 
         const { partnerId } = req.body;
-        const partnerRow = await getPartnerById(partnerId, req.org.id);
+        const partnerRow = await getPartnerById(partnerId, req.org.organizationId);
 
         if (!partnerRow) {
             res.status(404).json({ error: "Partner not found" });
             return;
         }
 
-        const existing = await getTeamPartnerRecord(req.team.id, partnerId);
+        const existing = await getTeamPartnerRecord(req.team.teamId, partnerId);
         if (existing) {
             res.status(409).json({ error: "Partner is already assigned to this team" });
             return;
         }
 
-        const previousAssignment = await getPartnerTeamAssignment(partnerId, req.org.id);
-        const assignment = await assignPartnerToTeam(req.team.id, partnerId, req.user.id);
+        const previousAssignment = await getPartnerTeamAssignment(partnerId, req.org.organizationId);
+        const assignment = await assignPartnerToTeam(req.team.teamId, partnerId, req.user.id);
 
         try {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "team",
-                req.team.id,
-                previousAssignment && previousAssignment.teamId !== req.team.id
+                req.team.teamId,
+                previousAssignment && previousAssignment.teamId !== req.team.teamId
                     ? `reassigned partner "${partnerRow.name}" to team "${req.team.name}"`
                     : `assigned partner "${partnerRow.name}" to team "${req.team.name}"`
             );
@@ -487,7 +487,7 @@ export async function removeTeamPartnerHandler(
         }
 
         const partnerId = req.params.partnerId as string;
-        const removed = await removePartnerFromTeam(req.team.id, partnerId);
+        const removed = await removePartnerFromTeam(req.team.teamId, partnerId);
 
         if (removed.length === 0) {
             res.status(404).json({ error: "Partner assignment not found" });
@@ -496,10 +496,10 @@ export async function removeTeamPartnerHandler(
 
         try {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "team",
-                req.team.id,
+                req.team.teamId,
                 `removed partner ${partnerId} from team "${req.team.name}"`
             );
         } catch (activityError) {
@@ -524,7 +524,7 @@ export async function getTeamPartnersHandler(
             return;
         }
 
-        const partners = await getTeamPartners(req.team.id, req.org.id);
+        const partners = await getTeamPartners(req.team.teamId, req.org.organizationId);
         res.json({ partners });
     } catch (error) {
         console.error("Get team partners error:", error);
@@ -543,7 +543,7 @@ export async function getTeamDealsHandler(
             return;
         }
 
-        const deals = await getTeamDeals(req.team.id, req.org.id);
+        const deals = await getTeamDeals(req.team.teamId, req.org.organizationId);
         res.json({ deals });
     } catch (error) {
         console.error("Get team deals error:", error);
@@ -562,7 +562,7 @@ export async function getTeamObjectivesHandler(
             return;
         }
 
-        const objectives = await getTeamObjectives(req.team.id, req.org.id);
+        const objectives = await getTeamObjectives(req.team.teamId, req.org.organizationId);
         res.json({ objectives });
     } catch (error) {
         console.error("Get team objectives error:", error);
@@ -581,7 +581,7 @@ export async function getTeamActivityHandler(
             return;
         }
 
-        const activities = await getTeamActivity(req.team.id, req.org.id);
+        const activities = await getTeamActivity(req.team.teamId, req.org.organizationId);
         res.json({ activities });
     } catch (error) {
         console.error("Get team activity error:", error);

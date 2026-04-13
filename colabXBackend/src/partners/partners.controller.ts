@@ -29,7 +29,7 @@ async function generateUniqueToken(maxRetries = 3): Promise<string> {
         
         // Check if token already exists
         const [existing] = await db
-            .select({ id: invitation.id })
+            .select({ id: invitation.invitationId })
             .from(invitation)
             .where(eq(invitation.token, token))
             .limit(1);
@@ -57,7 +57,7 @@ export async function createPartnerHandler(
         const normalizedContactEmail = normalizeEmail(contactEmail);
 
         // Prevent duplicate partner email within org (case-insensitive)
-        const existing = await getPartnerByEmail(req.org.id, normalizedContactEmail);
+        const existing = await getPartnerByEmail(req.org.organizationId, normalizedContactEmail);
         if (existing) {
             res.status(409).json({ error: "A partner with this email already exists in this organization" });
             return;
@@ -69,8 +69,8 @@ export async function createPartnerHandler(
             const [created] = await tx
                 .insert(partner)
                 .values({
-                    id: crypto.randomUUID(),
-                    orgId: req.org!.id,
+                    partnerId: crypto.randomUUID(),
+                    organizationId: req.org!.organizationId,
                     name: req.body.name,
                     type: req.body.type,
                     contactEmail: normalizedContactEmail,
@@ -78,7 +78,7 @@ export async function createPartnerHandler(
                     onboardingDate: req.body.onboardingDate
                         ? new Date(req.body.onboardingDate)
                         : null,
-                    createdBy: req.user!.id,
+                    createdByUserId: req.user!.id,
                 })
                 .returning();
 
@@ -98,7 +98,7 @@ export async function createPartnerHandler(
                 const [existingMember] = await tx
                     .select()
                     .from(orgUser)
-                    .where(and(eq(orgUser.orgId, req.org!.id), eq(orgUser.userId, existingUser.id)))
+                    .where(and(eq(orgUser.organizationId, req.org!.organizationId), eq(orgUser.userId, existingUser.id)))
                     .limit(1);
 
                 if (existingMember) {
@@ -106,7 +106,7 @@ export async function createPartnerHandler(
                     const [linked] = await tx
                         .update(partner)
                         .set({ userId: existingUser.id, status: "active" })
-                        .where(eq(partner.id, created.id))
+                        .where(eq(partner.partnerId, created.partnerId))
                         .returning();
 
                     return { partner: linked, linked: true, invitation: null };
@@ -118,8 +118,8 @@ export async function createPartnerHandler(
             const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
             await tx.insert(invitation).values({
-                id: crypto.randomUUID(),
-                orgId: req.org!.id,
+                invitationId: crypto.randomUUID(),
+                organizationId: req.org!.organizationId,
                 email: normalizedContactEmail,
                 token,
                 role: "partner",
@@ -129,10 +129,10 @@ export async function createPartnerHandler(
             // Log activity
             try {
                 await createActivity(
-                    req.org!.id,
+                    req.org!.organizationId,
                     req.user!.id,
                     "partner",
-                    created.id,
+                    created.partnerId,
                     `created partner "${created.name}" and sent invitation`
                 );
             } catch (activityError) {
@@ -148,7 +148,7 @@ export async function createPartnerHandler(
                 const [org] = await db
                     .select({ name: organization.name })
                     .from(organization)
-                    .where(eq(organization.id, req.org.id))
+                    .where(eq(organization.organizationId, req.org.organizationId))
                     .limit(1);
 
                 if (org) {
@@ -191,7 +191,7 @@ export async function getOrgPartnersHandler(
             return;
         }
 
-        const partners = await getOrgPartners(req.org.id);
+        const partners = await getOrgPartners(req.org.organizationId);
 
         res.json({ partners });
     } catch (error) {
@@ -210,24 +210,24 @@ export async function getMyPartnerProfileHandler(
             return;
         }
 
-        let selfPartner = (await getOrgPartnersForUser(req.org.id, req.user.id))[0];
+        let selfPartner = (await getOrgPartnersForUser(req.org.organizationId, req.user.id))[0];
 
         // Recovery path: if partner row isn't linked yet, match by contact email and link it.
         // getPartnerByEmail already uses case-insensitive matching
         if (!selfPartner) {
-            const emailMatch = await getPartnerByEmail(req.org.id, req.user.email);
+            const emailMatch = await getPartnerByEmail(req.org.organizationId, req.user.email);
 
             if (emailMatch && !emailMatch.userId) {
-                await linkUserToPartner(emailMatch.id, req.user.id);
+                await linkUserToPartner(emailMatch.partnerId, req.user.id);
                 selfPartner = { ...emailMatch, userId: req.user.id, status: "active" };
                 
                 // Log the auto-link activity
                 try {
                     await createActivity(
-                        req.org.id,
+                        req.org.organizationId,
                         req.user.id,
                         "partner",
-                        emailMatch.id,
+                        emailMatch.partnerId,
                         `auto-linked partner "${emailMatch.name}" to user account`
                     );
                 } catch (activityError) {
@@ -243,7 +243,7 @@ export async function getMyPartnerProfileHandler(
             return;
         }
 
-        const result = await getPartnerWithTeams(selfPartner.id);
+        const result = await getPartnerWithTeams(selfPartner.partnerId);
         res.json({ partner: result.partner, teams: result.teams });
     } catch (error) {
         console.error("Get my partner profile error:", error);
@@ -261,7 +261,7 @@ export async function getPartnerByIdHandler(
             return;
         }
 
-        const result = await getPartnerWithTeams(req.partner.id);
+        const result = await getPartnerWithTeams(req.partner.partnerId);
         res.json({ partner: result.partner, teams: result.teams });
     } catch (error) {
         console.error("Get partner error:", error);
@@ -291,13 +291,13 @@ export async function updatePartnerHandler(
         }
 
         // Handle email change with invitation cleanup
-        const oldEmail = req.partner.userId ? null : await getPartnerContactEmail(req.partner.id);
+        const oldEmail = req.partner.userId ? null : await getPartnerContactEmail(req.partner.partnerId);
         const newEmail = req.body.contactEmail !== undefined ? normalizeEmail(req.body.contactEmail) : null;
         
         if (newEmail && oldEmail && newEmail !== oldEmail) {
             // Check for duplicate email in org
-            const existingWithEmail = await getPartnerByEmail(req.org.id, newEmail);
-            if (existingWithEmail && existingWithEmail.id !== req.partner.id) {
+            const existingWithEmail = await getPartnerByEmail(req.org.organizationId, newEmail);
+            if (existingWithEmail && existingWithEmail.partnerId !== req.partner.partnerId) {
                 res.status(409).json({ error: "Another partner with this email already exists" });
                 return;
             }
@@ -320,7 +320,7 @@ export async function updatePartnerHandler(
                     .set({ usedAt: new Date() }) // Mark as "used" to invalidate
                     .where(
                         and(
-                            eq(invitation.orgId, req.org!.id),
+                            eq(invitation.organizationId, req.org!.organizationId),
                             sql`lower(${invitation.email}) = ${oldEmail}`,
                             isNull(invitation.usedAt)
                         )
@@ -330,7 +330,7 @@ export async function updatePartnerHandler(
             const [result] = await tx
                 .update(partner)
                 .set(updates)
-                .where(eq(partner.id, req.partner!.id))
+                .where(eq(partner.partnerId, req.partner!.partnerId))
                 .returning();
 
             return result;
@@ -340,10 +340,10 @@ export async function updatePartnerHandler(
         try {
             const changedFields = Object.keys(updates).join(", ");
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "partner",
-                req.partner.id,
+                req.partner.partnerId,
                 `updated partner "${req.partner.name}" (${changedFields})`
             );
         } catch (activityError) {
@@ -364,7 +364,7 @@ async function getPartnerContactEmail(partnerId: string): Promise<string | null>
     const [result] = await db
         .select({ contactEmail: partner.contactEmail })
         .from(partner)
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .limit(1);
     return result?.contactEmail ? normalizeEmail(result.contactEmail) : null;
 }
@@ -379,15 +379,15 @@ export async function deletePartnerHandler(
             return;
         }
 
-        const deleted = await hardDeletePartner(req.partner.id);
+        const deleted = await hardDeletePartner(req.partner.partnerId);
 
         // Log the deletion
         try {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "partner",
-                req.partner.id,
+                req.partner.partnerId,
                 `deleted partner "${req.partner.name}"`
             );
         } catch (activityError) {

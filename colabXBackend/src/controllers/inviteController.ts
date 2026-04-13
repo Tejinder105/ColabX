@@ -33,7 +33,7 @@ async function generateUniqueToken(maxRetries = 3): Promise<string> {
     
     // Check if token already exists
     const [existing] = await db
-      .select({ id: invitation.id })
+      .select({ id: invitation.invitationId })
       .from(invitation)
       .where(eq(invitation.token, token))
       .limit(1);
@@ -54,12 +54,12 @@ export async function createInvitation(
 ): Promise<void> {
   try {
     const {
-      orgId,
+      organizationId,
       role = "partner",
       partnerType,
       partnerIndustry,
     } = req.body as {
-      orgId: string;
+      organizationId: string;
       role: OrgRole;
       partnerType?: string;
       partnerIndustry?: string;
@@ -77,7 +77,7 @@ export async function createInvitation(
     const membership = await db
       .select()
       .from(orgUser)
-      .where(and(eq(orgUser.orgId, orgId), eq(orgUser.userId, userId)))
+      .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
       .limit(1);
 
     if (
@@ -107,7 +107,7 @@ export async function createInvitation(
         .select()
         .from(orgUser)
         .where(
-          and(eq(orgUser.orgId, orgId), eq(orgUser.userId, existingUser.id)),
+          and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, existingUser.id)),
         )
         .limit(1);
 
@@ -119,7 +119,7 @@ export async function createInvitation(
       }
 
       const assignmentCheck = await ensureRoleAssignmentAllowed(existingUser.id, role, {
-        orgId,
+        organizationId,
       });
 
       if (!assignmentCheck.allowed) {
@@ -134,7 +134,7 @@ export async function createInvitation(
       .from(invitation)
       .where(
         and(
-          eq(invitation.orgId, orgId),
+          eq(invitation.organizationId, organizationId),
           sql`lower(${invitation.email}) = ${email}`,
           isNull(invitation.usedAt),
           gt(invitation.expiresAt, new Date()),
@@ -147,7 +147,7 @@ export async function createInvitation(
         const orgs = await db
           .select({ name: organization.name })
           .from(organization)
-          .where(eq(organization.id, orgId))
+          .where(eq(organization.organizationId, organizationId))
           .limit(1);
 
         const org = orgs[0];
@@ -179,8 +179,8 @@ export async function createInvitation(
     const insertedInvites = await db
       .insert(invitation)
       .values({
-        id: generateId(),
-        orgId,
+        invitationId: generateId(),
+        organizationId,
         email, // Already normalized
         token,
         role,
@@ -200,10 +200,10 @@ export async function createInvitation(
 
     try {
       await createActivity(
-        orgId,
+        organizationId,
         userId,
         "invitation",
-        newInvite.id,
+        newInvite.invitationId,
         `invited ${email} as ${role}`,
       );
     } catch (activityError) {
@@ -215,7 +215,7 @@ export async function createInvitation(
       const orgs = await db
         .select({ name: organization.name })
         .from(organization)
-        .where(eq(organization.id, orgId))
+        .where(eq(organization.organizationId, organizationId))
         .limit(1);
 
       const org = orgs[0];
@@ -251,17 +251,17 @@ export async function validateInvitation(
 
     const [invite] = await db
       .select({
-        id: invitation.id,
+        id: invitation.invitationId,
         email: invitation.email,
         role: invitation.role,
         expiresAt: invitation.expiresAt,
         usedAt: invitation.usedAt,
-        orgId: invitation.orgId,
+        organizationId: invitation.organizationId,
         orgName: organization.name,
         orgSlug: organization.slug,
       })
       .from(invitation)
-      .innerJoin(organization, eq(invitation.orgId, organization.id))
+      .innerJoin(organization, eq(invitation.organizationId, organization.organizationId))
       .where(eq(invitation.token, token))
       .limit(1);
 
@@ -286,7 +286,7 @@ export async function validateInvitation(
         email: invite.email,
         role: invite.role,
         organization: {
-          id: invite.orgId,
+          id: invite.organizationId,
           name: invite.orgName,
           slug: invite.orgSlug,
         },
@@ -342,14 +342,14 @@ export async function acceptInvitation(
       return;
     }
 
-    const existingMember = await getMembershipForUserInOrg(invite.orgId, userId);
+    const existingMember = await getMembershipForUserInOrg(invite.organizationId, userId);
     if (existingMember) {
       res.status(409).json({ error: "Already a member of this organization" });
       return;
     }
 
     const assignmentCheck = await ensureRoleAssignmentAllowed(userId, invite.role, {
-      orgId: invite.orgId,
+      organizationId: invite.organizationId,
     });
 
     if (!assignmentCheck.allowed) {
@@ -360,26 +360,26 @@ export async function acceptInvitation(
     // Add user to org and mark invitation as used atomically
     const org = await db.transaction(async (tx) => {
       await tx.insert(orgUser).values({
-        id: crypto.randomUUID(),
+        orgUserId: crypto.randomUUID(),
         userId,
-        orgId: invite.orgId,
+        organizationId: invite.organizationId,
         role: invite.role,
       });
 
       await tx
         .update(invitation)
         .set({ usedAt: new Date() })
-        .where(eq(invitation.id, invite.id));
+        .where(eq(invitation.invitationId, invite.invitationId));
 
       // If partner role, ensure partner record exists and link user
       if (invite.role === "partner") {
         // Use case-insensitive match for partner lookup
         const [existingPartner] = await tx
-          .select({ id: partner.id })
+          .select({ partnerId: partner.partnerId })
           .from(partner)
           .where(
             and(
-              eq(partner.orgId, invite.orgId),
+              eq(partner.organizationId, invite.organizationId),
               sql`lower(${partner.contactEmail}) = ${normalizedInviteEmail}`,
             )
           )
@@ -390,20 +390,20 @@ export async function acceptInvitation(
           await tx
             .update(partner)
             .set({ userId, status: "active" })
-            .where(eq(partner.id, existingPartner.id));
+            .where(eq(partner.partnerId, existingPartner.partnerId));
         } else {
           // Auto-create partner record using stored invitation data
           const partnerType = invite.partnerType || "reseller";
           await tx.insert(partner).values({
-            id: crypto.randomUUID(),
-            orgId: invite.orgId,
+            partnerId: crypto.randomUUID(),
+            organizationId: invite.organizationId,
             name: req.user?.name || invite.email,
             type: partnerType as "reseller" | "agent" | "technology" | "distributor",
             industry: invite.partnerIndustry || undefined,
             status: "active",
             contactEmail: normalizedInviteEmail, // Store normalized
             userId,
-            createdBy: userId,
+            createdByUserId: userId,
           });
         }
       }
@@ -411,7 +411,7 @@ export async function acceptInvitation(
       const [orgDetails] = await tx
         .select()
         .from(organization)
-        .where(eq(organization.id, invite.orgId))
+        .where(eq(organization.organizationId, invite.organizationId))
         .limit(1);
 
       return orgDetails;
@@ -444,7 +444,7 @@ export async function getPendingInvitations(
 
     const pendingInvites = await db
       .select({
-        id: invitation.id,
+        id: invitation.invitationId,
         email: invitation.email,
         role: invitation.role,
         expiresAt: invitation.expiresAt,
@@ -453,7 +453,7 @@ export async function getPendingInvitations(
       .from(invitation)
       .where(
         and(
-          eq(invitation.orgId, req.org.id),
+          eq(invitation.organizationId, req.org.organizationId),
           isNull(invitation.usedAt),
           gt(invitation.expiresAt, new Date()),
         ),

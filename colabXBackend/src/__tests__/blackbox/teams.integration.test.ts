@@ -15,7 +15,7 @@ mockApp.use(express.json());
 // Mock authentication middleware
 const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
 const mockOrg = { id: 'org-123', name: 'Test Org' };
-const mockTeam = { id: 'team-123', name: 'Test Team', orgId: 'org-123' };
+const mockTeam = { id: 'team-123', name: 'Test Team', organizationId: 'org-123' };
 
 // Mock service functions
 const mockTeams: Record<string, unknown>[] = [];
@@ -39,10 +39,10 @@ mockApp.post('/api/teams', (req: express.Request, res: express.Response) => {
 
     const team = {
         id: `team-${Date.now()}`,
-        orgId: mockOrg.id,
+        organizationId: mockOrg.id,
         name,
         description: description || null,
-        createdBy: mockUser.id,
+        createdByUserId: mockUser.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
@@ -181,7 +181,7 @@ describe('Teams API - Blackbox Tests', () => {
 
             expect(response.body.team).toBeDefined();
             expect(response.body.team.name).toBe('Engineering Team');
-            expect(response.body.team.id).toBeDefined();
+            expect(response.body.team.teamId).toBeDefined();
         });
 
         it('should create a team with name and description', async () => {
@@ -246,7 +246,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .get(`/api/teams/${teamId}`)
@@ -272,7 +272,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Old Name' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .patch(`/api/teams/${teamId}`)
@@ -286,7 +286,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .patch(`/api/teams/${teamId}`)
@@ -300,7 +300,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .patch(`/api/teams/${teamId}`)
@@ -323,7 +323,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Team to Delete' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .delete(`/api/teams/${teamId}`)
@@ -349,7 +349,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -365,7 +365,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -379,7 +379,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -397,7 +397,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -411,7 +411,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             const response = await request(mockApp)
                 .get(`/api/teams/${teamId}/members`)
@@ -424,7 +424,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -446,7 +446,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             await request(mockApp)
                 .post(`/api/teams/${teamId}/members`)
@@ -463,7 +463,7 @@ describe('Teams API - Blackbox Tests', () => {
             const createResponse = await request(mockApp)
                 .post('/api/teams')
                 .send({ name: 'Test Team' });
-            const teamId = createResponse.body.team.id;
+            const teamId = createResponse.body.team.teamId;
 
             await request(mockApp)
                 .delete(`/api/teams/${teamId}/members/nonexistent-user`)

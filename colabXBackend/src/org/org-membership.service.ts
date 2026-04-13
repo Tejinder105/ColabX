@@ -9,8 +9,8 @@ import {
 } from "./org.constants.js";
 
 export interface OrgMembershipRecord {
-    id: string;
-    orgId: string;
+    orgUserId: string;
+    organizationId: string;
     userId: string;
     role: OrgRole;
     joinedAt: Date;
@@ -19,8 +19,8 @@ export interface OrgMembershipRecord {
 export async function getUserMemberships(userId: string) {
     return db
         .select({
-            id: orgUser.id,
-            orgId: orgUser.orgId,
+            id: orgUser.orgUserId,
+            organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,
             joinedAt: orgUser.joinedAt,
@@ -39,13 +39,13 @@ export async function getUserInternalMemberships(
     ];
 
     if (options?.excludeOrgId) {
-        conditions.push(ne(orgUser.orgId, options.excludeOrgId));
+        conditions.push(ne(orgUser.organizationId, options.excludeOrgId));
     }
 
     return db
         .select({
-            id: orgUser.id,
-            orgId: orgUser.orgId,
+            id: orgUser.orgUserId,
+            organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,
             joinedAt: orgUser.joinedAt,
@@ -65,13 +65,16 @@ export async function hasInternalMembership(
 export async function ensureRoleAssignmentAllowed(
     userId: string,
     role: OrgRole,
-    options?: { orgId?: string }
+    options?: { organizationId?: string }
 ) {
     if (!isInternalOrgRole(role)) {
         return { allowed: true as const };
     }
 
-    const existing = await getUserInternalMemberships(userId, options?.orgId ? { excludeOrgId: options.orgId } : undefined);
+    const existing = await getUserInternalMemberships(
+        userId,
+        options?.organizationId ? { excludeOrgId: options.organizationId } : undefined
+    );
 
     if (existing.length > 0) {
         return {
@@ -84,24 +87,24 @@ export async function ensureRoleAssignmentAllowed(
     return { allowed: true as const };
 }
 
-export async function getMembershipForUserInOrg(orgId: string, userId: string) {
+export async function getMembershipForUserInOrg(organizationId: string, userId: string) {
     const [membership] = await db
         .select({
-            id: orgUser.id,
-            orgId: orgUser.orgId,
+            orgUserId: orgUser.orgUserId,
+            organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,
             joinedAt: orgUser.joinedAt,
         })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), eq(orgUser.userId, userId)))
+        .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);
 
     return membership;
 }
 
 export async function getOrganizationMembersByRoles(
-    orgId: string,
+    organizationId: string,
     roles: OrgRole[]
 ) {
     if (roles.length === 0) {
@@ -110,12 +113,12 @@ export async function getOrganizationMembersByRoles(
 
     return db
         .select({
-            id: orgUser.id,
-            orgId: orgUser.orgId,
+            orgUserId: orgUser.orgUserId,
+            organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,
             joinedAt: orgUser.joinedAt,
         })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.role, roles)));
+        .where(and(eq(orgUser.organizationId, organizationId), inArray(orgUser.role, roles)));
 }

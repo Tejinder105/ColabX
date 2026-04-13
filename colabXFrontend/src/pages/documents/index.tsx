@@ -83,7 +83,7 @@ export default function DocumentsPage() {
     
     // For partners, filter to only show documents from their own partner records
     if (isPartner) {
-        const partnerIds = partners.map(p => p.id);
+        const partnerIds = partners.map((p) => p.partnerId);
         documents = documents.filter(doc => partnerIds.includes(doc.partnerId || ''));
     }
 
@@ -110,7 +110,7 @@ export default function DocumentsPage() {
 
     const allDocuments = useMemo<AppDocument[]>(() => {
         return documents.map((doc) => ({
-            id: doc.id,
+            id: doc.documentId,
             folderId: doc.partnerId || 'unknown',
             name: doc.fileName,
             type: toFileType(doc.fileName),
@@ -145,7 +145,7 @@ export default function DocumentsPage() {
     }
 
     async function handleUploadSubmit() {
-        const partnerId = isPartner ? (partners[0]?.id || selectedPartnerId) : selectedPartnerId;
+        const partnerId = isPartner ? (partners[0]?.partnerId || selectedPartnerId) : selectedPartnerId;
         
         if (!partnerId) {
             toast.error('Please select a partner folder.');
@@ -292,7 +292,7 @@ export default function DocumentsPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {partners.map((partner) => (
-                                            <SelectItem key={partner.id} value={partner.id}>
+                                            <SelectItem key={partner.partnerId} value={partner.partnerId}>
                                                 {partner.name}
                                             </SelectItem>
                                         ))}
@@ -305,7 +305,7 @@ export default function DocumentsPage() {
                                 <div className="p-2 rounded-md bg-muted text-muted-foreground">
                                     {partners[0]?.name || 'Your Partner'}
                                 </div>
-                                <input type="hidden" value={partners[0]?.id || ''} />
+                                <input type="hidden" value={partners[0]?.partnerId || ''} />
                             </div>
                         )}
 

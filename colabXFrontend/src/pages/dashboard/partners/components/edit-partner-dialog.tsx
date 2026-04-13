@@ -21,7 +21,7 @@ export function EditPartnerDialog({ partner, open, onOpenChange }: EditPartnerDi
     const [industry, setIndustry] = useState(partner.industry ?? '');
     const [contactEmail, setContactEmail] = useState(partner.contactEmail ?? '');
 
-    const updatePartner = useUpdatePartnerMutation(partner.id);
+    const updatePartner = useUpdatePartnerMutation(partner.partnerId);
 
     const handleSubmit = () => {
         if (!name.trim()) return;

@@ -22,7 +22,7 @@ function uniqueIds(ids: string[]) {
 }
 
 export async function createTeam(
-    orgId: string,
+    organizationId: string,
     userId: string,
     data: {
         name: string;
@@ -40,11 +40,11 @@ export async function createTeam(
         const [createdTeam] = await tx
             .insert(team)
             .values({
-                id: crypto.randomUUID(),
-                orgId,
+                teamId: crypto.randomUUID(),
+                organizationId,
                 name: data.name,
                 description: data.description ?? null,
-                createdBy: userId,
+                createdByUserId: userId,
             })
             .returning();
 
@@ -53,7 +53,7 @@ export async function createTeam(
         }
 
         let members: Array<{
-            id: string;
+            teamMemberId: string;
             teamId: string;
             userId: string;
             role: TeamRole;
@@ -65,8 +65,8 @@ export async function createTeam(
                 .insert(teamMember)
                 .values(
                     memberIds.map((memberId) => ({
-                        id: crypto.randomUUID(),
-                        teamId: createdTeam.id,
+                        teamMemberId: crypto.randomUUID(),
+                        teamId: createdTeam.teamId,
                         userId: memberId,
                         role: (memberId === data.leadUserId ? "lead" : "member") as TeamRole,
                     }))
@@ -78,22 +78,22 @@ export async function createTeam(
     });
 }
 
-export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
-    const conditions = [eq(team.orgId, orgId)];
+export async function getOrgTeams(organizationId: string, visibleToUserId?: string) {
+    const conditions = [eq(team.organizationId, organizationId)];
 
     if (visibleToUserId) {
         const visibleTeamRows = await db
             .select({ teamId: teamMember.teamId })
             .from(teamMember)
-            .innerJoin(team, eq(teamMember.teamId, team.id))
-            .where(and(eq(team.orgId, orgId), eq(teamMember.userId, visibleToUserId)));
+            .innerJoin(team, eq(teamMember.teamId, team.teamId))
+            .where(and(eq(team.organizationId, organizationId), eq(teamMember.userId, visibleToUserId)));
 
         const visibleTeamIds = uniqueIds(visibleTeamRows.map((row) => row.teamId));
         if (visibleTeamIds.length === 0) {
             return [];
         }
 
-        conditions.push(inArray(team.id, visibleTeamIds));
+        conditions.push(inArray(team.teamId, visibleTeamIds));
     }
 
     const teamRows = await db
@@ -106,13 +106,13 @@ export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
         return [];
     }
 
-    const teamIds = teamRows.map((row) => row.id);
+    const teamIds = teamRows.map((row) => row.teamId);
     const members = await getMembersForTeamIds(teamIds);
 
     const partnerCounts = await db
         .select({
             teamId: teamPartner.teamId,
-            partnerCount: count(teamPartner.id),
+            partnerCount: count(teamPartner.teamPartnerId),
         })
         .from(teamPartner)
         .where(inArray(teamPartner.teamId, teamIds))
@@ -121,10 +121,10 @@ export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
     const dealCounts = await db
         .select({
             teamId: deal.teamId,
-            dealCount: count(deal.id),
+            dealCount: count(deal.dealId),
         })
         .from(deal)
-        .where(and(eq(deal.orgId, orgId), inArray(deal.teamId, teamIds)))
+        .where(and(eq(deal.organizationId, organizationId), inArray(deal.teamId, teamIds)))
         .groupBy(deal.teamId);
 
     const memberCountByTeamId = new Map<string, number>();
@@ -151,13 +151,13 @@ export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
     );
 
     return teamRows.map((row) => {
-        const memberCount = memberCountByTeamId.get(row.id) ?? 0;
-        const partnerCount = partnerCountByTeamId.get(row.id) ?? 0;
-        const dealCount = dealCountByTeamId.get(row.id) ?? 0;
+        const memberCount = memberCountByTeamId.get(row.teamId) ?? 0;
+        const partnerCount = partnerCountByTeamId.get(row.teamId) ?? 0;
+        const dealCount = dealCountByTeamId.get(row.teamId) ?? 0;
 
         return {
             ...row,
-            lead: leadByTeamId.get(row.id) ?? null,
+            lead: leadByTeamId.get(row.teamId) ?? null,
             memberCount,
             partnerCount,
             dealCount,
@@ -166,11 +166,11 @@ export async function getOrgTeams(orgId: string, visibleToUserId?: string) {
     });
 }
 
-export async function getTeamById(teamId: string, orgId: string) {
+export async function getTeamById(teamId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(team)
-        .where(and(eq(team.id, teamId), eq(team.orgId, orgId)))
+        .where(and(eq(team.teamId, teamId), eq(team.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -183,7 +183,7 @@ async function getMembersForTeamIds(teamIds: string[]) {
 
     return db
         .select({
-            id: teamMember.id,
+            id: teamMember.teamMemberId,
             teamId: teamMember.teamId,
             userId: teamMember.userId,
             role: teamMember.role,
@@ -198,12 +198,12 @@ async function getMembersForTeamIds(teamIds: string[]) {
         .orderBy(teamMember.joinedAt);
 }
 
-export async function getTeamWithMembers(teamId: string, orgId: string) {
+export async function getTeamWithMembers(teamId: string, organizationId: string) {
     const [teamRow, members, partners, deals] = await Promise.all([
-        getTeamById(teamId, orgId),
+        getTeamById(teamId, organizationId),
         getTeamMembers(teamId),
-        getTeamPartners(teamId, orgId),
-        getTeamDeals(teamId, orgId),
+        getTeamPartners(teamId, organizationId),
+        getTeamDeals(teamId, organizationId),
     ]);
 
     if (!teamRow) {
@@ -232,7 +232,7 @@ export async function updateTeam(
     const [updated] = await db
         .update(team)
         .set(data)
-        .where(eq(team.id, teamId))
+        .where(eq(team.teamId, teamId))
         .returning();
 
     return updated;
@@ -241,23 +241,23 @@ export async function updateTeam(
 export async function deleteTeam(teamId: string) {
     const [deleted] = await db
         .delete(team)
-        .where(eq(team.id, teamId))
+        .where(eq(team.teamId, teamId))
         .returning();
 
     return deleted;
 }
 
-export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
+export async function isOrgMember(organizationId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: orgUser.id })
+        .select({ id: orgUser.orgUserId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), eq(orgUser.userId, userId)))
+        .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);
 
     return !!result;
 }
 
-export async function getOrgMembershipsByUserIds(orgId: string, userIds: string[]) {
+export async function getOrgMembershipsByUserIds(organizationId: string, userIds: string[]) {
     const uniqueUserIds = uniqueIds(userIds);
     if (uniqueUserIds.length === 0) {
         return [];
@@ -265,16 +265,16 @@ export async function getOrgMembershipsByUserIds(orgId: string, userIds: string[
 
     return db
         .select({
-            id: orgUser.id,
+            id: orgUser.orgUserId,
             userId: orgUser.userId,
-            orgId: orgUser.orgId,
+            organizationId: orgUser.organizationId,
             role: orgUser.role,
         })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.userId, uniqueUserIds)));
+        .where(and(eq(orgUser.organizationId, organizationId), inArray(orgUser.userId, uniqueUserIds)));
 }
 
-export async function getOrgMemberUserIds(orgId: string, userIds: string[]) {
+export async function getOrgMemberUserIds(organizationId: string, userIds: string[]) {
     const uniqueUserIds = uniqueIds(userIds);
     if (uniqueUserIds.length === 0) {
         return [];
@@ -283,15 +283,15 @@ export async function getOrgMemberUserIds(orgId: string, userIds: string[]) {
     const rows = await db
         .select({ userId: orgUser.userId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.userId, uniqueUserIds)));
+        .where(and(eq(orgUser.organizationId, organizationId), inArray(orgUser.userId, uniqueUserIds)));
 
     return rows.map((row) => row.userId);
 }
 
-export async function getOrgMembersByRoles(orgId: string, roles: OrgRole[]) {
+export async function getOrgMembersByRoles(organizationId: string, roles: OrgRole[]) {
     return db
         .select({
-            id: orgUser.id,
+            id: orgUser.orgUserId,
             userId: orgUser.userId,
             role: orgUser.role,
             userName: user.name,
@@ -300,7 +300,7 @@ export async function getOrgMembersByRoles(orgId: string, roles: OrgRole[]) {
         })
         .from(orgUser)
         .innerJoin(user, eq(orgUser.userId, user.id))
-        .where(and(eq(orgUser.orgId, orgId), inArray(orgUser.role, roles)))
+        .where(and(eq(orgUser.organizationId, organizationId), inArray(orgUser.role, roles)))
         .orderBy(user.name);
 }
 
@@ -326,7 +326,7 @@ export async function getLeadMemberRecord(teamId: string) {
 
 export async function isTeamMember(teamId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: teamMember.id })
+        .select({ id: teamMember.teamMemberId })
         .from(teamMember)
         .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
         .limit(1);
@@ -335,7 +335,7 @@ export async function isTeamMember(teamId: string, userId: string): Promise<bool
 }
 
 export async function getScopedTeamIdsForUser(
-    orgId: string,
+    organizationId: string,
     userId: string,
     role: OrgRole
 ): Promise<string[] | null> {
@@ -347,8 +347,8 @@ export async function getScopedTeamIdsForUser(
         const teamRows = await db
             .select({ teamId: teamMember.teamId })
             .from(teamMember)
-            .innerJoin(team, eq(teamMember.teamId, team.id))
-            .where(and(eq(team.orgId, orgId), eq(teamMember.userId, userId)));
+            .innerJoin(team, eq(teamMember.teamId, team.teamId))
+            .where(and(eq(team.organizationId, organizationId), eq(teamMember.userId, userId)));
 
         return uniqueIds(teamRows.map((row) => row.teamId));
     }
@@ -356,9 +356,9 @@ export async function getScopedTeamIdsForUser(
     const teamRows = await db
         .select({ teamId: teamPartner.teamId })
         .from(teamPartner)
-        .innerJoin(team, eq(teamPartner.teamId, team.id))
-        .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
-        .where(and(eq(team.orgId, orgId), eq(partner.userId, userId)));
+        .innerJoin(team, eq(teamPartner.teamId, team.teamId))
+        .innerJoin(partner, eq(teamPartner.partnerId, partner.partnerId))
+        .where(and(eq(team.organizationId, organizationId), eq(partner.userId, userId)));
 
     return uniqueIds(teamRows.map((row) => row.teamId));
 }
@@ -379,7 +379,7 @@ export async function addTeamMember(
         const [created] = await tx
             .insert(teamMember)
             .values({
-                id: crypto.randomUUID(),
+                teamMemberId: crypto.randomUUID(),
                 teamId,
                 userId,
                 role,
@@ -393,7 +393,7 @@ export async function addTeamMember(
 export async function getTeamMembers(teamId: string) {
     return db
         .select({
-            id: teamMember.id,
+            id: teamMember.teamMemberId,
             teamId: teamMember.teamId,
             userId: teamMember.userId,
             role: teamMember.role,
@@ -490,7 +490,7 @@ export async function getTeamPartnerRecord(teamId: string, partnerId: string) {
 export async function assignPartnerToTeam(
     teamId: string,
     partnerId: string,
-    assignedBy: string
+    assignedByUserId: string
 ) {
     return db.transaction(async (tx) => {
         const [existing] = await tx
@@ -504,10 +504,10 @@ export async function assignPartnerToTeam(
                 .update(teamPartner)
                 .set({
                     teamId,
-                    assignedBy,
+                    assignedByUserId,
                     assignedAt: new Date(),
                 })
-                .where(eq(teamPartner.id, existing.id))
+                .where(eq(teamPartner.teamPartnerId, existing.teamPartnerId))
                 .returning();
 
             return updated;
@@ -516,10 +516,10 @@ export async function assignPartnerToTeam(
         const [created] = await tx
             .insert(teamPartner)
             .values({
-                id: crypto.randomUUID(),
+                teamPartnerId: crypto.randomUUID(),
                 teamId,
                 partnerId,
-                assignedBy,
+                assignedByUserId,
             })
             .returning();
 
@@ -556,10 +556,10 @@ export async function getPartnerIdsForTeams(teamIds: string[]): Promise<string[]
     return uniqueIds(rows.map((row) => row.partnerId));
 }
 
-export async function getTeamPartners(teamId: string, orgId: string) {
+export async function getTeamPartners(teamId: string, organizationId: string) {
     return db
         .select({
-            id: partner.id,
+            id: partner.partnerId,
             name: partner.name,
             type: partner.type,
             status: partner.status,
@@ -567,58 +567,58 @@ export async function getTeamPartners(teamId: string, orgId: string) {
             industry: partner.industry,
             onboardingDate: partner.onboardingDate,
             userId: partner.userId,
-            createdBy: partner.createdBy,
+            createdByUserId: partner.createdByUserId,
             assignedAt: teamPartner.assignedAt,
-            assignedBy: teamPartner.assignedBy,
+            assignedByUserId: teamPartner.assignedByUserId,
         })
         .from(teamPartner)
-        .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
-        .where(and(eq(teamPartner.teamId, teamId), eq(partner.orgId, orgId)))
+        .innerJoin(partner, eq(teamPartner.partnerId, partner.partnerId))
+        .where(and(eq(teamPartner.teamId, teamId), eq(partner.organizationId, organizationId)))
         .orderBy(desc(teamPartner.assignedAt));
 }
 
-export async function getPartnerTeamAssignment(partnerId: string, orgId: string) {
+export async function getPartnerTeamAssignment(partnerId: string, organizationId: string) {
     const [assignment] = await db
         .select({
-            id: teamPartner.id,
+            id: teamPartner.teamPartnerId,
             teamId: teamPartner.teamId,
             partnerId: teamPartner.partnerId,
             assignedAt: teamPartner.assignedAt,
-            assignedBy: teamPartner.assignedBy,
+            assignedByUserId: teamPartner.assignedByUserId,
             teamName: team.name,
         })
         .from(teamPartner)
-        .innerJoin(team, eq(teamPartner.teamId, team.id))
-        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.orgId, orgId)))
+        .innerJoin(team, eq(teamPartner.teamId, team.teamId))
+        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.organizationId, organizationId)))
         .limit(1);
 
     return assignment;
 }
 
-export async function getTeamDeals(teamId: string, orgId: string) {
+export async function getTeamDeals(teamId: string, organizationId: string) {
     return db
         .select({
-            id: deal.id,
+            id: deal.dealId,
             teamId: deal.teamId,
             partnerId: deal.partnerId,
             title: deal.title,
             value: deal.value,
             stage: deal.stage,
-            createdBy: deal.createdBy,
+            createdByUserId: deal.createdByUserId,
             createdAt: deal.createdAt,
             updatedAt: deal.updatedAt,
             partnerName: partner.name,
-            assigneeCount: count(dealAssignment.id),
+            assigneeCount: count(dealAssignment.dealAssignmentId),
         })
         .from(deal)
-        .leftJoin(partner, eq(deal.partnerId, partner.id))
-        .leftJoin(dealAssignment, eq(deal.id, dealAssignment.dealId))
-        .where(and(eq(deal.orgId, orgId), eq(deal.teamId, teamId)))
-        .groupBy(deal.id, partner.name)
+        .leftJoin(partner, eq(deal.partnerId, partner.partnerId))
+        .leftJoin(dealAssignment, eq(deal.dealId, dealAssignment.dealId))
+        .where(and(eq(deal.organizationId, organizationId), eq(deal.teamId, teamId)))
+        .groupBy(deal.dealId, partner.name)
         .orderBy(desc(deal.updatedAt));
 }
 
-export async function getTeamObjectives(teamId: string, orgId: string) {
+export async function getTeamObjectives(teamId: string, organizationId: string) {
     const partnerIds = await getTeamPartnerIds(teamId);
     const objectiveConditions = [eq(objective.teamId, teamId)];
 
@@ -632,7 +632,7 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
 
     const objectives = await db
         .select({
-            id: objective.id,
+            id: objective.objectiveId,
             title: objective.title,
             startDate: objective.startDate,
             endDate: objective.endDate,
@@ -641,8 +641,8 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
             partnerName: partner.name,
         })
         .from(objective)
-        .leftJoin(partner, eq(objective.partnerId, partner.id))
-        .where(and(eq(objective.orgId, orgId), or(...objectiveConditions)));
+        .leftJoin(partner, eq(objective.partnerId, partner.partnerId))
+        .where(and(eq(objective.organizationId, organizationId), or(...objectiveConditions)));
 
     return Promise.all(
         objectives.map(async (obj) => {
@@ -684,11 +684,11 @@ export async function getTeamObjectives(teamId: string, orgId: string) {
     );
 }
 
-export async function getTeamActivity(teamId: string, orgId: string) {
+export async function getTeamActivity(teamId: string, organizationId: string) {
     const [memberIds, partnerIds, deals] = await Promise.all([
         getTeamMemberUserIds(teamId),
         getTeamPartnerIds(teamId),
-        getTeamDeals(teamId, orgId),
+        getTeamDeals(teamId, organizationId),
     ]);
 
     const scopes = [and(eq(activityLog.entityType, "team"), eq(activityLog.entityId, teamId))];
@@ -715,7 +715,7 @@ export async function getTeamActivity(teamId: string, orgId: string) {
 
     return db
         .select({
-            id: activityLog.id,
+            id: activityLog.activityLogId,
             action: activityLog.action,
             entityType: activityLog.entityType,
             entityId: activityLog.entityId,
@@ -725,7 +725,7 @@ export async function getTeamActivity(teamId: string, orgId: string) {
         })
         .from(activityLog)
         .leftJoin(user, eq(activityLog.userId, user.id))
-        .where(and(eq(activityLog.orgId, orgId), or(...scopes)))
+        .where(and(eq(activityLog.organizationId, organizationId), or(...scopes)))
         .orderBy(desc(activityLog.createdAt))
         .limit(50);
 }

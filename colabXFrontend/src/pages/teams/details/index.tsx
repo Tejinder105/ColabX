@@ -55,7 +55,7 @@ function toUiPartner(p: ApiTeamPartner): TeamPartner {
         suspended: 'Pending',
     };
     return {
-        id: p.id,
+        id: p.partnerId,
         name: p.name,
         type: p.type.charAt(0).toUpperCase() + p.type.slice(1),
         status: statusMap[p.status] ?? 'Active',
@@ -69,7 +69,7 @@ function toUiDeal(d: ApiTeamDeal): TeamDeal {
         return `$${val.toLocaleString()}`;
     };
     return {
-        id: d.id,
+        id: d.dealId,
         name: d.title,
         value: formatValue(d.value),
         stage: d.stage.charAt(0).toUpperCase() + d.stage.slice(1),
@@ -84,7 +84,7 @@ function toUiObjective(o: ApiTeamObjective): TeamObjective {
         off_track: 'Behind',
     };
     return {
-        id: o.id,
+        id: o.objectiveId,
         title: o.title,
         progress: o.progress,
         status: statusMap[o.status] ?? 'On Track',
@@ -107,7 +107,7 @@ function toUiActivity(a: ApiTeamActivity): TeamActivityType {
     };
 
     return {
-        id: a.id,
+        id: a.activityLogId,
         action: a.action,
         user: a.userName ?? 'Unknown',
         timestamp: formatTimestamp(a.createdAt),

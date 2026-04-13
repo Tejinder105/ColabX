@@ -20,7 +20,7 @@ export async function requireTeam(
             return;
         }
 
-        const teamRow = await getTeamById(teamId, req.org.id);
+        const teamRow = await getTeamById(teamId, req.org.organizationId);
 
         if (!teamRow) {
             res.status(404).json({ error: "Team not found" });
@@ -28,11 +28,11 @@ export async function requireTeam(
         }
 
         req.team = {
-            id: teamRow.id,
+            teamId: teamRow.teamId,
             name: teamRow.name,
             description: teamRow.description,
-            orgId: teamRow.orgId,
-            createdBy: teamRow.createdBy,
+            organizationId: teamRow.organizationId,
+            createdByUserId: teamRow.createdByUserId,
         };
 
         next();
@@ -63,7 +63,7 @@ export async function requireTeamAccess(
             return;
         }
 
-        const memberOfTeam = await isTeamMember(req.team.id, req.user.id);
+        const memberOfTeam = await isTeamMember(req.team.teamId, req.user.id);
         if (!memberOfTeam) {
             res.status(403).json({ error: "Access denied to this team" });
             return;

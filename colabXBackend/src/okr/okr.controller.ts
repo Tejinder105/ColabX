@@ -33,7 +33,7 @@ export async function createObjectiveHandler(
         }
 
         if (req.body.partnerId) {
-            const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
+            const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.organizationId);
             if (!partnerRow) {
                 res.status(400).json({ error: "Partner is not part of this organization" });
                 return;
@@ -41,24 +41,24 @@ export async function createObjectiveHandler(
         }
 
         if (req.body.teamId) {
-            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+            const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.organizationId);
             if (!teamRow) {
                 res.status(400).json({ error: "Team is not part of this organization" });
                 return;
             }
         }
 
-        const created = await createObjective(req.org.id, req.user.id, req.body);
+        const created = await createObjective(req.org.organizationId, req.user.id, req.body);
         if (!created) {
             throw new Error("Failed to create objective");
         }
 
         try {
             await createActivity(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 "objective",
-                created.id,
+                created.objectiveId,
                 `created objective "${created.title}"`
             );
         } catch (activityError) {
@@ -96,8 +96,8 @@ export async function getOrgObjectivesHandler(
 
         // Partner role: only see objectives linked to their partner records
         if (req.membership.role === "partner") {
-            const userPartners = await getOrgPartnersForUser(req.org.id, req.user.id);
-            const partnerIds = userPartners.map(p => p.id);
+            const userPartners = await getOrgPartnersForUser(req.org.organizationId, req.user.id);
+            const partnerIds = userPartners.map((p) => p.partnerId);
 
             if (partnerIds.length === 0) {
                 res.json({
@@ -140,7 +140,7 @@ export async function getOrgObjectivesHandler(
             if (!filters.partnerId) {
                 const allObjectives = [];
                 for (const pid of partnerIds) {
-                    const objs = await getOrgObjectives(req.org.id, { ...filters, partnerId: pid });
+                    const objs = await getOrgObjectives(req.org.organizationId, { ...filters, partnerId: pid });
                     allObjectives.push(...objs);
                 }
                 res.json({
@@ -162,7 +162,7 @@ export async function getOrgObjectivesHandler(
             }
         }
 
-        const objectives = await getOrgObjectives(req.org.id, filters);
+        const objectives = await getOrgObjectives(req.org.organizationId, filters);
         res.json({
             objectives,
             summary: {
@@ -195,7 +195,7 @@ export async function getObjectiveByIdHandler(
             return;
         }
 
-        const result = await getObjectiveWithKeyResults(req.objective.id);
+        const result = await getObjectiveWithKeyResults(req.objective.objectiveId);
         res.json({
             objective: result.objective,
             keyResults: result.keyResults,
@@ -227,7 +227,7 @@ export async function updateObjectiveHandler(
         if (req.body.description !== undefined) updates.description = req.body.description;
         if (req.body.partnerId !== undefined || req.body.teamId !== undefined) {
             if (req.body.partnerId) {
-                const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.id);
+                const partnerRow = await getPartnerByIdForOrg(req.body.partnerId, req.org.organizationId);
                 if (!partnerRow) {
                     res.status(400).json({ error: "Partner is not part of this organization" });
                     return;
@@ -236,7 +236,7 @@ export async function updateObjectiveHandler(
                 updates.partnerId = req.body.partnerId;
                 updates.teamId = null;
             } else if (req.body.teamId) {
-                const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.id);
+                const teamRow = await getTeamByIdForOrg(req.body.teamId, req.org.organizationId);
                 if (!teamRow) {
                     res.status(400).json({ error: "Team is not part of this organization" });
                     return;
@@ -259,7 +259,7 @@ export async function updateObjectiveHandler(
             return;
         }
 
-        const updated = await updateObjective(req.objective.id, updates);
+        const updated = await updateObjective(req.objective.objectiveId, updates);
         if (!updated) {
             res.status(404).json({ error: "Objective not found" });
             return;
@@ -269,10 +269,10 @@ export async function updateObjectiveHandler(
             try {
                 const changedFields = Object.keys(updates).join(", ");
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "objective",
-                    req.objective.id,
+                    req.objective.objectiveId,
                     `updated objective "${updated.title}" (${changedFields})`
                 );
             } catch (activityError) {
@@ -298,15 +298,15 @@ export async function deleteObjectiveHandler(
             return;
         }
 
-        await archiveObjective(req.objective.id);
+        await archiveObjective(req.objective.objectiveId);
 
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "objective",
-                    req.objective.id,
+                    req.objective.objectiveId,
                     `archived objective "${req.objective.title}"`
                 );
             } catch (activityError) {
@@ -334,7 +334,7 @@ export async function createKeyResultHandler(
             return;
         }
 
-        const created = await createKeyResult(req.objective.id, req.body);
+        const created = await createKeyResult(req.objective.objectiveId, req.body);
         if (!created) {
             throw new Error("Failed to create key result");
         }
@@ -342,10 +342,10 @@ export async function createKeyResultHandler(
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "objective",
-                    req.objective.id,
+                    req.objective.objectiveId,
                     `added key result "${created.title}" to objective "${req.objective.title}"`
                 );
             } catch (activityError) {
@@ -371,7 +371,7 @@ export async function getKeyResultsHandler(
             return;
         }
 
-        const keyResults = await getKeyResultsByObjective(req.objective.id);
+        const keyResults = await getKeyResultsByObjective(req.objective.objectiveId);
         res.json({ keyResults });
     } catch (error) {
         console.error("Get key results error:", error);
@@ -408,7 +408,7 @@ export async function updateKeyResultHandler(
             }
         }
 
-        const updated = await updateKeyResult(req.keyResult.id, req.body);
+        const updated = await updateKeyResult(req.keyResult.keyResultId, req.body);
         if (!updated) {
             res.status(404).json({ error: "Key result not found" });
             return;
@@ -417,7 +417,7 @@ export async function updateKeyResultHandler(
         if (req.org && req.user) {
             try {
                 await createActivity(
-                    req.org.id,
+                    req.org.organizationId,
                     req.user.id,
                     "objective",
                     req.keyResult.objectiveId,
@@ -453,7 +453,7 @@ export async function getPartnerScoreHandler(
             return;
         }
 
-        const score = await calculateAndStorePartnerScore(req.partner.id);
+        const score = await calculateAndStorePartnerScore(req.partner.partnerId);
 
         if (!score) {
             res.json({ score: null, healthLabel: null });
@@ -482,7 +482,7 @@ export async function getPartnerPerformanceHandler(
             return;
         }
 
-        const summary = await getPartnerPerformanceSummary(req.partner.id, req.org.id);
+        const summary = await getPartnerPerformanceSummary(req.partner.partnerId, req.org.organizationId);
         res.json(summary);
     } catch (error) {
         console.error("Get partner performance error:", error);
@@ -502,14 +502,14 @@ export async function getTeamPerformanceHandler(
         }
 
         const teamId = req.params.teamId as string;
-        const teamRow = await getTeamByIdForOrg(teamId, req.org.id);
+        const teamRow = await getTeamByIdForOrg(teamId, req.org.organizationId);
 
         if (!teamRow) {
             res.status(404).json({ error: "Team not found" });
             return;
         }
 
-        const summary = await getTeamPerformanceSummary(teamId, req.org.id);
+        const summary = await getTeamPerformanceSummary(teamId, req.org.organizationId);
         res.json(summary);
     } catch (error) {
         console.error("Get team performance error:", error);

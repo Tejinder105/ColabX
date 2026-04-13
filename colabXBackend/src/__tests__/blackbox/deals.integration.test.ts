@@ -31,7 +31,7 @@ mockApp.use((req: express.Request, _res: express.Response, next: express.NextFun
 function createMockPartner(name = 'Test Partner') {
     const partner = {
         id: `partner-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        orgId: mockOrg.id,
+        organizationId: mockOrg.id,
         name,
         type: 'reseller',
         status: 'active',
@@ -56,7 +56,7 @@ mockApp.post('/api/deals', (req: express.Request, res: express.Response) => {
     }
 
     // Check partner exists
-    const partner = mockPartners.find(p => p.id === partnerId && p.orgId === mockOrg.id);
+    const partner = mockPartners.find(p => p.id === partnerId && p.organizationId === mockOrg.id);
     if (!partner) {
         res.status(404).json({ error: 'Partner not found in this organization' });
         return;
@@ -64,14 +64,14 @@ mockApp.post('/api/deals', (req: express.Request, res: express.Response) => {
 
     const deal = {
         id: `deal-${Date.now()}`,
-        orgId: mockOrg.id,
+        organizationId: mockOrg.id,
         partnerId,
         partnerName: partner.name,
         title,
         description: description || null,
         value: value !== undefined ? value : null,
         stage: 'lead',
-        createdBy: mockUser.id,
+        createdByUserId: mockUser.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         assigneeCount: 0,
@@ -117,7 +117,7 @@ mockApp.get('/api/deals/:dealId', (req: express.Request, res: express.Response) 
 
     res.json({
         deal,
-        partner: partner ? { id: partner.id, name: partner.name } : null,
+        partner: partner ? { id: partner.partnerId, name: partner.name } : null,
         assignments,
         activities: [],
     });
@@ -262,13 +262,13 @@ describe('Deals API - Blackbox Tests', () => {
 
             const response = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Enterprise License Deal' })
+                .send({ partnerId: partner.partnerId, title: 'Enterprise License Deal' })
                 .expect('Content-Type', /json/)
                 .expect(201);
 
             expect(response.body.deal).toBeDefined();
             expect(response.body.deal.title).toBe('Enterprise License Deal');
-            expect(response.body.deal.partnerId).toBe(partner.id);
+            expect(response.body.deal.partnerId).toBe(partner.partnerId);
             expect(response.body.deal.stage).toBe('lead');
         });
 
@@ -278,7 +278,7 @@ describe('Deals API - Blackbox Tests', () => {
             const response = await request(mockApp)
                 .post('/api/deals')
                 .send({
-                    partnerId: partner.id,
+                    partnerId: partner.partnerId,
                     title: 'Big Deal',
                     description: 'A very important deal',
                     value: 100000,
@@ -295,7 +295,7 @@ describe('Deals API - Blackbox Tests', () => {
 
             const response = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Free Trial', value: 0 })
+                .send({ partnerId: partner.partnerId, title: 'Free Trial', value: 0 })
                 .expect(201);
 
             expect(response.body.deal.value).toBe(0);
@@ -315,7 +315,7 @@ describe('Deals API - Blackbox Tests', () => {
 
             const response = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id })
+                .send({ partnerId: partner.partnerId })
                 .expect(400);
 
             expect(response.body.error).toBeDefined();
@@ -344,9 +344,9 @@ describe('Deals API - Blackbox Tests', () => {
         it('should return all deals for organization', async () => {
             const partner = createMockPartner();
 
-            await request(mockApp).post('/api/deals').send({ partnerId: partner.id, title: 'Deal 1' });
-            await request(mockApp).post('/api/deals').send({ partnerId: partner.id, title: 'Deal 2' });
-            await request(mockApp).post('/api/deals').send({ partnerId: partner.id, title: 'Deal 3' });
+            await request(mockApp).post('/api/deals').send({ partnerId: partner.partnerId, title: 'Deal 1' });
+            await request(mockApp).post('/api/deals').send({ partnerId: partner.partnerId, title: 'Deal 2' });
+            await request(mockApp).post('/api/deals').send({ partnerId: partner.partnerId, title: 'Deal 3' });
 
             const response = await request(mockApp)
                 .get('/api/deals')
@@ -360,14 +360,14 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Deal 1' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Deal 1' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
                 .send({ stage: 'proposal' });
 
-            await request(mockApp).post('/api/deals').send({ partnerId: partner.id, title: 'Deal 2' });
+            await request(mockApp).post('/api/deals').send({ partnerId: partner.partnerId, title: 'Deal 2' });
 
             const response = await request(mockApp)
                 .get('/api/deals?stage=proposal')
@@ -397,8 +397,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Deal with Assignees' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Deal with Assignees' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -418,8 +418,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal', value: 50000 });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal', value: 50000 });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .get(`/api/deals/${dealId}`)
@@ -428,7 +428,7 @@ describe('Deals API - Blackbox Tests', () => {
             expect(response.body.deal).toBeDefined();
             expect(response.body.deal.title).toBe('Test Deal');
             expect(response.body.partner).toBeDefined();
-            expect(response.body.partner.id).toBe(partner.id);
+            expect(response.body.partner.partnerId).toBe(partner.partnerId);
             expect(response.body.assignments).toBeDefined();
             expect(response.body.activities).toBeDefined();
         });
@@ -448,8 +448,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Old Title' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Old Title' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -464,8 +464,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal', value: 10000 });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal', value: 10000 });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -480,8 +480,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -496,8 +496,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -512,8 +512,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -528,8 +528,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -542,8 +542,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .patch(`/api/deals/${dealId}`)
@@ -567,8 +567,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Deal to Delete' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Deal to Delete' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .delete(`/api/deals/${dealId}`)
@@ -583,12 +583,12 @@ describe('Deals API - Blackbox Tests', () => {
             const createRes = await request(mockApp)
                 .post('/api/deals')
                 .send({
-                    partnerId: partner.id,
+                    partnerId: partner.partnerId,
                     title: 'Important Deal',
                     description: 'Very important',
                     value: 250000,
                 });
-            const dealId = createRes.body.deal.id;
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .delete(`/api/deals/${dealId}`)
@@ -612,8 +612,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -630,8 +630,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -650,8 +650,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -675,8 +675,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             const response = await request(mockApp)
                 .get(`/api/deals/${dealId}/assign`)
@@ -690,8 +690,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -720,8 +720,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .post(`/api/deals/${dealId}/assign`)
@@ -739,8 +739,8 @@ describe('Deals API - Blackbox Tests', () => {
 
             const createRes = await request(mockApp)
                 .post('/api/deals')
-                .send({ partnerId: partner.id, title: 'Test Deal' });
-            const dealId = createRes.body.deal.id;
+                .send({ partnerId: partner.partnerId, title: 'Test Deal' });
+            const dealId = createRes.body.deal.dealId;
 
             await request(mockApp)
                 .delete(`/api/deals/${dealId}/assign/nonexistent-user`)

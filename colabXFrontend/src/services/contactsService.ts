@@ -1,15 +1,15 @@
 import { API_BASE } from '@/lib/api';
 
 export interface ApiContact {
-    id: string;
-    orgId: string;
+    contactId: string;
+    organizationId: string;
     partnerId: string;
     name: string;
     email: string;
     phone: string | null;
     role: string | null;
     isPrimary: boolean;
-    createdBy: string | null;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
 }

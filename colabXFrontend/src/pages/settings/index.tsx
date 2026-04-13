@@ -88,7 +88,7 @@ export default function SettingsPage() {
 
     // Build OrgTeamData[] from real teams
     const orgTeams: OrgTeamData[] = (teamsData?.teams ?? []).map((t) => ({
-        id: t.id,
+        id: t.teamId,
         name: t.name,
         leadName: '—',
         memberCount: t.memberCount,

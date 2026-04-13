@@ -35,7 +35,7 @@ export const updateOrgSchema = z.object({
 
 // Invitation
 export const createInviteSchema = z.object({
-    orgId: z.string().min(1),
+    organizationId: z.string().min(1),
     email: normalizedEmail,
     role: z.enum(INVITABLE_ORG_ROLES).default("partner"),
     // Partner-specific fields (required when role="partner")

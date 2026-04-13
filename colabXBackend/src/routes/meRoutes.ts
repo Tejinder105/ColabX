@@ -23,14 +23,14 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 
         const userOrgs = await db
             .select({
-                id: organization.id,
+                id: organization.organizationId,
                 name: organization.name,
                 slug: organization.slug,
                 role: orgUser.role,
                 joinedAt: orgUser.joinedAt,
             })
             .from(orgUser)
-            .innerJoin(organization, eq(orgUser.orgId, organization.id))
+            .innerJoin(organization, eq(orgUser.organizationId, organization.organizationId))
             .where(eq(orgUser.userId, userId));
 
         res.json({

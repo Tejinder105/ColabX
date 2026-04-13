@@ -14,19 +14,19 @@ import { user } from "../schemas/authSchema.js";
 export const contact = pgTable(
     "contact",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        contactId: text("contactId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
+            .references(() => partner.partnerId, { onDelete: "cascade" }),
         name: text("name").notNull(),
         email: text("email").notNull(),
         phone: text("phone"),
         role: text("role"),
         isPrimary: boolean("isPrimary").notNull().default(false),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -36,7 +36,7 @@ export const contact = pgTable(
             .notNull(),
     },
     (table) => [
-        index("contact_orgId_idx").on(table.orgId),
+        index("contact_organizationId_idx").on(table.organizationId),
         index("contact_partnerId_idx").on(table.partnerId),
     ]
 );
@@ -44,15 +44,15 @@ export const contact = pgTable(
 // Relations
 export const contactRelations = relations(contact, ({ one }) => ({
     organization: one(organization, {
-        fields: [contact.orgId],
-        references: [organization.id],
+        fields: [contact.organizationId],
+        references: [organization.organizationId],
     }),
     partner: one(partner, {
         fields: [contact.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     creator: one(user, {
-        fields: [contact.createdBy],
+        fields: [contact.createdByUserId],
         references: [user.id],
     }),
 }));

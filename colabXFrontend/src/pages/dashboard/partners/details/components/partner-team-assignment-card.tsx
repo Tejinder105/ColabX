@@ -43,12 +43,12 @@ export function PartnerTeamAssignmentCard({
     const removePartner = useRemovePartnerFromTeamMutation();
 
     const assignedTeamIds = useMemo(
-        () => new Set(teams.map((team) => team.id)),
+        () => new Set(teams.map((team) => team.teamId)),
         [teams]
     );
 
     const availableTeams = useMemo(
-        () => (teamsData?.teams ?? []).filter((team) => !assignedTeamIds.has(team.id)),
+        () => (teamsData?.teams ?? []).filter((team) => !assignedTeamIds.has(team.teamId)),
         [assignedTeamIds, teamsData?.teams]
     );
 
@@ -143,7 +143,7 @@ export function PartnerTeamAssignmentCard({
                                     </SelectTrigger>
                                     <SelectContent>
                                         {availableTeams.map((team) => (
-                                            <SelectItem key={team.id} value={team.id}>
+                                            <SelectItem key={team.teamId} value={team.teamId}>
                                                 {team.name}
                                             </SelectItem>
                                         ))}
@@ -187,11 +187,11 @@ export function PartnerTeamAssignmentCard({
                     </div>
                 ) : (
                     teams.map((team) => {
-                        const isRemoving = removePartner.isPending && isRemovingTeamId === team.id;
+                        const isRemoving = removePartner.isPending && isRemovingTeamId === team.teamId;
 
                         return (
                             <div
-                                key={team.id}
+                                key={team.teamId}
                                 className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
                             >
                                 <div className="space-y-1">
@@ -207,7 +207,7 @@ export function PartnerTeamAssignmentCard({
                                 {canManageAssignments ? (
                                     <Button
                                         variant="outline"
-                                        onClick={() => handleRemove(team.id, team.name)}
+                                        onClick={() => handleRemove(team.teamId, team.name)}
                                         disabled={isRemoving}
                                     >
                                         {isRemoving ? (

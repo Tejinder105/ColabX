@@ -33,22 +33,22 @@ export const dealDocumentVisibilityEnum = pgEnum("dealDocumentVisibility", [
 export const deal = pgTable(
     "deal",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        dealId: text("dealId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
+            .references(() => partner.partnerId, { onDelete: "cascade" }),
         teamId: text("teamId")
-            .references(() => team.id, {
+            .references(() => team.teamId, {
                 onDelete: "cascade",
             }),
         title: text("title").notNull(),
         description: text("description"),
         value: real("value"),
         stage: dealStageEnum("stage").notNull().default("lead"),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -58,7 +58,7 @@ export const deal = pgTable(
             .notNull(),
     },
     (table) => [
-        index("deal_orgId_idx").on(table.orgId),
+        index("deal_organizationId_idx").on(table.organizationId),
         index("deal_partnerId_idx").on(table.partnerId),
         index("deal_teamId_idx").on(table.teamId),
         index("deal_stage_idx").on(table.stage),
@@ -69,10 +69,10 @@ export const deal = pgTable(
 export const dealAssignment = pgTable(
     "dealAssignment",
     {
-        id: text("id").primaryKey(),
+        dealAssignmentId: text("dealAssignmentId").primaryKey(),
         dealId: text("dealId")
             .notNull()
-            .references(() => deal.id, { onDelete: "cascade" }),
+            .references(() => deal.dealId, { onDelete: "cascade" }),
         userId: text("userId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
@@ -92,11 +92,11 @@ export const dealAssignment = pgTable(
 export const dealMessage = pgTable(
     "dealMessage",
     {
-        id: text("id").primaryKey(),
+        dealMessageId: text("dealMessageId").primaryKey(),
         dealId: text("dealId")
             .notNull()
-            .references(() => deal.id, { onDelete: "cascade" }),
-        senderId: text("senderId")
+            .references(() => deal.dealId, { onDelete: "cascade" }),
+        senderUserId: text("senderUserId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
         content: text("content").notNull(),
@@ -104,7 +104,7 @@ export const dealMessage = pgTable(
     },
     (table) => [
         index("dealMessage_dealId_idx").on(table.dealId),
-        index("dealMessage_senderId_idx").on(table.senderId),
+        index("dealMessage_senderUserId_idx").on(table.senderUserId),
         index("dealMessage_createdAt_idx").on(table.createdAt),
     ]
 );
@@ -112,10 +112,10 @@ export const dealMessage = pgTable(
 export const dealTask = pgTable(
     "dealTask",
     {
-        id: text("id").primaryKey(),
+        dealTaskId: text("dealTaskId").primaryKey(),
         dealId: text("dealId")
             .notNull()
-            .references(() => deal.id, { onDelete: "cascade" }),
+            .references(() => deal.dealId, { onDelete: "cascade" }),
         title: text("title").notNull(),
         description: text("description"),
         assigneeUserId: text("assigneeUserId").references(() => user.id, {
@@ -123,7 +123,7 @@ export const dealTask = pgTable(
         }),
         status: dealTaskStatusEnum("status").notNull().default("todo"),
         dueDate: timestamp("dueDate"),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -143,11 +143,11 @@ export const dealTask = pgTable(
 export const dealDocument = pgTable(
     "dealDocument",
     {
-        id: text("id").primaryKey(),
+        dealDocumentId: text("dealDocumentId").primaryKey(),
         dealId: text("dealId")
             .notNull()
-            .references(() => deal.id, { onDelete: "cascade" }),
-        uploadedBy: text("uploadedBy")
+            .references(() => deal.dealId, { onDelete: "cascade" }),
+        uploadedByUserId: text("uploadedByUserId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
         fileName: text("fileName").notNull(),
@@ -157,7 +157,7 @@ export const dealDocument = pgTable(
     },
     (table) => [
         index("dealDocument_dealId_idx").on(table.dealId),
-        index("dealDocument_uploadedBy_idx").on(table.uploadedBy),
+        index("dealDocument_uploadedByUserId_idx").on(table.uploadedByUserId),
         index("dealDocument_visibility_idx").on(table.visibility),
     ]
 );
@@ -165,19 +165,19 @@ export const dealDocument = pgTable(
 // Relations
 export const dealRelations = relations(deal, ({ one, many }) => ({
     organization: one(organization, {
-        fields: [deal.orgId],
-        references: [organization.id],
+        fields: [deal.organizationId],
+        references: [organization.organizationId],
     }),
     partner: one(partner, {
         fields: [deal.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     team: one(team, {
         fields: [deal.teamId],
-        references: [team.id],
+        references: [team.teamId],
     }),
     creator: one(user, {
-        fields: [deal.createdBy],
+        fields: [deal.createdByUserId],
         references: [user.id],
     }),
     assignments: many(dealAssignment),
@@ -189,7 +189,7 @@ export const dealRelations = relations(deal, ({ one, many }) => ({
 export const dealAssignmentRelations = relations(dealAssignment, ({ one }) => ({
     deal: one(deal, {
         fields: [dealAssignment.dealId],
-        references: [deal.id],
+        references: [deal.dealId],
     }),
     user: one(user, {
         fields: [dealAssignment.userId],
@@ -200,10 +200,10 @@ export const dealAssignmentRelations = relations(dealAssignment, ({ one }) => ({
 export const dealMessageRelations = relations(dealMessage, ({ one }) => ({
     deal: one(deal, {
         fields: [dealMessage.dealId],
-        references: [deal.id],
+        references: [deal.dealId],
     }),
     sender: one(user, {
-        fields: [dealMessage.senderId],
+        fields: [dealMessage.senderUserId],
         references: [user.id],
     }),
 }));
@@ -211,7 +211,7 @@ export const dealMessageRelations = relations(dealMessage, ({ one }) => ({
 export const dealTaskRelations = relations(dealTask, ({ one }) => ({
     deal: one(deal, {
         fields: [dealTask.dealId],
-        references: [deal.id],
+        references: [deal.dealId],
     }),
     assignee: one(user, {
         fields: [dealTask.assigneeUserId],
@@ -219,7 +219,7 @@ export const dealTaskRelations = relations(dealTask, ({ one }) => ({
         relationName: "dealTaskAssignee",
     }),
     creator: one(user, {
-        fields: [dealTask.createdBy],
+        fields: [dealTask.createdByUserId],
         references: [user.id],
         relationName: "dealTaskCreator",
     }),
@@ -228,10 +228,10 @@ export const dealTaskRelations = relations(dealTask, ({ one }) => ({
 export const dealDocumentRelations = relations(dealDocument, ({ one }) => ({
     deal: one(deal, {
         fields: [dealDocument.dealId],
-        references: [deal.id],
+        references: [deal.dealId],
     }),
     uploader: one(user, {
-        fields: [dealDocument.uploadedBy],
+        fields: [dealDocument.uploadedByUserId],
         references: [user.id],
     }),
 }));

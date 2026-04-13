@@ -24,17 +24,17 @@ export const keyResultStatusEnum = pgEnum("keyResultStatus", [
 export const objective = pgTable(
     "objective",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        objectiveId: text("objectiveId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
-        partnerId: text("partnerId").references(() => partner.id, { onDelete: "cascade" }),
-        teamId: text("teamId").references(() => team.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
+        partnerId: text("partnerId").references(() => partner.partnerId, { onDelete: "cascade" }),
+        teamId: text("teamId").references(() => team.teamId, { onDelete: "cascade" }),
         title: text("title").notNull(),
         description: text("description"),
         startDate: date("startDate").notNull(),
         endDate: date("endDate").notNull(),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -44,7 +44,7 @@ export const objective = pgTable(
             .notNull(),
     },
     (table) => [
-        index("objective_orgId_idx").on(table.orgId),
+        index("objective_organizationId_idx").on(table.organizationId),
         index("objective_partnerId_idx").on(table.partnerId),
         index("objective_teamId_idx").on(table.teamId),
     ]
@@ -55,10 +55,10 @@ export const objective = pgTable(
 export const keyResult = pgTable(
     "keyResult",
     {
-        id: text("id").primaryKey(),
+        keyResultId: text("keyResultId").primaryKey(),
         objectiveId: text("objectiveId")
             .notNull()
-            .references(() => objective.id, { onDelete: "cascade" }),
+            .references(() => objective.objectiveId, { onDelete: "cascade" }),
         title: text("title").notNull(),
         targetValue: real("targetValue").notNull(),
         currentValue: real("currentValue").notNull().default(0),
@@ -79,19 +79,19 @@ export const keyResult = pgTable(
 
 export const objectiveRelations = relations(objective, ({ one, many }) => ({
     organization: one(organization, {
-        fields: [objective.orgId],
-        references: [organization.id],
+        fields: [objective.organizationId],
+        references: [organization.organizationId],
     }),
     partner: one(partner, {
         fields: [objective.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     team: one(team, {
         fields: [objective.teamId],
-        references: [team.id],
+        references: [team.teamId],
     }),
     creator: one(user, {
-        fields: [objective.createdBy],
+        fields: [objective.createdByUserId],
         references: [user.id],
         relationName: "objectiveCreator",
     }),
@@ -101,6 +101,6 @@ export const objectiveRelations = relations(objective, ({ one, many }) => ({
 export const keyResultRelations = relations(keyResult, ({ one }) => ({
     objective: one(objective, {
         fields: [keyResult.objectiveId],
-        references: [objective.id],
+        references: [objective.objectiveId],
     }),
 }));

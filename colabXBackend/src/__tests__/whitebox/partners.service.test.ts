@@ -58,14 +58,14 @@ describe('Partners Service - Whitebox Tests', () => {
         it('should create a partner with required fields only', async () => {
             const mockPartner = {
                 id: 'partner-123',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 name: 'Acme Corp',
                 type: 'reseller',
                 status: 'active',
                 contactEmail: null,
                 industry: null,
                 onboardingDate: null,
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -86,14 +86,14 @@ describe('Partners Service - Whitebox Tests', () => {
         it('should create a partner with all optional fields', async () => {
             const mockPartner = {
                 id: 'partner-456',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 name: 'Tech Solutions',
                 type: 'technology',
                 status: 'active',
                 contactEmail: 'contact@techsolutions.com',
                 industry: 'Technology',
                 onboardingDate: new Date('2024-01-15'),
-                createdBy: 'user-1',
+                createdByUserId: 'user-1',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -176,7 +176,7 @@ describe('Partners Service - Whitebox Tests', () => {
             const mockPartner = {
                 id: 'partner-1',
                 name: 'Test Partner',
-                orgId: 'org-1',
+                organizationId: 'org-1',
                 type: 'reseller',
             };
             mockLimit.mockResolvedValueOnce([mockPartner]);
@@ -210,7 +210,7 @@ describe('Partners Service - Whitebox Tests', () => {
             const mockPartner = {
                 id: 'partner-1',
                 name: 'Test Partner',
-                orgId: 'org-1',
+                organizationId: 'org-1',
             };
             mockLimit.mockResolvedValueOnce([mockPartner]);
 

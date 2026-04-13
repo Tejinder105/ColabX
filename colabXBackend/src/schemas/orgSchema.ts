@@ -21,7 +21,7 @@ export const invitePartnerTypeEnum = pgEnum("invitePartnerType", [
 
 // Organization table
 export const organization = pgTable("organization", {
-    id: text("id").primaryKey(),
+    organizationId: text("organizationId").primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     logo: text("logo"),
@@ -38,19 +38,19 @@ export const organization = pgTable("organization", {
 export const orgUser = pgTable(
     "orgUser",
     {
-        id: text("id").primaryKey(),
+        orgUserId: text("orgUserId").primaryKey(),
         userId: text("userId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
-        orgId: text("orgId")
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         role: roleEnum("role").notNull().default("partner"),
         joinedAt: timestamp("joinedAt").defaultNow().notNull(),
     },
     (table) => [
         index("orgUser_userId_idx").on(table.userId),
-        index("orgUser_orgId_idx").on(table.orgId),
+        index("orgUser_organizationId_idx").on(table.organizationId),
     ]
 );
 
@@ -58,10 +58,10 @@ export const orgUser = pgTable(
 export const invitation = pgTable(
     "invitation",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        invitationId: text("invitationId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         email: text("email").notNull(),
         token: text("token").notNull().unique(),
         role: roleEnum("role").notNull().default("partner"),
@@ -73,7 +73,7 @@ export const invitation = pgTable(
         createdAt: timestamp("createdAt").defaultNow().notNull(),
     },
     (table) => [
-        index("invitation_orgId_idx").on(table.orgId),
+        index("invitation_organizationId_idx").on(table.organizationId),
         index("invitation_token_idx").on(table.token),
     ]
 );
@@ -90,14 +90,14 @@ export const orgUserRelations = relations(orgUser, ({ one }) => ({
         references: [user.id],
     }),
     organization: one(organization, {
-        fields: [orgUser.orgId],
-        references: [organization.id],
+        fields: [orgUser.organizationId],
+        references: [organization.organizationId],
     }),
 }));
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
     organization: one(organization, {
-        fields: [invitation.orgId],
-        references: [organization.id],
+        fields: [invitation.organizationId],
+        references: [organization.organizationId],
     }),
 }));

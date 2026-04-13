@@ -7,37 +7,37 @@ import { user } from "./authSchema.js";
 export const communication = pgTable(
     "communication",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        communicationId: text("communicationId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
-        senderId: text("senderId")
+            .references(() => partner.partnerId, { onDelete: "cascade" }),
+        senderUserId: text("senderUserId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
         message: text("message").notNull(),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
     },
     (table) => [
-        index("communication_orgId_idx").on(table.orgId),
+        index("communication_organizationId_idx").on(table.organizationId),
         index("communication_partnerId_idx").on(table.partnerId),
-        index("communication_senderId_idx").on(table.senderId),
+        index("communication_senderUserId_idx").on(table.senderUserId),
     ]
 );
 
 export const document = pgTable(
     "document",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        documentId: text("documentId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
-        uploadedBy: text("uploadedBy")
+            .references(() => partner.partnerId, { onDelete: "cascade" }),
+        uploadedByUserId: text("uploadedByUserId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
         fileName: text("fileName").notNull(),
@@ -46,19 +46,19 @@ export const document = pgTable(
         uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
     },
     (table) => [
-        index("document_orgId_idx").on(table.orgId),
+        index("document_organizationId_idx").on(table.organizationId),
         index("document_partnerId_idx").on(table.partnerId),
-        index("document_uploadedBy_idx").on(table.uploadedBy),
+        index("document_uploadedByUserId_idx").on(table.uploadedByUserId),
     ]
 );
 
 export const activityLog = pgTable(
     "activityLog",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        activityLogId: text("activityLogId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         userId: text("userId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
@@ -68,7 +68,7 @@ export const activityLog = pgTable(
         createdAt: timestamp("createdAt").defaultNow().notNull(),
     },
     (table) => [
-        index("activityLog_orgId_idx").on(table.orgId),
+        index("activityLog_organizationId_idx").on(table.organizationId),
         index("activityLog_userId_idx").on(table.userId),
         index("activityLog_entityType_idx").on(table.entityType),
     ]
@@ -76,38 +76,38 @@ export const activityLog = pgTable(
 
 export const communicationRelations = relations(communication, ({ one }) => ({
     organization: one(organization, {
-        fields: [communication.orgId],
-        references: [organization.id],
+        fields: [communication.organizationId],
+        references: [organization.organizationId],
     }),
     partner: one(partner, {
         fields: [communication.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     sender: one(user, {
-        fields: [communication.senderId],
+        fields: [communication.senderUserId],
         references: [user.id],
     }),
 }));
 
 export const documentRelations = relations(document, ({ one }) => ({
     organization: one(organization, {
-        fields: [document.orgId],
-        references: [organization.id],
+        fields: [document.organizationId],
+        references: [organization.organizationId],
     }),
     partner: one(partner, {
         fields: [document.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     uploader: one(user, {
-        fields: [document.uploadedBy],
+        fields: [document.uploadedByUserId],
         references: [user.id],
     }),
 }));
 
 export const activityLogRelations = relations(activityLog, ({ one }) => ({
     organization: one(organization, {
-        fields: [activityLog.orgId],
-        references: [organization.id],
+        fields: [activityLog.organizationId],
+        references: [organization.organizationId],
     }),
     user: one(user, {
         fields: [activityLog.userId],
@@ -118,14 +118,14 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
 export const notification = pgTable(
     "notification",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        notificationId: text("notificationId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
-        recipientId: text("recipientId")
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
+        recipientUserId: text("recipientUserId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
-        partnerId: text("partnerId").references(() => partner.id, { onDelete: "cascade" }),
+        partnerId: text("partnerId").references(() => partner.partnerId, { onDelete: "cascade" }),
         alertType: text("alertType").notNull(), // 'missed_deadline', 'low_okr', 'pending_action'
         title: text("title").notNull(),
         message: text("message").notNull(),
@@ -139,8 +139,8 @@ export const notification = pgTable(
         readAt: timestamp("readAt"),
     },
     (table) => [
-        index("notification_orgId_idx").on(table.orgId),
-        index("notification_recipientId_idx").on(table.recipientId),
+        index("notification_organizationId_idx").on(table.organizationId),
+        index("notification_recipientUserId_idx").on(table.recipientUserId),
         index("notification_partnerId_idx").on(table.partnerId),
         index("notification_alertType_idx").on(table.alertType),
         index("notification_read_idx").on(table.read),
@@ -149,15 +149,15 @@ export const notification = pgTable(
 
 export const notificationRelations = relations(notification, ({ one }) => ({
     organization: one(organization, {
-        fields: [notification.orgId],
-        references: [organization.id],
+        fields: [notification.organizationId],
+        references: [organization.organizationId],
     }),
     recipient: one(user, {
-        fields: [notification.recipientId],
+        fields: [notification.recipientUserId],
         references: [user.id],
     }),
     partner: one(partner, {
         fields: [notification.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
 }));

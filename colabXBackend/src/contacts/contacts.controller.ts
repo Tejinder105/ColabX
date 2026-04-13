@@ -20,8 +20,8 @@ export async function createContactHandler(
         }
 
         const created = await createContact(
-            req.org.id,
-            req.partner.id,
+            req.org.organizationId,
+            req.partner.partnerId,
             req.user.id,
             req.body
         );
@@ -43,7 +43,7 @@ export async function getPartnerContactsHandler(
             return;
         }
 
-        const contacts = await getPartnerContacts(req.partner.id);
+        const contacts = await getPartnerContacts(req.partner.partnerId);
         res.json({ contacts });
     } catch (error) {
         console.error("Get contacts error:", error);
@@ -63,7 +63,7 @@ export async function updateContactHandler(
         }
 
         const contactId = req.params.contactId as string;
-        const existing = await getContactById(contactId, req.org.id);
+        const existing = await getContactById(contactId, req.org.organizationId);
 
         if (!existing) {
             res.status(404).json({ error: "Contact not found" });
@@ -102,7 +102,7 @@ export async function deleteContactHandler(
         }
 
         const contactId = req.params.contactId as string;
-        const existing = await getContactById(contactId, req.org.id);
+        const existing = await getContactById(contactId, req.org.organizationId);
 
         if (!existing) {
             res.status(404).json({ error: "Contact not found" });

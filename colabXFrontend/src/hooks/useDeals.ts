@@ -102,7 +102,7 @@ function toPipelineSummary(deals: ApiDeal[]): PipelineSummary {
 
 function mapDealForUi(deal: ApiDeal): Deal {
     return {
-        id: deal.id,
+        id: deal.dealId,
         name: deal.title,
         partnerName: deal.partnerName ?? 'Unknown Partner',
         value: deal.value ?? 0,

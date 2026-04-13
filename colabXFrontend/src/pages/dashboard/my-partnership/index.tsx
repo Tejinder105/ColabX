@@ -36,7 +36,7 @@ function getHealthLabel(score: number): { label: string; color: string } {
 
 export default function MyPartnershipPage() {
     const myPartnerQuery = useMyPartner();
-    const partnerId = myPartnerQuery.data?.partner?.id;
+    const partnerId = myPartnerQuery.data?.partner?.partnerId;
 
     const dealsQuery = usePartnerDeals(partnerId);
     const documentsQuery = usePartnerDocuments(partnerId);
@@ -116,7 +116,7 @@ export default function MyPartnershipPage() {
                         <p className="text-sm text-muted-foreground">No team assignments found.</p>
                     ) : (
                         teams.map((team) => (
-                            <div key={team.id} className="rounded-md border p-3 space-y-2">
+                            <div key={team.teamId} className="rounded-md border p-3 space-y-2">
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <p className="font-medium">{team.name}</p>
@@ -184,7 +184,7 @@ export default function MyPartnershipPage() {
                         <p className="text-sm text-muted-foreground">No deals found for your partnership yet.</p>
                     ) : (
                         deals.map((deal) => (
-                            <div key={deal.id} className="flex items-center justify-between rounded-md border p-3">
+                            <div key={deal.dealId} className="flex items-center justify-between rounded-md border p-3">
                                 <div>
                                     <p className="font-medium">{deal.title}</p>
                                     <p className="text-xs text-muted-foreground">Stage: {titleCase(deal.stage)}</p>
@@ -211,7 +211,7 @@ export default function MyPartnershipPage() {
                         <p className="text-sm text-muted-foreground">No shared documents yet.</p>
                     ) : (
                         documents.map((document) => (
-                            <div key={document.id} className="flex items-center justify-between rounded-md border p-3">
+                            <div key={document.documentId} className="flex items-center justify-between rounded-md border p-3">
                                 <div>
                                     <p className="font-medium">{document.fileName}</p>
                                     <p className="text-xs text-muted-foreground">Visibility: {titleCase(document.visibility)}</p>
@@ -258,7 +258,7 @@ export default function MyPartnershipPage() {
                         <p className="text-sm text-muted-foreground">No messages yet.</p>
                     ) : (
                         communications.map((message) => (
-                            <div key={message.id} className="rounded-md border p-3">
+                            <div key={message.communicationId} className="rounded-md border p-3">
                                 <div className="mb-2 flex items-center justify-between">
                                     <p className="text-sm font-medium">{message.senderName ?? "Unknown sender"}</p>
                                     <p className="text-xs text-muted-foreground">

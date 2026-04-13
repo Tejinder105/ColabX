@@ -3,7 +3,7 @@ import db from "../db/index.js";
 import { contact } from "./contacts.schema.js";
 
 export async function createContact(
-    orgId: string,
+    organizationId: string,
     partnerId: string,
     userId: string,
     data: {
@@ -17,15 +17,15 @@ export async function createContact(
     const [created] = await db
         .insert(contact)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            contactId: crypto.randomUUID(),
+            organizationId,
             partnerId,
             name: data.name,
             email: data.email,
             phone: data.phone ?? null,
             role: data.role ?? null,
             isPrimary: data.isPrimary ?? false,
-            createdBy: userId,
+            createdByUserId: userId,
         })
         .returning();
 
@@ -39,11 +39,11 @@ export async function getPartnerContacts(partnerId: string) {
         .where(eq(contact.partnerId, partnerId));
 }
 
-export async function getContactById(contactId: string, orgId: string) {
+export async function getContactById(contactId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(contact)
-        .where(and(eq(contact.id, contactId), eq(contact.orgId, orgId)))
+        .where(and(eq(contact.contactId, contactId), eq(contact.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -56,7 +56,7 @@ export async function updateContact(
     const [updated] = await db
         .update(contact)
         .set(data)
-        .where(eq(contact.id, contactId))
+        .where(eq(contact.contactId, contactId))
         .returning();
 
     return updated;
@@ -65,7 +65,7 @@ export async function updateContact(
 export async function deleteContact(contactId: string) {
     const [deleted] = await db
         .delete(contact)
-        .where(eq(contact.id, contactId))
+        .where(eq(contact.contactId, contactId))
         .returning();
 
     return deleted;

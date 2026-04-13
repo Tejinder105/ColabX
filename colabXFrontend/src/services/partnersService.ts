@@ -2,39 +2,40 @@ import { API_BASE } from '@/lib/api';
 
 // Types matching backend responses
 export interface ApiPartner {
-    id: string;
-    orgId: string;
+    partnerId: string;
+    organizationId: string;
     name: string;
     type: 'reseller' | 'agent' | 'technology' | 'distributor';
     status: string;
     contactEmail: string | null;
     industry: string | null;
     onboardingDate: string | null;
-    createdBy: string;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
 }
 
 export interface ApiPartnerDetail {
-    id: string;
-    orgId: string;
+    partnerId: string;
+    organizationId: string;
     name: string;
     type: 'reseller' | 'agent' | 'technology' | 'distributor';
     status: string;
     contactEmail: string | null;
     industry: string | null;
     onboardingDate: string | null;
-    createdBy: string;
+    createdByUserId: string | null;
+    userId?: string | null;
     createdAt: string;
     updatedAt: string;
 }
 
 export interface ApiPartnerTeam {
-    id: string;
-    orgId: string;
+    teamId: string;
+    organizationId: string;
     name: string;
     description: string | null;
-    createdBy: string | null;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
     assignedAt: string;
@@ -182,15 +183,15 @@ export async function deletePartner(
 export type ApiDealStage = 'lead' | 'proposal' | 'negotiation' | 'won' | 'lost';
 
 export interface ApiPartnerDeal {
-    id: string;
-    orgId: string;
+    dealId: string;
+    organizationId: string;
     partnerId: string;
     partnerName: string | null;
     title: string;
     description: string | null;
     value: number | null;
     stage: ApiDealStage;
-    createdBy: string | null;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
     assigneeCount: number;

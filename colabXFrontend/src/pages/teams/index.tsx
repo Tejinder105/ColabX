@@ -11,7 +11,7 @@ import type { ApiTeam } from '@/services/teamsService';
 // Map backend team shape to the frontend Team type
 function toUiTeam(t: ApiTeam): Team {
     return {
-        id: t.id,
+        id: t.teamId,
         name: t.name,
         description: t.description ?? undefined,
         leadName: '—',

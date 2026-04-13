@@ -26,8 +26,8 @@ export async function createCommunicationHandler(
         }
 
         const created = await createCommunication(
-            req.org.id,
-            req.partner.id,
+            req.org.organizationId,
+            req.partner.partnerId,
             req.user.id,
             req.body.message
         );
@@ -49,7 +49,7 @@ export async function getPartnerCommunicationsHandler(
             return;
         }
 
-        const communications = await getPartnerCommunications(req.partner.id);
+        const communications = await getPartnerCommunications(req.partner.partnerId);
         res.json({ communications });
     } catch (error) {
         console.error("Get communications error:", error);
@@ -71,8 +71,8 @@ export async function createDocumentHandler(
         }
 
         const created = await createDocument(
-            req.org.id,
-            req.partner.id,
+            req.org.organizationId,
+            req.partner.partnerId,
             req.user.id,
             req.body
         );
@@ -94,7 +94,7 @@ export async function getPartnerDocumentsHandler(
             return;
         }
 
-        const documents = await getPartnerDocuments(req.partner.id);
+        const documents = await getPartnerDocuments(req.partner.partnerId);
         res.json({ documents });
     } catch (error) {
         console.error("Get documents error:", error);
@@ -114,7 +114,7 @@ export async function getOrgDocumentsHandler(
         }
 
         const visibilityFilter = req.membership.role === "partner" ? "partner" : undefined;
-        const documents = await getOrgDocuments(req.org.id, visibilityFilter);
+        const documents = await getOrgDocuments(req.org.organizationId, visibilityFilter);
         res.json({ documents });
     } catch (error) {
         console.error("Get org documents error:", error);
@@ -134,7 +134,7 @@ export async function updateDocumentVisibilityHandler(
         }
 
         const documentId = req.params.documentId as string;
-        const existing = await getDocumentById(documentId, req.org.id);
+        const existing = await getDocumentById(documentId, req.org.organizationId);
 
         if (!existing) {
             res.status(404).json({ error: "Document not found" });
@@ -161,7 +161,7 @@ export async function deleteDocumentHandler(
         }
 
         const documentId = req.params.documentId as string;
-        const existing = await getDocumentById(documentId, req.org.id);
+        const existing = await getDocumentById(documentId, req.org.organizationId);
 
         if (!existing) {
             res.status(404).json({ error: "Document not found" });
@@ -189,7 +189,7 @@ export async function getPartnerActivitiesHandler(
             return;
         }
 
-        const activities = await getPartnerActivities(req.partner.id);
+        const activities = await getPartnerActivities(req.partner.partnerId);
         res.json({ activities });
     } catch (error) {
         console.error("Get activities error:", error);

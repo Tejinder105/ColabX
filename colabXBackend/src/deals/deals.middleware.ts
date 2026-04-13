@@ -26,7 +26,7 @@ export async function requireDeal(
             return;
         }
 
-        const dealRow = await getDealById(dealId, req.org.id);
+        const dealRow = await getDealById(dealId, req.org.organizationId);
 
         if (!dealRow) {
             res.status(404).json({ error: "Deal not found" });
@@ -34,13 +34,13 @@ export async function requireDeal(
         }
 
         req.deal = {
-            id: dealRow.id,
+            dealId: dealRow.dealId,
             title: dealRow.title,
             partnerId: dealRow.partnerId,
             teamId: dealRow.teamId,
             stage: dealRow.stage,
-            orgId: dealRow.orgId,
-            createdBy: dealRow.createdBy,
+            organizationId: dealRow.organizationId,
+            createdByUserId: dealRow.createdByUserId,
         };
 
         next();
@@ -68,7 +68,7 @@ export async function requireDealAccess(
 
         if (req.membership.role === "manager" || req.membership.role === "member") {
             const visibleTeamIds = await getScopedDealTeamIds(
-                req.org.id,
+                req.org.organizationId,
                 req.user.id,
                 req.membership.role
             );
@@ -88,8 +88,8 @@ export async function requireDealAccess(
         }
 
         const [isAssigned, linkedPartner] = await Promise.all([
-            isUserAssignedToDeal(req.deal.id, req.user.id),
-            getPartnerForUserInOrg(req.org.id, req.user.id),
+            isUserAssignedToDeal(req.deal.dealId, req.user.id),
+            getPartnerForUserInOrg(req.org.organizationId, req.user.id),
         ]);
 
         const canAccessViaPartner = linkedPartner?.id === req.deal.partnerId;

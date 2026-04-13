@@ -26,18 +26,18 @@ export async function requireOrganization(
 
         const [result] = await db
             .select({
-                orgId: organization.id,
+                organizationId: organization.organizationId,
                 orgName: organization.name,
                 orgSlug: organization.slug,
-                membershipId: orgUser.id,
+                membershipId: orgUser.orgUserId,
                 role: orgUser.role,
                 joinedAt: orgUser.joinedAt,
             })
             .from(orgUser)
-            .innerJoin(organization, eq(orgUser.orgId, organization.id))
+            .innerJoin(organization, eq(orgUser.organizationId, organization.organizationId))
             .where(
                 and(
-                    eq(orgUser.orgId, orgId),
+                    eq(orgUser.organizationId, orgId),
                     eq(orgUser.userId, userId)
                 )
             )
@@ -49,12 +49,12 @@ export async function requireOrganization(
         }
 
         req.org = {
-            id: result.orgId,
+            organizationId: result.organizationId,
             name: result.orgName,
             slug: result.orgSlug,
         };
         req.membership = {
-            id: result.membershipId,
+            orgUserId: result.membershipId,
             role: result.role,
             joinedAt: result.joinedAt,
         };

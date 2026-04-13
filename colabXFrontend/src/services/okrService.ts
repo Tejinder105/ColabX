@@ -3,8 +3,8 @@ import { API_BASE } from '@/lib/api';
 export type ApiKeyResultStatus = 'on_track' | 'at_risk' | 'off_track';
 
 export interface ApiObjective {
-    id: string;
-    orgId: string;
+    objectiveId: string;
+    organizationId: string;
     partnerId: string | null;
     teamId?: string | null;
     partnerName: string | null;
@@ -13,8 +13,13 @@ export interface ApiObjective {
     description: string | null;
     startDate: string;
     endDate: string;
-    createdBy: string | null;
+    createdByUserId: string | null;
     createdAt: string;
+    updatedAt?: string;
+    progressPercent?: number;
+    status?: ApiKeyResultStatus;
+    completedKeyResults?: number;
+    totalKeyResults?: number;
 }
 
 export interface CreateObjectiveInput {
@@ -27,8 +32,9 @@ export interface CreateObjectiveInput {
 }
 
 export interface ApiKeyResult {
-    id: string;
+    keyResultId: string;
     objectiveId: string;
+    title: string;
     targetValue: number;
     currentValue: number;
     status: ApiKeyResultStatus;
@@ -38,9 +44,9 @@ export interface ApiKeyResult {
 
 export interface ApiObjectiveDetails {
     objective: {
-        id: string;
-        orgId: string;
-        partnerId: string;
+        objectiveId: string;
+        organizationId: string;
+        partnerId: string | null;
         teamId?: string | null;
         partnerName: string | null;
         teamName?: string | null;
@@ -48,20 +54,22 @@ export interface ApiObjectiveDetails {
         description: string | null;
         startDate: string;
         endDate: string;
-        createdBy: string | null;
+        createdByUserId: string | null;
         createdByName: string | null;
         createdAt: string;
         updatedAt: string;
+        assignedToType?: string;
+        assignedToName?: string | null;
+        status?: ApiKeyResultStatus;
     };
     keyResults: ApiKeyResult[];
     progressPercent: number;
 }
 
 export interface ApiPartnerScore {
-    id: string;
-    partnerId: string;
     score: number;
-    calculatedOn: string;
+    healthLabel?: string | null;
+    scoreCalculatedAt?: string;
 }
 
 export interface ApiPartnerPerformanceSummary {

@@ -33,7 +33,7 @@ export function AddDealDialog() {
     const hasNoTeamAssignments =
         hasSelectedPartner && !isPartnerDetailsLoading && partnerTeams.length === 0;
     const requiresTeamSelection = partnerTeams.length > 1;
-    const resolvedTeamId = partnerTeams.length === 1 ? partnerTeams[0]?.id : teamId || undefined;
+    const resolvedTeamId = partnerTeams.length === 1 ? partnerTeams[0]?.teamId : teamId || undefined;
 
     const resetForm = () => {
         setTitle('');
@@ -76,7 +76,7 @@ export function AddDealDialog() {
 
             if (stage !== 'Lead') {
                 await updateDealMutation.mutateAsync({
-                    dealId: created.deal.id,
+                    dealId: created.deal.dealId,
                     input: {
                         stage: mapUiDealStageToApi(stage),
                     },
@@ -130,7 +130,7 @@ export function AddDealDialog() {
                             </SelectTrigger>
                             <SelectContent>
                                 {(partnersData?.partners ?? []).map((partner) => (
-                                    <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
+                                    <SelectItem key={partner.partnerId} value={partner.partnerId}>{partner.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -186,7 +186,7 @@ export function AddDealDialog() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {partnerTeams.map((team) => (
-                                                    <SelectItem key={team.id} value={team.id}>
+                                                    <SelectItem key={team.teamId} value={team.teamId}>
                                                         {team.name}
                                                     </SelectItem>
                                                 ))}

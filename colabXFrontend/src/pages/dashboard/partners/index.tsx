@@ -63,7 +63,7 @@ interface PartnerDealStats {
 
 function toUiPartner(p: ApiPartner, dealStats?: PartnerDealStats): Partner {
     return {
-        id: p.id,
+        id: p.partnerId,
         name: p.name,
         type: mapType(p.type),
         industry: mapIndustry(p.industry),
@@ -113,7 +113,7 @@ export default function PartnersPage() {
     }, [dealsData?.rawDeals]);
 
     const partners = useMemo(() => {
-        return (data?.partners ?? []).map(p => toUiPartner(p, partnerDealStats.get(p.id)));
+        return (data?.partners ?? []).map(p => toUiPartner(p, partnerDealStats.get(p.partnerId)));
     }, [data?.partners, partnerDealStats]);
 
     // Compute total pipeline value from all open deals
@@ -140,7 +140,7 @@ export default function PartnersPage() {
     };
 
     const findApiPartner = (partnerId: string): ApiPartnerDetail | null => {
-        const partner = data?.partners.find((item) => item.id === partnerId);
+        const partner = data?.partners.find((item) => item.partnerId === partnerId);
         return partner ? { ...partner } : null;
     };
 

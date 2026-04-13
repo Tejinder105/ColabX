@@ -22,7 +22,7 @@ function uniqueIds(ids: string[]) {
 }
 
 export async function createDeal(
-    orgId: string,
+    organizationId: string,
     userId: string,
     data: {
         partnerId: string;
@@ -35,14 +35,14 @@ export async function createDeal(
     const [created] = await db
         .insert(deal)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            dealId: crypto.randomUUID(),
+            organizationId,
             partnerId: data.partnerId,
             teamId: data.teamId,
             title: data.title,
             description: data.description ?? null,
             value: data.value ?? null,
-            createdBy: userId,
+            createdByUserId: userId,
         })
         .returning();
 
@@ -50,7 +50,7 @@ export async function createDeal(
 }
 
 export async function getOrgDeals(
-    orgId: string,
+    organizationId: string,
     filters?: {
         stage?: string;
         partnerId?: string;
@@ -59,7 +59,7 @@ export async function getOrgDeals(
         teamIds?: string[];
     }
 ) {
-    const conditions = [eq(deal.orgId, orgId)];
+    const conditions = [eq(deal.organizationId, organizationId)];
 
     if (filters?.stage) {
         conditions.push(
@@ -83,8 +83,8 @@ export async function getOrgDeals(
 
     const results = await db
         .select({
-            id: deal.id,
-            orgId: deal.orgId,
+            id: deal.dealId,
+            organizationId: deal.organizationId,
             partnerId: deal.partnerId,
             teamId: deal.teamId,
             teamName: team.name,
@@ -93,17 +93,17 @@ export async function getOrgDeals(
             description: deal.description,
             value: deal.value,
             stage: deal.stage,
-            createdBy: deal.createdBy,
+            createdByUserId: deal.createdByUserId,
             createdAt: deal.createdAt,
             updatedAt: deal.updatedAt,
-            assigneeCount: count(dealAssignment.id),
+            assigneeCount: count(dealAssignment.dealAssignmentId),
         })
         .from(deal)
-        .leftJoin(partner, eq(deal.partnerId, partner.id))
-        .leftJoin(team, eq(deal.teamId, team.id))
-        .leftJoin(dealAssignment, eq(deal.id, dealAssignment.dealId))
+        .leftJoin(partner, eq(deal.partnerId, partner.partnerId))
+        .leftJoin(team, eq(deal.teamId, team.teamId))
+        .leftJoin(dealAssignment, eq(deal.dealId, dealAssignment.dealId))
         .where(and(...conditions))
-        .groupBy(deal.id, partner.name, team.name)
+        .groupBy(deal.dealId, partner.name, team.name)
         .orderBy(desc(deal.updatedAt));
 
     if (filters?.assignedUser) {
@@ -119,11 +119,11 @@ export async function getOrgDeals(
     return results;
 }
 
-export async function getDealById(dealId: string, orgId: string) {
+export async function getDealById(dealId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(deal)
-        .where(and(eq(deal.id, dealId), eq(deal.orgId, orgId)))
+        .where(and(eq(deal.dealId, dealId), eq(deal.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -136,7 +136,7 @@ export async function updateDeal(
     const [updated] = await db
         .update(deal)
         .set(data)
-        .where(eq(deal.id, dealId))
+        .where(eq(deal.dealId, dealId))
         .returning();
 
     return updated;
@@ -146,7 +146,7 @@ export async function softDeleteDeal(dealId: string) {
     const [updated] = await db
         .update(deal)
         .set({ stage: "lost" })
-        .where(eq(deal.id, dealId))
+        .where(eq(deal.dealId, dealId))
         .returning();
 
     return updated;
@@ -164,7 +164,7 @@ export async function getDealAssignmentRecord(dealId: string, userId: string) {
 
 export async function isUserAssignedToDeal(dealId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: dealAssignment.id })
+        .select({ id: dealAssignment.dealAssignmentId })
         .from(dealAssignment)
         .where(and(eq(dealAssignment.dealId, dealId), eq(dealAssignment.userId, userId)))
         .limit(1);
@@ -172,21 +172,21 @@ export async function isUserAssignedToDeal(dealId: string, userId: string): Prom
     return !!result;
 }
 
-export async function getPartnerForUserInOrg(orgId: string, userId: string) {
+export async function getPartnerForUserInOrg(organizationId: string, userId: string) {
     const [result] = await db
-        .select({ id: partner.id, orgId: partner.orgId, userId: partner.userId })
+        .select({ id: partner.partnerId, organizationId: partner.organizationId, userId: partner.userId })
         .from(partner)
-        .where(and(eq(partner.orgId, orgId), eq(partner.userId, userId)))
+        .where(and(eq(partner.organizationId, organizationId), eq(partner.userId, userId)))
         .limit(1);
 
     return result;
 }
 
-export async function getPartnerIdsForUserInOrg(orgId: string, userId: string) {
+export async function getPartnerIdsForUserInOrg(organizationId: string, userId: string) {
     const rows = await db
-        .select({ id: partner.id })
+        .select({ id: partner.partnerId })
         .from(partner)
-        .where(and(eq(partner.orgId, orgId), eq(partner.userId, userId)));
+        .where(and(eq(partner.organizationId, organizationId), eq(partner.userId, userId)));
 
     return rows.map((row) => row.id);
 }
@@ -195,7 +195,7 @@ export async function assignUserToDeal(dealId: string, userId: string) {
     const [created] = await db
         .insert(dealAssignment)
         .values({
-            id: crypto.randomUUID(),
+            dealAssignmentId: crypto.randomUUID(),
             dealId,
             userId,
         })
@@ -207,7 +207,7 @@ export async function assignUserToDeal(dealId: string, userId: string) {
 export async function getDealAssignments(dealId: string) {
     return db
         .select({
-            id: dealAssignment.id,
+            id: dealAssignment.dealAssignmentId,
             dealId: dealAssignment.dealId,
             userId: dealAssignment.userId,
             assignedAt: dealAssignment.assignedAt,
@@ -227,46 +227,46 @@ export async function removeUserFromDeal(dealId: string, userId: string) {
         .returning();
 }
 
-export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
+export async function isOrgMember(organizationId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: orgUser.id })
+        .select({ id: orgUser.orgUserId })
         .from(orgUser)
-        .where(and(eq(orgUser.orgId, orgId), eq(orgUser.userId, userId)))
+        .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);
 
     return !!result;
 }
 
-export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
+export async function getPartnerByIdForOrg(partnerId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(partner)
-        .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
+        .where(and(eq(partner.partnerId, partnerId), eq(partner.organizationId, organizationId)))
         .limit(1);
 
     return result;
 }
 
-export async function getTeamByIdForOrg(teamId: string, orgId: string) {
+export async function getTeamByIdForOrg(teamId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(team)
-        .where(and(eq(team.id, teamId), eq(team.orgId, orgId)))
+        .where(and(eq(team.teamId, teamId), eq(team.organizationId, organizationId)))
         .limit(1);
 
     return result;
 }
 
-export async function getPartnerTeamAssignment(partnerId: string, orgId: string) {
+export async function getPartnerTeamAssignment(partnerId: string, organizationId: string) {
     const [result] = await db
         .select({
-            id: teamPartner.id,
+            id: teamPartner.teamPartnerId,
             teamId: teamPartner.teamId,
             partnerId: teamPartner.partnerId,
         })
         .from(teamPartner)
-        .innerJoin(team, eq(teamPartner.teamId, team.id))
-        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.orgId, orgId)))
+        .innerJoin(team, eq(teamPartner.teamId, team.teamId))
+        .where(and(eq(teamPartner.partnerId, partnerId), eq(team.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -277,7 +277,7 @@ export async function isPartnerAssignedToTeam(
     partnerId: string
 ): Promise<boolean> {
     const [result] = await db
-        .select({ id: teamPartner.id })
+        .select({ id: teamPartner.teamPartnerId })
         .from(teamPartner)
         .where(and(eq(teamPartner.teamId, teamId), eq(teamPartner.partnerId, partnerId)))
         .limit(1);
@@ -287,7 +287,7 @@ export async function isPartnerAssignedToTeam(
 
 export async function isUserInTeam(teamId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: teamMember.id })
+        .select({ id: teamMember.teamMemberId })
         .from(teamMember)
         .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
         .limit(1);
@@ -296,7 +296,7 @@ export async function isUserInTeam(teamId: string, userId: string): Promise<bool
 }
 
 export async function getScopedDealTeamIds(
-    orgId: string,
+    organizationId: string,
     userId: string,
     role: OrgRole
 ) {
@@ -308,9 +308,9 @@ export async function getScopedDealTeamIds(
         const rows = await db
             .select({ teamId: teamPartner.teamId })
             .from(teamPartner)
-            .innerJoin(partner, eq(teamPartner.partnerId, partner.id))
-            .innerJoin(team, eq(teamPartner.teamId, team.id))
-            .where(and(eq(team.orgId, orgId), eq(partner.userId, userId)));
+            .innerJoin(partner, eq(teamPartner.partnerId, partner.partnerId))
+            .innerJoin(team, eq(teamPartner.teamId, team.teamId))
+            .where(and(eq(team.organizationId, organizationId), eq(partner.userId, userId)));
 
         return uniqueIds(rows.map((row) => row.teamId));
     }
@@ -318,19 +318,19 @@ export async function getScopedDealTeamIds(
     const rows = await db
         .select({ teamId: teamMember.teamId })
         .from(teamMember)
-        .innerJoin(team, eq(teamMember.teamId, team.id))
-        .where(and(eq(team.orgId, orgId), eq(teamMember.userId, userId)));
+        .innerJoin(team, eq(teamMember.teamId, team.teamId))
+        .where(and(eq(team.organizationId, organizationId), eq(teamMember.userId, userId)));
 
     return uniqueIds(rows.map((row) => row.teamId));
 }
 
-export async function createDealMessage(dealId: string, senderId: string, content: string) {
+export async function createDealMessage(dealId: string, senderUserId: string, content: string) {
     const [created] = await db
         .insert(dealMessage)
         .values({
-            id: crypto.randomUUID(),
+            dealMessageId: crypto.randomUUID(),
             dealId,
-            senderId,
+            senderUserId,
             content,
         })
         .returning();
@@ -341,9 +341,9 @@ export async function createDealMessage(dealId: string, senderId: string, conten
 export async function getDealMessages(dealId: string) {
     return db
         .select({
-            id: dealMessage.id,
+            id: dealMessage.dealMessageId,
             dealId: dealMessage.dealId,
-            senderId: dealMessage.senderId,
+            senderUserId: dealMessage.senderUserId,
             content: dealMessage.content,
             createdAt: dealMessage.createdAt,
             senderName: user.name,
@@ -351,7 +351,7 @@ export async function getDealMessages(dealId: string) {
             senderImage: user.image,
         })
         .from(dealMessage)
-        .innerJoin(user, eq(dealMessage.senderId, user.id))
+        .innerJoin(user, eq(dealMessage.senderUserId, user.id))
         .where(eq(dealMessage.dealId, dealId))
         .orderBy(asc(dealMessage.createdAt));
 }
@@ -359,7 +359,7 @@ export async function getDealMessages(dealId: string) {
 export async function deleteDealMessage(messageId: string) {
     const [deleted] = await db
         .delete(dealMessage)
-        .where(eq(dealMessage.id, messageId))
+        .where(eq(dealMessage.dealMessageId, messageId))
         .returning();
 
     return deleted;
@@ -369,7 +369,7 @@ export async function getDealMessageById(messageId: string) {
     const [result] = await db
         .select()
         .from(dealMessage)
-        .where(eq(dealMessage.id, messageId))
+        .where(eq(dealMessage.dealMessageId, messageId))
         .limit(1);
 
     return result;
@@ -378,14 +378,14 @@ export async function getDealMessageById(messageId: string) {
 export async function getDealTasks(dealId: string) {
     return db
         .select({
-            id: dealTask.id,
+            id: dealTask.dealTaskId,
             dealId: dealTask.dealId,
             title: dealTask.title,
             description: dealTask.description,
             assigneeUserId: dealTask.assigneeUserId,
             status: dealTask.status,
             dueDate: dealTask.dueDate,
-            createdBy: dealTask.createdBy,
+            createdByUserId: dealTask.createdByUserId,
             createdAt: dealTask.createdAt,
             updatedAt: dealTask.updatedAt,
             completedAt: dealTask.completedAt,
@@ -402,7 +402,7 @@ export async function getDealTaskById(taskId: string) {
     const [result] = await db
         .select()
         .from(dealTask)
-        .where(eq(dealTask.id, taskId))
+        .where(eq(dealTask.dealTaskId, taskId))
         .limit(1);
 
     return result;
@@ -410,7 +410,7 @@ export async function getDealTaskById(taskId: string) {
 
 export async function createDealTask(
     dealId: string,
-    createdBy: string,
+    createdByUserId: string,
     data: {
         title: string;
         description?: string;
@@ -421,13 +421,13 @@ export async function createDealTask(
     const [created] = await db
         .insert(dealTask)
         .values({
-            id: crypto.randomUUID(),
+            dealTaskId: crypto.randomUUID(),
             dealId,
             title: data.title,
             description: data.description ?? null,
             assigneeUserId: data.assigneeUserId ?? null,
             dueDate: data.dueDate ? new Date(data.dueDate) : null,
-            createdBy,
+            createdByUserId,
         })
         .returning();
 
@@ -460,7 +460,7 @@ export async function updateDealTask(
     const [updated] = await db
         .update(dealTask)
         .set(updates)
-        .where(eq(dealTask.id, taskId))
+        .where(eq(dealTask.dealTaskId, taskId))
         .returning();
 
     return updated;
@@ -469,7 +469,7 @@ export async function updateDealTask(
 export async function deleteDealTask(taskId: string) {
     const [deleted] = await db
         .delete(dealTask)
-        .where(eq(dealTask.id, taskId))
+        .where(eq(dealTask.dealTaskId, taskId))
         .returning();
 
     return deleted;
@@ -487,18 +487,18 @@ export async function getDealDocuments(
 
     return db
         .select({
-            id: dealDocument.id,
+            id: dealDocument.dealDocumentId,
             dealId: dealDocument.dealId,
             fileName: dealDocument.fileName,
             fileUrl: dealDocument.fileUrl,
             visibility: dealDocument.visibility,
             uploadedAt: dealDocument.uploadedAt,
-            uploadedBy: dealDocument.uploadedBy,
+            uploadedByUserId: dealDocument.uploadedByUserId,
             uploaderName: user.name,
             uploaderEmail: user.email,
         })
         .from(dealDocument)
-        .leftJoin(user, eq(dealDocument.uploadedBy, user.id))
+        .leftJoin(user, eq(dealDocument.uploadedByUserId, user.id))
         .where(and(...conditions))
         .orderBy(desc(dealDocument.uploadedAt));
 }
@@ -507,7 +507,7 @@ export async function getDealDocumentById(documentId: string) {
     const [result] = await db
         .select()
         .from(dealDocument)
-        .where(eq(dealDocument.id, documentId))
+        .where(eq(dealDocument.dealDocumentId, documentId))
         .limit(1);
 
     return result;
@@ -515,7 +515,7 @@ export async function getDealDocumentById(documentId: string) {
 
 export async function createDealDocument(
     dealId: string,
-    uploadedBy: string,
+    uploadedByUserId: string,
     data: {
         fileName: string;
         fileUrl: string;
@@ -525,9 +525,9 @@ export async function createDealDocument(
     const [created] = await db
         .insert(dealDocument)
         .values({
-            id: crypto.randomUUID(),
+            dealDocumentId: crypto.randomUUID(),
             dealId,
-            uploadedBy,
+            uploadedByUserId,
             fileName: data.fileName,
             fileUrl: data.fileUrl,
             visibility: data.visibility,
@@ -540,7 +540,7 @@ export async function createDealDocument(
 export async function deleteDealDocument(documentId: string) {
     const [deleted] = await db
         .delete(dealDocument)
-        .where(eq(dealDocument.id, documentId))
+        .where(eq(dealDocument.dealDocumentId, documentId))
         .returning();
 
     return deleted;
@@ -549,7 +549,7 @@ export async function deleteDealDocument(documentId: string) {
 export async function getDealActivities(dealId: string) {
     return db
         .select({
-            id: activityLog.id,
+            id: activityLog.activityLogId,
             action: activityLog.action,
             entityType: activityLog.entityType,
             entityId: activityLog.entityId,
@@ -575,7 +575,7 @@ export async function getDealWithDetails(
     options?: { audience?: "internal" | "partner" }
 ) {
     const [currentDeal, assignments, tasks, documents, activities] = await Promise.all([
-        db.select().from(deal).where(eq(deal.id, dealId)).limit(1),
+        db.select().from(deal).where(eq(deal.dealId, dealId)).limit(1),
         getDealAssignments(dealId),
         getDealTasks(dealId),
         getDealDocuments(
@@ -600,12 +600,12 @@ export async function getDealWithDetails(
 
     const [partnerRow] = await db
         .select({
-            id: partner.id,
+            id: partner.partnerId,
             name: partner.name,
             contactEmail: partner.contactEmail,
         })
         .from(partner)
-        .where(eq(partner.id, dealRow.partnerId))
+        .where(eq(partner.partnerId, dealRow.partnerId))
         .limit(1);
 
     let teamRow = null;
@@ -614,12 +614,12 @@ export async function getDealWithDetails(
     if (dealRow.teamId) {
         const [team_] = await db
             .select({
-                id: team.id,
+                id: team.teamId,
                 name: team.name,
                 description: team.description,
             })
             .from(team)
-            .where(eq(team.id, dealRow.teamId))
+            .where(eq(team.teamId, dealRow.teamId))
             .limit(1);
         teamRow = team_;
 

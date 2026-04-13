@@ -17,13 +17,13 @@ export const teamRoleEnum = pgEnum("teamRole", ["lead", "member"]);
 export const team = pgTable(
     "team",
     {
-        id: text("id").primaryKey(),
-        orgId: text("orgId")
+        teamId: text("teamId").primaryKey(),
+        organizationId: text("organizationId")
             .notNull()
-            .references(() => organization.id, { onDelete: "cascade" }),
+            .references(() => organization.organizationId, { onDelete: "cascade" }),
         name: text("name").notNull(),
         description: text("description"),
-        createdBy: text("createdBy").references(() => user.id, {
+        createdByUserId: text("createdByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -33,8 +33,8 @@ export const team = pgTable(
             .notNull(),
     },
     (table) => [
-        index("team_orgId_idx").on(table.orgId),
-        index("team_createdBy_idx").on(table.createdBy),
+        index("team_organizationId_idx").on(table.organizationId),
+        index("team_createdByUserId_idx").on(table.createdByUserId),
     ]
 );
 
@@ -42,10 +42,10 @@ export const team = pgTable(
 export const teamMember = pgTable(
     "teamMember",
     {
-        id: text("id").primaryKey(),
+        teamMemberId: text("teamMemberId").primaryKey(),
         teamId: text("teamId")
             .notNull()
-            .references(() => team.id, { onDelete: "cascade" }),
+            .references(() => team.teamId, { onDelete: "cascade" }),
         userId: text("userId")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
@@ -65,14 +65,14 @@ export const teamMember = pgTable(
 export const teamPartner = pgTable(
     "teamPartner",
     {
-        id: text("id").primaryKey(),
+        teamPartnerId: text("teamPartnerId").primaryKey(),
         teamId: text("teamId")
             .notNull()
-            .references(() => team.id, { onDelete: "cascade" }),
+            .references(() => team.teamId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
-            .references(() => partner.id, { onDelete: "cascade" }),
-        assignedBy: text("assignedBy").references(() => user.id, {
+            .references(() => partner.partnerId, { onDelete: "cascade" }),
+        assignedByUserId: text("assignedByUserId").references(() => user.id, {
             onDelete: "set null",
         }),
         assignedAt: timestamp("assignedAt").defaultNow().notNull(),
@@ -85,18 +85,18 @@ export const teamPartner = pgTable(
         uniqueIndex("teamPartner_partnerId_unique").on(table.partnerId),
         index("teamPartner_teamId_idx").on(table.teamId),
         index("teamPartner_partnerId_idx").on(table.partnerId),
-        index("teamPartner_assignedBy_idx").on(table.assignedBy),
+        index("teamPartner_assignedByUserId_idx").on(table.assignedByUserId),
     ]
 );
 
 // Relations
 export const teamRelations = relations(team, ({ one, many }) => ({
     organization: one(organization, {
-        fields: [team.orgId],
-        references: [organization.id],
+        fields: [team.organizationId],
+        references: [organization.organizationId],
     }),
     creator: one(user, {
-        fields: [team.createdBy],
+        fields: [team.createdByUserId],
         references: [user.id],
     }),
     members: many(teamMember),
@@ -106,7 +106,7 @@ export const teamRelations = relations(team, ({ one, many }) => ({
 export const teamMemberRelations = relations(teamMember, ({ one }) => ({
     team: one(team, {
         fields: [teamMember.teamId],
-        references: [team.id],
+        references: [team.teamId],
     }),
     user: one(user, {
         fields: [teamMember.userId],
@@ -117,14 +117,14 @@ export const teamMemberRelations = relations(teamMember, ({ one }) => ({
 export const teamPartnerRelations = relations(teamPartner, ({ one }) => ({
     team: one(team, {
         fields: [teamPartner.teamId],
-        references: [team.id],
+        references: [team.teamId],
     }),
     partner: one(partner, {
         fields: [teamPartner.partnerId],
-        references: [partner.id],
+        references: [partner.partnerId],
     }),
     assignedByUser: one(user, {
-        fields: [teamPartner.assignedBy],
+        fields: [teamPartner.assignedByUserId],
         references: [user.id],
     }),
 }));

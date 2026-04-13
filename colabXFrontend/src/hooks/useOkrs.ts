@@ -69,8 +69,8 @@ function mapObjective(details: ApiObjectiveDetails): Objective {
             : 0;
 
         return {
-            id: item.id,
-            title: `Key Result ${index + 1}`,
+            id: item.keyResultId,
+            title: item.title || `Key Result ${index + 1}`,
             targetValue: item.targetValue,
             currentValue: item.currentValue,
             progress,
@@ -87,7 +87,7 @@ function mapObjective(details: ApiObjectiveDetails): Objective {
     );
 
     return {
-        id: details.objective.id,
+        id: details.objective.objectiveId,
         title: details.objective.title,
         owner: details.objective.partnerName ?? details.objective.teamName ?? 'Unassigned',
         progress,
@@ -126,15 +126,15 @@ export function useOkrsDashboard() {
             const { partners } = partnersResponse;
 
             const objectiveDetails = await Promise.all(
-                objectives.map((objective) => getObjectiveById(activeOrgId!, objective.id))
+                objectives.map((objective) => getObjectiveById(activeOrgId!, objective.objectiveId))
             );
             const mappedObjectives = objectiveDetails.map(mapObjective);
 
             const partnerScores = await Promise.all(
                 partners.map(async (partner) => {
-                    const scoreResponse = await getPartnerScore(activeOrgId!, partner.id);
+                    const scoreResponse = await getPartnerScore(activeOrgId!, partner.partnerId);
                     return {
-                        partnerId: partner.id,
+                        partnerId: partner.partnerId,
                         score: scoreResponse.score?.score ?? 0,
                     };
                 })
@@ -142,16 +142,16 @@ export function useOkrsDashboard() {
             const scoreMap = new Map(partnerScores.map((item) => [item.partnerId, item.score]));
 
             const partnerPerformance: PartnerPerformanceRecord[] = partners.map((partner) => {
-                const partnerDeals = deals.filter((deal) => deal.partnerId === partner.id);
+                const partnerDeals = deals.filter((deal) => deal.partnerId === partner.partnerId);
                 const wonDeals = partnerDeals.filter((deal) => deal.stage === 'won');
 
                 const revenue = wonDeals.reduce((sum, item) => sum + (item.value ?? 0), 0);
                 const dealsClosed = wonDeals.length;
 
                 return {
-                    id: partner.id,
+                    id: partner.partnerId,
                     partnerName: partner.name,
-                    score: Math.round(scoreMap.get(partner.id) ?? 0),
+                    score: Math.round(scoreMap.get(partner.partnerId) ?? 0),
                     revenue,
                     dealsClosed,
                 };

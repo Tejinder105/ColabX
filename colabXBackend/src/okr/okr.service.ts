@@ -102,7 +102,7 @@ function calculateObjectiveSummary(
 }
 
 export async function createObjective(
-    orgId: string,
+    organizationId: string,
     userId: string,
     data: {
         partnerId?: string;
@@ -116,15 +116,15 @@ export async function createObjective(
     const [created] = await db
         .insert(objective)
         .values({
-            id: crypto.randomUUID(),
-            orgId,
+            objectiveId: crypto.randomUUID(),
+            organizationId,
             partnerId: data.partnerId ?? null,
             teamId: data.teamId ?? null,
             title: data.title,
             description: data.description ?? null,
             startDate: data.startDate,
             endDate: data.endDate,
-            createdBy: userId,
+            createdByUserId: userId,
         })
         .returning();
 
@@ -132,7 +132,7 @@ export async function createObjective(
 }
 
 export async function getOrgObjectives(
-    orgId: string,
+    organizationId: string,
     filters?: {
         partnerId?: string;
         partnerIds?: string[];
@@ -142,7 +142,7 @@ export async function getOrgObjectives(
         endDate?: string;
     }
 ) {
-    const conditions = [eq(objective.orgId, orgId)];
+    const conditions = [eq(objective.organizationId, organizationId)];
 
     if (filters?.partnerId) {
         conditions.push(eq(objective.partnerId, filters.partnerId));
@@ -171,8 +171,8 @@ export async function getOrgObjectives(
 
     const objectiveRows = await db
         .select({
-            id: objective.id,
-            orgId: objective.orgId,
+            objectiveId: objective.objectiveId,
+            organizationId: objective.organizationId,
             partnerId: objective.partnerId,
             teamId: objective.teamId,
             partnerName: partner.name,
@@ -181,17 +181,17 @@ export async function getOrgObjectives(
             description: objective.description,
             startDate: objective.startDate,
             endDate: objective.endDate,
-            createdBy: objective.createdBy,
+            createdByUserId: objective.createdByUserId,
             createdAt: objective.createdAt,
             updatedAt: objective.updatedAt,
         })
         .from(objective)
-        .leftJoin(partner, eq(objective.partnerId, partner.id))
-        .leftJoin(team, eq(objective.teamId, team.id))
+        .leftJoin(partner, eq(objective.partnerId, partner.partnerId))
+        .leftJoin(team, eq(objective.teamId, team.teamId))
         .where(and(...conditions))
         .orderBy(objective.createdAt);
 
-    const objectiveIds = objectiveRows.map((row) => row.id);
+    const objectiveIds = objectiveRows.map((row) => row.objectiveId);
     const keyResults = objectiveIds.length > 0
         ? await db
               .select()
@@ -208,7 +208,7 @@ export async function getOrgObjectives(
 
     return objectiveRows.map((objectiveRow) => {
         const summary = calculateObjectiveSummary(
-            (keyResultsByObjectiveId.get(objectiveRow.id) ?? []).map((keyResultRow) => ({
+            (keyResultsByObjectiveId.get(objectiveRow.objectiveId) ?? []).map((keyResultRow) => ({
                 targetValue: keyResultRow.targetValue,
                 currentValue: keyResultRow.currentValue,
                 status: keyResultRow.status,
@@ -224,11 +224,11 @@ export async function getOrgObjectives(
     });
 }
 
-export async function getObjectiveById(objectiveId: string, orgId: string) {
+export async function getObjectiveById(objectiveId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(objective)
-        .where(and(eq(objective.id, objectiveId), eq(objective.orgId, orgId)))
+        .where(and(eq(objective.objectiveId, objectiveId), eq(objective.organizationId, organizationId)))
         .limit(1);
 
     return result;
@@ -237,8 +237,8 @@ export async function getObjectiveById(objectiveId: string, orgId: string) {
 export async function getObjectiveWithKeyResults(objectiveId: string) {
     const [objectiveRow] = await db
         .select({
-            id: objective.id,
-            orgId: objective.orgId,
+            objectiveId: objective.objectiveId,
+            organizationId: objective.organizationId,
             partnerId: objective.partnerId,
             teamId: objective.teamId,
             partnerName: partner.name,
@@ -247,16 +247,16 @@ export async function getObjectiveWithKeyResults(objectiveId: string) {
             description: objective.description,
             startDate: objective.startDate,
             endDate: objective.endDate,
-            createdBy: objective.createdBy,
+            createdByUserId: objective.createdByUserId,
             createdByName: user.name,
             createdAt: objective.createdAt,
             updatedAt: objective.updatedAt,
         })
         .from(objective)
-        .leftJoin(partner, eq(objective.partnerId, partner.id))
-        .leftJoin(team, eq(objective.teamId, team.id))
-        .leftJoin(user, eq(objective.createdBy, user.id))
-        .where(eq(objective.id, objectiveId))
+        .leftJoin(partner, eq(objective.partnerId, partner.partnerId))
+        .leftJoin(team, eq(objective.teamId, team.teamId))
+        .leftJoin(user, eq(objective.createdByUserId, user.id))
+        .where(eq(objective.objectiveId, objectiveId))
         .limit(1);
 
     const keyResults = await db
@@ -274,7 +274,7 @@ export async function getObjectiveWithKeyResults(objectiveId: string) {
     const summary = calculateObjectiveSummary(keyResults);
     const activities = await db
         .select({
-            id: activityLog.id,
+            id: activityLog.activityLogId,
             action: activityLog.action,
             createdAt: activityLog.createdAt,
             userId: activityLog.userId,
@@ -311,7 +311,7 @@ export async function updateObjective(
     const [updated] = await db
         .update(objective)
         .set(data)
-        .where(eq(objective.id, objectiveId))
+        .where(eq(objective.objectiveId, objectiveId))
         .returning();
 
     return updated;
@@ -320,7 +320,7 @@ export async function updateObjective(
 export async function archiveObjective(objectiveId: string) {
     return db
         .delete(objective)
-        .where(eq(objective.id, objectiveId))
+        .where(eq(objective.objectiveId, objectiveId))
         .returning();
 }
 
@@ -338,7 +338,7 @@ export async function createKeyResult(
     const [created] = await db
         .insert(keyResult)
         .values({
-            id: crypto.randomUUID(),
+            keyResultId: crypto.randomUUID(),
             objectiveId,
             title: data.title,
             targetValue: data.targetValue,
@@ -353,19 +353,19 @@ export async function createKeyResult(
 export async function getKeyResultById(keyResultId: string) {
     const [result] = await db
         .select({
-            id: keyResult.id,
+            keyResultId: keyResult.keyResultId,
             objectiveId: keyResult.objectiveId,
             title: keyResult.title,
             targetValue: keyResult.targetValue,
             currentValue: keyResult.currentValue,
             status: keyResult.status,
-            orgId: objective.orgId,
+            organizationId: objective.organizationId,
             partnerId: objective.partnerId,
             teamId: objective.teamId,
         })
         .from(keyResult)
-        .innerJoin(objective, eq(keyResult.objectiveId, objective.id))
-        .where(eq(keyResult.id, keyResultId))
+        .innerJoin(objective, eq(keyResult.objectiveId, objective.objectiveId))
+        .where(eq(keyResult.keyResultId, keyResultId))
         .limit(1);
 
     return result;
@@ -407,7 +407,7 @@ export async function updateKeyResult(
     const [updated] = await db
         .update(keyResult)
         .set(updates)
-        .where(eq(keyResult.id, keyResultId))
+        .where(eq(keyResult.keyResultId, keyResultId))
         .returning();
 
     return updated;
@@ -418,17 +418,17 @@ async function calculatePartnerScoreSnapshot(partnerId: string) {
     sinceDate.setDate(sinceDate.getDate() - 90);
 
     const [partnerObjectives, partnerDeals, recentActivities] = await Promise.all([
-        db.select({ id: objective.id })
+        db.select({ id: objective.objectiveId })
             .from(objective)
             .where(eq(objective.partnerId, partnerId)),
         db.select({
-            id: deal.id,
+            id: deal.dealId,
             stage: deal.stage,
             value: deal.value,
         })
             .from(deal)
             .where(and(eq(deal.partnerId, partnerId), gte(deal.createdAt, sinceDate))),
-        db.select({ activityCount: count(activityLog.id) })
+        db.select({ activityCount: count(activityLog.activityLogId) })
             .from(activityLog)
             .where(and(eq(activityLog.entityId, partnerId), gte(activityLog.createdAt, sinceDate))),
     ]);
@@ -501,7 +501,7 @@ export async function calculateAndStorePartnerScore(
             score: snapshot.score,
             scoreCalculatedAt: new Date(),
         })
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .returning();
 
     if (!updated) {
@@ -519,36 +519,36 @@ export async function getLatestPartnerScore(partnerId: string) {
     const [result] = await db
         .select()
         .from(partner)
-        .where(eq(partner.id, partnerId))
+        .where(eq(partner.partnerId, partnerId))
         .limit(1);
 
     return result;
 }
 
-export async function getPartnerByIdForOrg(partnerId: string, orgId: string) {
+export async function getPartnerByIdForOrg(partnerId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(partner)
-        .where(and(eq(partner.id, partnerId), eq(partner.orgId, orgId)))
+        .where(and(eq(partner.partnerId, partnerId), eq(partner.organizationId, organizationId)))
         .limit(1);
 
     return result ?? null;
 }
 
-export async function getTeamByIdForOrg(teamId: string, orgId: string) {
+export async function getTeamByIdForOrg(teamId: string, organizationId: string) {
     const [result] = await db
         .select()
         .from(team)
-        .where(and(eq(team.id, teamId), eq(team.orgId, orgId)))
+        .where(and(eq(team.teamId, teamId), eq(team.organizationId, organizationId)))
         .limit(1);
 
     return result;
 }
 
-export async function getPartnerPerformanceSummary(partnerId: string, orgId: string) {
+export async function getPartnerPerformanceSummary(partnerId: string, organizationId: string) {
     const [partnerRow, objectives, latestScore] = await Promise.all([
-        getPartnerByIdForOrg(partnerId, orgId),
-        getOrgObjectives(orgId, { partnerId }),
+        getPartnerByIdForOrg(partnerId, organizationId),
+        getOrgObjectives(organizationId, { partnerId }),
         getLatestPartnerScore(partnerId),
     ]);
 
@@ -578,10 +578,10 @@ export async function getPartnerPerformanceSummary(partnerId: string, orgId: str
     };
 }
 
-export async function getTeamPerformanceSummary(teamId: string, orgId: string) {
+export async function getTeamPerformanceSummary(teamId: string, organizationId: string) {
     const [teamRow, objectives] = await Promise.all([
-        getTeamByIdForOrg(teamId, orgId),
-        getOrgObjectives(orgId, { teamId }),
+        getTeamByIdForOrg(teamId, organizationId),
+        getOrgObjectives(organizationId, { teamId }),
     ]);
 
     const completionRate =

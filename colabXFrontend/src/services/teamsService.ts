@@ -2,18 +2,22 @@ import { API_BASE } from '@/lib/api';
 
 // Types matching backend responses
 export interface ApiTeam {
-    id: string;
-    orgId: string;
+    teamId: string;
+    organizationId: string;
     name: string;
     description: string | null;
-    createdBy: string;
+    createdByUserId: string | null;
     createdAt: string;
     updatedAt: string;
     memberCount: number;
+    partnerCount?: number;
+    dealCount?: number;
+    isActive?: boolean;
+    lead?: ApiTeamMember | null;
 }
 
 export interface ApiTeamMember {
-    id: string;
+    teamMemberId: string;
     teamId: string;
     userId: string;
     role: 'lead' | 'member';
@@ -37,40 +41,56 @@ export interface UpdateTeamInput {
 
 // Team-related data types
 export interface ApiTeamPartner {
-    id: string;
+    partnerId: string;
     name: string;
     type: 'reseller' | 'agent' | 'technology' | 'distributor';
-    status: 'active' | 'inactive' | 'suspended';
+    status: 'pending' | 'active' | 'inactive' | 'suspended';
+    contactEmail?: string;
+    industry?: string | null;
+    onboardingDate?: string | null;
+    userId?: string | null;
+    createdByUserId?: string | null;
+    assignedAt?: string;
+    assignedByUserId?: string | null;
 }
 
 export interface ApiTeamPartnerAssignment {
-    id: string;
+    teamPartnerId: string;
     teamId: string;
     partnerId: string;
-    assignedBy: string | null;
+    assignedByUserId: string | null;
     assignedAt: string;
+    teamName?: string;
 }
 
 export interface ApiTeamDeal {
-    id: string;
+    dealId: string;
     title: string;
     value: number | null;
     stage: 'lead' | 'proposal' | 'negotiation' | 'won' | 'lost';
     partnerName: string | null;
+    partnerId?: string;
+    teamId?: string | null;
+    createdByUserId?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    assigneeCount?: number;
 }
 
 export interface ApiTeamObjective {
-    id: string;
+    objectiveId: string;
     title: string;
     startDate: string;
     endDate: string;
     partnerName: string | null;
+    partnerId?: string | null;
+    teamId?: string | null;
     progress: number;
     status: 'on_track' | 'at_risk' | 'off_track';
 }
 
 export interface ApiTeamActivity {
-    id: string;
+    activityLogId: string;
     action: string;
     entityType: string;
     entityId: string;
@@ -107,7 +127,7 @@ export async function getTeams(orgId: string): Promise<{ teams: ApiTeam[] }> {
 export async function getTeamById(
     orgId: string,
     teamId: string
-): Promise<{ team: ApiTeam; members: ApiTeamMember[] }> {
+): Promise<{ team: ApiTeam; members: ApiTeamMember[]; eligibleMembers?: unknown[]; leadCandidates?: unknown[] }> {
     const response = await fetch(`${API_BASE}/teams/${teamId}`, {
         method: 'GET',
         credentials: 'include',

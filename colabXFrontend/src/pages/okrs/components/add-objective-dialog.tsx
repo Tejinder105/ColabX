@@ -141,12 +141,12 @@ export function AddObjectiveDialog() {
                                 <SelectContent>
                                     {assigneeType === 'partner'
                                         ? partners.map((partner) => (
-                                            <SelectItem key={partner.id} value={partner.id}>
+                                            <SelectItem key={partner.partnerId} value={partner.partnerId}>
                                                 {partner.name}
                                             </SelectItem>
                                         ))
                                         : teams.map((team) => (
-                                            <SelectItem key={team.id} value={team.id}>
+                                            <SelectItem key={team.teamId} value={team.teamId}>
                                                 {team.name}
                                             </SelectItem>
                                         ))}
