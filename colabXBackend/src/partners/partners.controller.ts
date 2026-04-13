@@ -16,7 +16,6 @@ import {
     getPartnerWithTeams,
     updatePartner,
     softDeletePartner,
-    hardDeletePartner,
     normalizeEmail,
 } from "./partners.service.js";
 
@@ -29,7 +28,7 @@ async function generateUniqueToken(maxRetries = 3): Promise<string> {
         
         // Check if token already exists
         const [existing] = await db
-            .select({ id: invitation.invitationId })
+            .select({ invitationId: invitation.invitationId })
             .from(invitation)
             .where(eq(invitation.token, token))
             .limit(1);
@@ -87,8 +86,8 @@ export async function createPartnerHandler(
             }
 
             // Check if user with this email already exists
-            const [existingUser] = await tx
-                .select({ id: user.id })
+        const [existingUser] = await tx
+                .select({ userId: user.id })
                 .from(user)
                 .where(sql`lower(${user.email}) = ${normalizedContactEmail}`)
                 .limit(1);
@@ -98,14 +97,14 @@ export async function createPartnerHandler(
                 const [existingMember] = await tx
                     .select()
                     .from(orgUser)
-                    .where(and(eq(orgUser.organizationId, req.org!.organizationId), eq(orgUser.userId, existingUser.id)))
+                    .where(and(eq(orgUser.organizationId, req.org!.organizationId), eq(orgUser.userId, existingUser.userId)))
                     .limit(1);
 
                 if (existingMember) {
                     // User is already in the org — link directly and activate
                     const [linked] = await tx
                         .update(partner)
-                        .set({ userId: existingUser.id, status: "active" })
+                        .set({ userId: existingUser.userId, status: "active" })
                         .where(eq(partner.partnerId, created.partnerId))
                         .returning();
 
@@ -379,7 +378,7 @@ export async function deletePartnerHandler(
             return;
         }
 
-        const deleted = await hardDeletePartner(req.partner.partnerId);
+        const deleted = await softDeletePartner(req.partner.partnerId);
 
         // Log the deletion
         try {

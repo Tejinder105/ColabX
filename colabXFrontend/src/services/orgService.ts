@@ -3,7 +3,7 @@ import { API_BASE } from '@/lib/api';
 
 // Types
 export interface Organization {
-    id: string;
+    organizationId: string;
     name: string;
     slug: string;
     role: string;
@@ -11,7 +11,7 @@ export interface Organization {
 }
 
 export interface OrgDetails {
-    id: string;
+    organizationId: string;
     name: string;
     slug: string;
 }
@@ -30,7 +30,7 @@ export interface CurrentUserResponse {
 }
 
 export interface OrgMember {
-    id: string;
+    orgUserId: string;
     userId: string;
     role: string;
     joinedAt: string;
@@ -40,7 +40,7 @@ export interface OrgMember {
 }
 
 export interface Invitation {
-    id: string;
+    invitationId: string;
     email: string;
     role: string;
     expiresAt: string;
@@ -55,7 +55,7 @@ export interface OrgPermission {
 }
 
 export interface OrgAuditLog {
-    id: string;
+    activityLogId: string;
     action: string;
     entityType: string;
     entityId: string;
@@ -91,7 +91,7 @@ export interface InviteValidationResponse {
         email: string;
         role: string;
         organization: {
-            id: string;
+            organizationId: string;
             name: string;
             slug: string;
         };

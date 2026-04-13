@@ -26,8 +26,8 @@ describe('Partners Module - Blackbox Integration Tests', () => {
     describe('Partner Listing', () => {
         it('should successfully retrieve a list of partners', async () => {
             const expectedPartners = [
-                { id: 'p1', name: 'Acme Corp', type: 'reseller', status: 'active' },
-                { id: 'p2', name: 'Tech Inc', type: 'technology', status: 'active' },
+                { partnerId: 'p1', name: 'Acme Corp', type: 'reseller', status: 'active' },
+                { partnerId: 'p2', name: 'Tech Inc', type: 'technology', status: 'active' },
             ];
 
             mockFetch.mockResolvedValueOnce({
@@ -68,7 +68,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
         it('should successfully create a partner with minimum required fields', async () => {
             const input = { name: 'New Partner', type: 'reseller' as const };
             const expectedPartner = {
-                id: 'new-partner-id',
+                partnerId: 'new-partner-id',
                 ...input,
                 status: 'active',
                 contactEmail: null,
@@ -82,7 +82,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
 
             const result = await partnersService.createPartner(orgId, input);
 
-            expect(result.partner.id).toBeDefined();
+            expect(result.partner.partnerId).toBeDefined();
             expect(result.partner.name).toBe('New Partner');
             expect(result.partner.type).toBe('reseller');
             expect(result.partner.status).toBe('active');
@@ -100,7 +100,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partner: { id: 'full-partner-id', ...input, status: 'active' },
+                    partner: { partnerId: 'full-partner-id', ...input, status: 'active' },
                 }),
             } as Response);
 
@@ -125,7 +125,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
     describe('Partner Retrieval', () => {
         it('should retrieve a specific partner by ID', async () => {
             const expectedPartner = {
-                id: 'partner-123',
+                partnerId: 'partner-123',
                 name: 'Specific Partner',
                 type: 'agent',
                 status: 'active',
@@ -138,7 +138,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
 
             const result = await partnersService.getPartnerById(orgId, 'partner-123');
 
-            expect(result.partner.id).toBe('partner-123');
+            expect(result.partner.partnerId).toBe('partner-123');
             expect(result.partner.name).toBe('Specific Partner');
         });
 
@@ -155,13 +155,13 @@ describe('Partners Module - Blackbox Integration Tests', () => {
 
         it('should include associated teams in response', async () => {
             const expectedTeams = [
-                { id: 't1', name: 'Sales Team', memberCount: 5 },
+                { teamId: 't1', name: 'Sales Team', memberCount: 5 },
             ];
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partner: { id: 'p1', name: 'Partner' },
+                    partner: { partnerId: 'p1', name: 'Partner' },
                     teams: expectedTeams,
                 }),
             } as Response);
@@ -178,7 +178,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partner: { id: 'p1', name: 'Updated Name' },
+                    partner: { partnerId: 'p1', name: 'Updated Name' },
                 }),
             } as Response);
 
@@ -193,7 +193,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partner: { id: 'p1', status: 'suspended' },
+                    partner: { partnerId: 'p1', status: 'suspended' },
                 }),
             } as Response);
 
@@ -221,7 +221,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partner: { id: 'p1', name: 'Deleted Partner', status: 'inactive' },
+                    partner: { partnerId: 'p1', name: 'Deleted Partner', status: 'inactive' },
                 }),
             } as Response);
 
@@ -246,8 +246,8 @@ describe('Partners Module - Blackbox Integration Tests', () => {
     describe('Partner Deals', () => {
         it('should retrieve deals associated with a partner', async () => {
             const expectedDeals = [
-                { id: 'd1', title: 'Big Deal', stage: 'won', value: 100000 },
-                { id: 'd2', title: 'Pending Deal', stage: 'proposal', value: 50000 },
+                { dealId: 'd1', title: 'Big Deal', stage: 'won', value: 100000 },
+                { dealId: 'd2', title: 'Pending Deal', stage: 'proposal', value: 50000 },
             ];
 
             mockFetch.mockResolvedValueOnce({
@@ -341,7 +341,7 @@ describe('Partners Module - Blackbox Integration Tests', () => {
         it('should send JSON content type for POST requests', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({ partner: { id: 'p1' } }),
+                json: async () => ({ partner: { partnerId: 'p1' } }),
             } as Response);
 
             await partnersService.createPartner(orgId, { name: 'Test', type: 'reseller' });

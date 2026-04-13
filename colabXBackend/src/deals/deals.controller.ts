@@ -53,19 +53,27 @@ export async function createDealHandler(
             return;
         }
 
-        const teamId = req.body.teamId as string;
-        const teamRow = await getTeamByIdForOrg(teamId, req.org.organizationId);
-        if (!teamRow) {
-            res.status(404).json({ error: "Team not found in this organization" });
-            return;
-        }
+        const teamId =
+            typeof req.body.teamId === "string" && req.body.teamId.trim().length > 0
+                ? req.body.teamId
+                : undefined;
+        if (teamId) {
+            const teamRow = await getTeamByIdForOrg(teamId, req.org.organizationId);
+            if (!teamRow) {
+                res.status(404).json({ error: "Team not found in this organization" });
+                return;
+            }
 
-        const assignment = await getPartnerTeamAssignment(req.body.partnerId, req.org.organizationId);
-        if (!assignment || assignment.teamId !== teamId) {
-            res.status(400).json({
-                error: "Partner must be assigned to the selected team before creating a deal",
-            });
-            return;
+            const assignment = await getPartnerTeamAssignment(
+                req.body.partnerId,
+                req.org.organizationId
+            );
+            if (!assignment || assignment.teamId !== teamId) {
+                res.status(400).json({
+                    error: "Partner must be assigned to the selected team before creating a deal",
+                });
+                return;
+            }
         }
 
         const created = await createDeal(req.org.organizationId, req.user.id, {
@@ -124,14 +132,14 @@ export async function getOrgDealsHandler(
             // If partner explicitly requests partnerId, it must be their own partner record.
             // Otherwise default to assignments-only view.
             if (requestedPartnerId) {
-                if (!linkedPartner || linkedPartner.id !== requestedPartnerId) {
+                if (!linkedPartner || linkedPartner.partnerId !== requestedPartnerId) {
                     res.status(403).json({ error: "Cannot view deals for another partner" });
                     return;
                 }
-                filters.partnerId = linkedPartner.id;
+                filters.partnerId = linkedPartner.partnerId;
                 delete filters.assignedUser;
             } else if (linkedPartner) {
-                filters.partnerId = linkedPartner.id;
+                filters.partnerId = linkedPartner.partnerId;
                 delete filters.assignedUser;
             }
         } else if (req.membership.role === "manager" || req.membership.role === "member") {

@@ -14,7 +14,7 @@ mockApp.use(express.json());
 
 // Mock data
 const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
-const mockOrg = { id: 'org-123', name: 'Test Org' };
+const mockOrg = { organizationId: 'org-123', name: 'Test Org' };
 const mockPartners: Record<string, unknown>[] = [];
 
 // Setup routes with mocked middleware
@@ -47,8 +47,8 @@ mockApp.post('/api/partners', (req: express.Request, res: express.Response) => {
     }
 
     const partner = {
-        id: `partner-${Date.now()}`,
-        organizationId: mockOrg.id,
+        partnerId: `partner-${Date.now()}`,
+        organizationId: mockOrg.organizationId,
         name,
         type,
         status: 'active',
@@ -71,7 +71,7 @@ mockApp.get('/api/partners', (_req: express.Request, res: express.Response) => {
 
 // GET /api/partners/:partnerId - Get partner by ID
 mockApp.get('/api/partners/:partnerId', (req: express.Request, res: express.Response) => {
-    const partner = mockPartners.find(p => p.id === req.params.partnerId);
+    const partner = mockPartners.find(p => p.partnerId === req.params.partnerId);
     if (!partner) {
         res.status(404).json({ error: 'Partner not found' });
         return;
@@ -81,7 +81,7 @@ mockApp.get('/api/partners/:partnerId', (req: express.Request, res: express.Resp
 
 // PATCH /api/partners/:partnerId - Update partner
 mockApp.patch('/api/partners/:partnerId', (req: express.Request, res: express.Response) => {
-    const partner = mockPartners.find(p => p.id === req.params.partnerId);
+    const partner = mockPartners.find(p => p.partnerId === req.params.partnerId);
     if (!partner) {
         res.status(404).json({ error: 'Partner not found' });
         return;
@@ -136,7 +136,7 @@ mockApp.patch('/api/partners/:partnerId', (req: express.Request, res: express.Re
 
 // DELETE /api/partners/:partnerId - Soft delete partner
 mockApp.delete('/api/partners/:partnerId', (req: express.Request, res: express.Response) => {
-    const partner = mockPartners.find(p => p.id === req.params.partnerId);
+    const partner = mockPartners.find(p => p.partnerId === req.params.partnerId);
     if (!partner) {
         res.status(404).json({ error: 'Partner not found' });
         return;

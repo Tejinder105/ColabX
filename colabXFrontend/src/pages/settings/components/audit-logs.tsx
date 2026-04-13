@@ -96,7 +96,7 @@ export function AuditLogs({ logs, isLoading }: { logs: AuditLogEntry[]; isLoadin
                             </TableRow>
                         )}
                         {!isLoading && pagedLogs.map((log) => (
-                            <TableRow key={log.id} className="hover:bg-muted/30 font-mono text-[13px] text-muted-foreground">
+                            <TableRow key={log.activityLogId} className="hover:bg-muted/30 font-mono text-[13px] text-muted-foreground">
                                 <TableCell className="pl-6">{log.timestamp}</TableCell>
                                 <TableCell className="font-semibold text-foreground/80">{log.user}</TableCell>
                                 <TableCell>

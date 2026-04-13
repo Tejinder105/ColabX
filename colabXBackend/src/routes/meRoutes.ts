@@ -23,7 +23,7 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 
         const userOrgs = await db
             .select({
-                id: organization.organizationId,
+                organizationId: organization.organizationId,
                 name: organization.name,
                 slug: organization.slug,
                 role: orgUser.role,

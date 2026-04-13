@@ -14,7 +14,7 @@ mockApp.use(express.json());
 
 // Mock data
 const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
-const mockOrg = { id: 'org-123', name: 'Test Org' };
+const mockOrg = { organizationId: 'org-123', name: 'Test Org' };
 const mockDeals: Record<string, unknown>[] = [];
 const mockPartners: Record<string, unknown>[] = [];
 const mockAssignments: Record<string, unknown>[] = [];
@@ -30,8 +30,8 @@ mockApp.use((req: express.Request, _res: express.Response, next: express.NextFun
 // Helper to create a partner
 function createMockPartner(name = 'Test Partner') {
     const partner = {
-        id: `partner-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        organizationId: mockOrg.id,
+        partnerId: `partner-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        organizationId: mockOrg.organizationId,
         name,
         type: 'reseller',
         status: 'active',
@@ -56,15 +56,17 @@ mockApp.post('/api/deals', (req: express.Request, res: express.Response) => {
     }
 
     // Check partner exists
-    const partner = mockPartners.find(p => p.id === partnerId && p.organizationId === mockOrg.id);
+    const partner = mockPartners.find(
+        p => p.partnerId === partnerId && p.organizationId === mockOrg.organizationId
+    );
     if (!partner) {
         res.status(404).json({ error: 'Partner not found in this organization' });
         return;
     }
 
     const deal = {
-        id: `deal-${Date.now()}`,
-        organizationId: mockOrg.id,
+        dealId: `deal-${Date.now()}`,
+        organizationId: mockOrg.organizationId,
         partnerId,
         partnerName: partner.name,
         title,
@@ -98,7 +100,7 @@ mockApp.get('/api/deals', (req: express.Request, res: express.Response) => {
     // Update assignee counts
     filteredDeals = filteredDeals.map(d => ({
         ...d,
-        assigneeCount: mockAssignments.filter(a => a.dealId === d.id).length,
+        assigneeCount: mockAssignments.filter(a => a.dealId === d.dealId).length,
     }));
 
     res.json({ deals: filteredDeals });
@@ -106,18 +108,18 @@ mockApp.get('/api/deals', (req: express.Request, res: express.Response) => {
 
 // GET /api/deals/:dealId - Get deal by ID
 mockApp.get('/api/deals/:dealId', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
     }
 
-    const partner = mockPartners.find(p => p.id === deal.partnerId);
+    const partner = mockPartners.find(p => p.partnerId === deal.partnerId);
     const assignments = mockAssignments.filter(a => a.dealId === req.params.dealId);
 
     res.json({
         deal,
-        partner: partner ? { id: partner.partnerId, name: partner.name } : null,
+        partner: partner ? { partnerId: partner.partnerId, name: partner.name } : null,
         assignments,
         activities: [],
     });
@@ -125,7 +127,7 @@ mockApp.get('/api/deals/:dealId', (req: express.Request, res: express.Response) 
 
 // PATCH /api/deals/:dealId - Update deal
 mockApp.patch('/api/deals/:dealId', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
@@ -158,7 +160,7 @@ mockApp.patch('/api/deals/:dealId', (req: express.Request, res: express.Response
 
 // DELETE /api/deals/:dealId - Soft delete deal
 mockApp.delete('/api/deals/:dealId', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
@@ -172,7 +174,7 @@ mockApp.delete('/api/deals/:dealId', (req: express.Request, res: express.Respons
 
 // POST /api/deals/:dealId/assign - Assign user to deal
 mockApp.post('/api/deals/:dealId/assign', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
@@ -199,7 +201,7 @@ mockApp.post('/api/deals/:dealId/assign', (req: express.Request, res: express.Re
     }
 
     const assignment = {
-        id: `assign-${Date.now()}`,
+        dealAssignmentId: `assign-${Date.now()}`,
         dealId: req.params.dealId,
         userId,
         assignedAt: new Date().toISOString(),
@@ -214,7 +216,7 @@ mockApp.post('/api/deals/:dealId/assign', (req: express.Request, res: express.Re
 
 // GET /api/deals/:dealId/assign - Get deal assignments
 mockApp.get('/api/deals/:dealId/assign', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
@@ -226,7 +228,7 @@ mockApp.get('/api/deals/:dealId/assign', (req: express.Request, res: express.Res
 
 // DELETE /api/deals/:dealId/assign/:userId - Remove assignment
 mockApp.delete('/api/deals/:dealId/assign/:userId', (req: express.Request, res: express.Response) => {
-    const deal = mockDeals.find(d => d.id === req.params.dealId);
+    const deal = mockDeals.find(d => d.dealId === req.params.dealId);
     if (!deal) {
         res.status(404).json({ error: 'Deal not found' });
         return;
@@ -381,15 +383,19 @@ describe('Deals API - Blackbox Tests', () => {
             const partner1 = createMockPartner('Partner 1');
             const partner2 = createMockPartner('Partner 2');
 
-            await request(mockApp).post('/api/deals').send({ partnerId: partner1.id, title: 'Deal 1' });
-            await request(mockApp).post('/api/deals').send({ partnerId: partner2.id, title: 'Deal 2' });
+            await request(mockApp)
+                .post('/api/deals')
+                .send({ partnerId: partner1.partnerId, title: 'Deal 1' });
+            await request(mockApp)
+                .post('/api/deals')
+                .send({ partnerId: partner2.partnerId, title: 'Deal 2' });
 
             const response = await request(mockApp)
-                .get(`/api/deals?partnerId=${partner1.id}`)
+                .get(`/api/deals?partnerId=${partner1.partnerId}`)
                 .expect(200);
 
             expect(response.body.deals).toHaveLength(1);
-            expect(response.body.deals[0].partnerId).toBe(partner1.id);
+            expect(response.body.deals[0].partnerId).toBe(partner1.partnerId);
         });
 
         it('should include assignee count', async () => {

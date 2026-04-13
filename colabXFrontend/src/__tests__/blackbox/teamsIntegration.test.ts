@@ -24,8 +24,8 @@ describe('Teams Module - Blackbox Integration Tests', () => {
     describe('Team Listing', () => {
         it('should successfully retrieve a list of teams', async () => {
             const expectedTeams = [
-                { id: 't1', name: 'Revenue Team', memberCount: 4 },
-                { id: 't2', name: 'Partner Success', memberCount: 2 },
+                { teamId: 't1', name: 'Revenue Team', memberCount: 4 },
+                { teamId: 't2', name: 'Partner Success', memberCount: 2 },
             ];
 
             mockFetch.mockResolvedValueOnce({
@@ -73,13 +73,13 @@ describe('Teams Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    team: { id: 'team-new', ...input, memberCount: 3 },
+                    team: { teamId: 'team-new', ...input, memberCount: 3 },
                 }),
             } as Response);
 
             const result = await teamsService.createTeam(orgId, input);
 
-            expect(result.team.id).toBe('team-new');
+            expect(result.team.teamId).toBe('team-new');
             expect(result.team.name).toBe('Launch Team');
             expect(result.team.memberCount).toBe(3);
         });
@@ -99,14 +99,14 @@ describe('Teams Module - Blackbox Integration Tests', () => {
     describe('Team Details and Members', () => {
         it('should retrieve a team with its members', async () => {
             const members = [
-                { id: 'm1', userId: 'user-1', role: 'lead', userName: 'Asha' },
-                { id: 'm2', userId: 'user-2', role: 'member', userName: 'Dev' },
+                { teamMemberId: 'm1', userId: 'user-1', role: 'lead', userName: 'Asha' },
+                { teamMemberId: 'm2', userId: 'user-2', role: 'member', userName: 'Dev' },
             ];
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    team: { id: 'team-1', name: 'Revenue Team' },
+                    team: { teamId: 'team-1', name: 'Revenue Team' },
                     members,
                 }),
             } as Response);
@@ -122,7 +122,7 @@ describe('Teams Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    member: { id: 'm3', userId: 'user-3', role: 'member' },
+                    member: { teamMemberId: 'm3', userId: 'user-3', role: 'member' },
                 }),
             } as Response);
 
@@ -154,7 +154,7 @@ describe('Teams Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    partners: [{ id: 'p1', name: 'Acme Corp', status: 'active' }],
+                    partners: [{ partnerId: 'p1', name: 'Acme Corp', status: 'active' }],
                 }),
             } as Response);
 
@@ -168,7 +168,7 @@ describe('Teams Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    deals: [{ id: 'd1', title: 'Expansion Deal', stage: 'proposal' }],
+                    deals: [{ dealId: 'd1', title: 'Expansion Deal', stage: 'proposal' }],
                 }),
             } as Response);
 

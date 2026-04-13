@@ -88,7 +88,16 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
     if (!deal) return null;
 
     const assignments = dealDetails?.assignments ?? [];
-    const activities = dealDetails?.activities ?? deal.activity ?? [];
+    const activities = (dealDetails?.activities ?? deal.activity ?? []).map((activity) => (
+        'activityLogId' in activity
+            ? activity
+            : {
+                activityLogId: activity.id,
+                action: activity.action,
+                userName: activity.user,
+                createdAt: activity.timestamp,
+            }
+    ));
     const messages = messagesData?.messages ?? [];
     const tasks = tasksData?.tasks ?? dealDetails?.tasks ?? [];
     const documents = documentsData?.documents ?? dealDetails?.documents ?? [];
@@ -347,7 +356,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     <div className="space-y-3">
                                         {assignments.map((assignment) => (
                                             <div
-                                                key={assignment.id}
+                                                key={assignment.dealAssignmentId}
                                                 className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
                                             >
                                                 <div className="flex items-center gap-4">
@@ -400,9 +409,9 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     ) : messages.length > 0 ? (
                                         <div className="space-y-4">
                                             {messages.map((msg) => {
-                                                const isOwnMessage = msg.senderId === currentUser?.user?.id;
+                                                const isOwnMessage = msg.senderUserId === currentUser?.user?.id;
                                                 return (
-                                                    <div key={msg.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                                                    <div key={msg.dealMessageId} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={msg.senderImage ?? undefined} />
                                                             <AvatarFallback className="text-xs">
@@ -510,7 +519,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                 ) : documents.length > 0 ? (
                                     <div className="space-y-3">
                                         {documents.map((doc) => (
-                                            <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
+                                            <div key={doc.dealDocumentId} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
                                                 <div className="flex items-center gap-4">
                                                     <div className="p-2 bg-blue-500/10 text-blue-500 rounded-md">
                                                         <FileText className="w-5 h-5" />
@@ -519,7 +528,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                         <p className="font-semibold text-sm">{doc.fileName}</p>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                                             <span>{doc.visibility}</span>
-                                                            <span>Uploaded by {doc.uploaderName ?? doc.uploadedBy} {new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                                                            <span>Uploaded by {doc.uploaderName ?? doc.uploadedByUserId} {new Date(doc.uploadedAt).toLocaleDateString()}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -543,7 +552,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                         variant="ghost"
                                                         size="icon"
                                                         className="text-destructive hover:text-destructive"
-                                                        onClick={() => handleDeleteDocument(doc.id)}
+                                                        onClick={() => handleDeleteDocument(doc.dealDocumentId)}
                                                         disabled={deleteDocument.isPending}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -612,7 +621,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     ) : tasks.length > 0 ? (
                                         <div className="space-y-3">
                                             {tasks.map((task) => (
-                                                <div key={task.id} className="rounded-lg border p-4 space-y-3">
+                                                <div key={task.dealTaskId} className="rounded-lg border p-4 space-y-3">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div>
                                                             <p className="font-medium">{task.title}</p>
@@ -626,7 +635,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="text-destructive hover:text-destructive"
-                                                                onClick={() => handleDeleteTask(task.id)}
+                                                                onClick={() => handleDeleteTask(task.dealTaskId)}
                                                                 disabled={deleteTask.isPending}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
@@ -635,7 +644,7 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                                     </div>
                                                     <Select
                                                         value={task.status}
-                                                        onValueChange={(value) => handleUpdateTaskStatus(task.id, value as "todo" | "in_progress" | "done")}
+                                                        onValueChange={(value) => handleUpdateTaskStatus(task.dealTaskId, value as "todo" | "in_progress" | "done")}
                                                         disabled={updateTask.isPending}
                                                     >
                                                         <SelectTrigger className="w-[180px]">
@@ -662,16 +671,16 @@ export function DealDetailsSheet({ deal, open, onOpenChange }: DealDetailsSheetP
                                     <div className="space-y-6 relative pl-3">
                                         <div className="absolute left-[15px] top-2 bottom-0 w-px bg-border"></div>
                                         {activities.map((act) => (
-                                            <div key={act.id} className="relative flex gap-4 text-sm">
+                                            <div key={act.activityLogId} className="relative flex gap-4 text-sm">
                                                 <div className="bg-background rounded-full p-1 mt-0.5 z-10 border shadow-sm h-min">
                                                     <div className="w-2 h-2 rounded-full bg-primary" />
                                                 </div>
                                                 <div className="flex flex-col flex-1">
                                                     <span className="text-foreground">{act.action}</span>
                                                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                        <span className="font-medium text-foreground/80">{act.user}</span>
+                                                        <span className="font-medium text-foreground/80">{act.userName ?? 'Unknown'}</span>
                                                         <span>•</span>
-                                                        <span>{act.timestamp}</span>
+                                                        <span>{act.createdAt}</span>
                                                     </div>
                                                 </div>
                                             </div>

@@ -130,7 +130,7 @@ export async function getUserOrganizations(
 
     const userOrgs = await db
       .select({
-        id: organization.organizationId,
+        organizationId: organization.organizationId,
         name: organization.name,
         slug: organization.slug,
         role: orgUser.role,
@@ -189,7 +189,7 @@ export async function getOrganizationMembers(
 
     const members = await db
       .select({
-        id: orgUser.orgUserId,
+        orgUserId: orgUser.orgUserId,
         userId: orgUser.userId,
         role: orgUser.role,
         joinedAt: orgUser.joinedAt,
@@ -353,7 +353,7 @@ export async function changeMemberRole(
 
     const [memberRecord] = await db
       .select({
-        id: orgUser.orgUserId,
+        orgUserId: orgUser.orgUserId,
         userId: orgUser.userId,
         role: orgUser.role,
       })
@@ -379,7 +379,7 @@ export async function changeMemberRole(
 
     if (memberRecord.role === "admin" && role !== "admin") {
       const adminCount = await db
-        .select({ id: orgUser.orgUserId })
+        .select({ orgUserId: orgUser.orgUserId })
         .from(orgUser)
         .where(and(eq(orgUser.organizationId, req.org.organizationId), eq(orgUser.role, "admin")));
 
@@ -447,7 +447,7 @@ export async function removeMember(
 
     const [memberRecord] = await db
       .select({
-        id: orgUser.orgUserId,
+        orgUserId: orgUser.orgUserId,
         role: orgUser.role,
       })
       .from(orgUser)
@@ -461,7 +461,7 @@ export async function removeMember(
 
     if (memberRecord.role === "admin") {
       const adminCount = await db
-        .select({ id: orgUser.orgUserId })
+        .select({ orgUserId: orgUser.orgUserId })
         .from(orgUser)
         .where(and(eq(orgUser.organizationId, req.org.organizationId), eq(orgUser.role, "admin")));
 
@@ -553,7 +553,7 @@ export async function getOrganizationAuditLogs(
 
     const logs = await db
       .select({
-        id: activityLog.activityLogId,
+        activityLogId: activityLog.activityLogId,
         action: activityLog.action,
         entityType: activityLog.entityType,
         entityId: activityLog.entityId,
@@ -631,7 +631,7 @@ export async function getOrganizationIntegrityReport(
         .innerJoin(team, eq(teamPartner.teamId, team.teamId))
         .leftJoin(orgUser, and(eq(orgUser.organizationId, team.organizationId), eq(orgUser.userId, teamPartner.assignedByUserId)))
         .where(eq(team.organizationId, req.org.organizationId)),
-      db.select({ id: team.teamId, name: team.name }).from(team).where(eq(team.organizationId, req.org.organizationId)),
+      db.select({ teamId: team.teamId, name: team.name }).from(team).where(eq(team.organizationId, req.org.organizationId)),
       db
         .select({
           teamId: teamMember.teamId,
@@ -684,7 +684,7 @@ export async function getOrganizationIntegrityReport(
       .map(([partnerId, count]) => ({ partnerId, assignmentCount: count }));
 
     const leadTeamIds = new Set(orgLeadRows.map((row) => row.teamId));
-    const teamsWithoutLead = orgTeams.filter((teamRow) => !leadTeamIds.has(teamRow.id));
+    const teamsWithoutLead = orgTeams.filter((teamRow) => !leadTeamIds.has(teamRow.teamId));
 
     res.json({
       internalUsersInMultipleOrgs: [...internalUsersInMultipleOrgs.values()],

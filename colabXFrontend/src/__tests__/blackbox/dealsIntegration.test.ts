@@ -24,8 +24,8 @@ describe('Deals Module - Blackbox Integration Tests', () => {
     describe('Deal Listing', () => {
         it('should successfully retrieve a list of deals', async () => {
             const expectedDeals = [
-                { id: 'd1', title: 'Expansion Deal', stage: 'proposal', value: 50000 },
-                { id: 'd2', title: 'Renewal Deal', stage: 'won', value: 120000 },
+                { dealId: 'd1', title: 'Expansion Deal', stage: 'proposal', value: 50000 },
+                { dealId: 'd2', title: 'Renewal Deal', stage: 'won', value: 120000 },
             ];
 
             mockFetch.mockResolvedValueOnce({
@@ -68,13 +68,13 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    deal: { id: 'deal-new', ...input, stage: 'lead', value: null },
+                    deal: { dealId: 'deal-new', ...input, stage: 'lead', value: null },
                 }),
             } as Response);
 
             const result = await dealsService.createDeal(orgId, input);
 
-            expect(result.deal.id).toBe('deal-new');
+            expect(result.deal.dealId).toBe('deal-new');
             expect(result.deal.title).toBe('New Deal');
             expect(result.deal.stage).toBe('lead');
         });
@@ -91,7 +91,7 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    deal: { id: 'deal-full', ...input, stage: 'proposal' },
+                    deal: { dealId: 'deal-full', ...input, stage: 'proposal' },
                 }),
             } as Response);
 
@@ -119,9 +119,9 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    deal: { id: 'deal-1', title: 'Expansion Deal', stage: 'proposal' },
-                    partner: { id: 'partner-1', name: 'Acme Corp' },
-                    assignments: [{ id: 'a1', userId: 'user-1', userName: 'Asha' }],
+                    deal: { dealId: 'deal-1', title: 'Expansion Deal', stage: 'proposal' },
+                    partner: { partnerId: 'partner-1', name: 'Acme Corp' },
+                    assignments: [{ dealAssignmentId: 'a1', userId: 'user-1', userName: 'Asha' }],
                     tasks: [],
                     documents: [],
                     activities: [],
@@ -139,7 +139,7 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    deal: { id: 'deal-1', stage: 'won', value: 150000 },
+                    deal: { dealId: 'deal-1', stage: 'won', value: 150000 },
                 }),
             } as Response);
 
@@ -169,7 +169,7 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    assignment: { id: 'assignment-1', dealId: 'deal-1', userId: 'user-1' },
+                    assignment: { dealAssignmentId: 'assignment-1', dealId: 'deal-1', userId: 'user-1' },
                 }),
             } as Response);
 
@@ -182,7 +182,7 @@ describe('Deals Module - Blackbox Integration Tests', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
-                    task: { id: 'task-1', title: 'Send proposal', status: 'todo' },
+                    task: { dealTaskId: 'task-1', title: 'Send proposal', status: 'todo' },
                 }),
             } as Response);
 

@@ -71,14 +71,14 @@ export default function SettingsPage() {
     // Build OrgUser[] from real members + pending invitations
     const orgUsers: OrgUser[] = [
         ...(membersData?.members ?? []).map((m) => ({
-            id: m.id,  // orgUser row id — required for changeMemberRole and removeMember API calls
+            orgUserId: m.orgUserId,
             name: m.userName,
             email: m.userEmail,
             role: mapRole(m.role),
             status: 'Active' as UserStatus,
         })),
         ...(invitesData?.invitations ?? []).map((inv) => ({
-            id: inv.id,
+            invitationId: inv.invitationId,
             name: inv.email,
             email: inv.email,
             role: mapRole(inv.role),
@@ -96,7 +96,7 @@ export default function SettingsPage() {
     }));
 
     const auditLogs = (auditData?.logs ?? []).map((log) => ({
-        id: log.id,
+        activityLogId: log.activityLogId,
         timestamp: new Date(log.createdAt).toLocaleString(),
         user: log.userName ?? log.userEmail ?? 'Unknown',
         action: log.action,

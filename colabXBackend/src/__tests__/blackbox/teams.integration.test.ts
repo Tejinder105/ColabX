@@ -14,8 +14,8 @@ mockApp.use(express.json());
 
 // Mock authentication middleware
 const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
-const mockOrg = { id: 'org-123', name: 'Test Org' };
-const mockTeam = { id: 'team-123', name: 'Test Team', organizationId: 'org-123' };
+const mockOrg = { organizationId: 'org-123', name: 'Test Org' };
+const mockTeam = { teamId: 'team-123', name: 'Test Team', organizationId: 'org-123' };
 
 // Mock service functions
 const mockTeams: Record<string, unknown>[] = [];
@@ -38,8 +38,8 @@ mockApp.post('/api/teams', (req: express.Request, res: express.Response) => {
     }
 
     const team = {
-        id: `team-${Date.now()}`,
-        organizationId: mockOrg.id,
+        teamId: `team-${Date.now()}`,
+        organizationId: mockOrg.organizationId,
         name,
         description: description || null,
         createdByUserId: mockUser.id,
@@ -58,7 +58,7 @@ mockApp.get('/api/teams', (_req: express.Request, res: express.Response) => {
 
 // GET /api/teams/:teamId - Get team by ID
 mockApp.get('/api/teams/:teamId', (req: express.Request, res: express.Response) => {
-    const team = mockTeams.find(t => t.id === req.params.teamId);
+    const team = mockTeams.find(t => t.teamId === req.params.teamId);
     if (!team) {
         res.status(404).json({ error: 'Team not found' });
         return;
@@ -68,7 +68,7 @@ mockApp.get('/api/teams/:teamId', (req: express.Request, res: express.Response) 
 
 // PATCH /api/teams/:teamId - Update team
 mockApp.patch('/api/teams/:teamId', (req: express.Request, res: express.Response) => {
-    const team = mockTeams.find(t => t.id === req.params.teamId);
+    const team = mockTeams.find(t => t.teamId === req.params.teamId);
     if (!team) {
         res.status(404).json({ error: 'Team not found' });
         return;
@@ -89,7 +89,7 @@ mockApp.patch('/api/teams/:teamId', (req: express.Request, res: express.Response
 
 // DELETE /api/teams/:teamId - Delete team
 mockApp.delete('/api/teams/:teamId', (req: express.Request, res: express.Response) => {
-    const index = mockTeams.findIndex(t => t.id === req.params.teamId);
+    const index = mockTeams.findIndex(t => t.teamId === req.params.teamId);
     if (index === -1) {
         res.status(404).json({ error: 'Team not found' });
         return;
@@ -100,7 +100,7 @@ mockApp.delete('/api/teams/:teamId', (req: express.Request, res: express.Respons
 
 // POST /api/teams/:teamId/members - Add member
 mockApp.post('/api/teams/:teamId/members', (req: express.Request, res: express.Response) => {
-    const team = mockTeams.find(t => t.id === req.params.teamId);
+    const team = mockTeams.find(t => t.teamId === req.params.teamId);
     if (!team) {
         res.status(404).json({ error: 'Team not found' });
         return;
@@ -126,7 +126,7 @@ mockApp.post('/api/teams/:teamId/members', (req: express.Request, res: express.R
     }
 
     const member = {
-        id: `member-${Date.now()}`,
+        teamMemberId: `member-${Date.now()}`,
         teamId: req.params.teamId,
         userId,
         role,
@@ -138,7 +138,7 @@ mockApp.post('/api/teams/:teamId/members', (req: express.Request, res: express.R
 
 // GET /api/teams/:teamId/members - List members
 mockApp.get('/api/teams/:teamId/members', (req: express.Request, res: express.Response) => {
-    const team = mockTeams.find(t => t.id === req.params.teamId);
+    const team = mockTeams.find(t => t.teamId === req.params.teamId);
     if (!team) {
         res.status(404).json({ error: 'Team not found' });
         return;

@@ -19,7 +19,7 @@ export interface OrgMembershipRecord {
 export async function getUserMemberships(userId: string) {
     return db
         .select({
-            id: orgUser.orgUserId,
+            orgUserId: orgUser.orgUserId,
             organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,
@@ -44,7 +44,7 @@ export async function getUserInternalMemberships(
 
     return db
         .select({
-            id: orgUser.orgUserId,
+            orgUserId: orgUser.orgUserId,
             organizationId: orgUser.organizationId,
             userId: orgUser.userId,
             role: orgUser.role,

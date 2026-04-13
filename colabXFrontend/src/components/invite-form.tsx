@@ -30,7 +30,7 @@ interface InvitationData {
   email: string;
   role: string;
   organization: {
-    id: string;
+    organizationId: string;
     name: string;
     slug: string;
   };
@@ -140,7 +140,7 @@ export function InviteForm({
               const result = await acceptResponse.json();
               if (result.organization && inviteData) {
                 setActiveOrg({
-                  id: result.organization.id,
+                  organizationId: result.organization.organizationId,
                   name: result.organization.name,
                   slug: result.organization.slug,
                   role: inviteData.role,

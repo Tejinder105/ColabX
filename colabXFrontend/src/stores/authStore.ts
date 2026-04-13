@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface Organization {
-    id: string;
+    organizationId: string;
     name: string;
     slug: string;
     role: string;
@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
             isOnboarding: false,
 
             setActiveOrg: (org) =>
-                set({ activeOrg: org, activeOrgId: org.id, isOnboarding: false }),
+                set({ activeOrg: org, activeOrgId: org.organizationId, isOnboarding: false }),
 
             setActiveOrgId: (orgId) =>
                 set({ activeOrgId: orgId }),
