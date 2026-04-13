@@ -258,7 +258,7 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                     </TableHeader>
                     <TableBody>
                         {filteredUsers.map((user) => (
-                            <TableRow key={user.id} className="hover:bg-muted/50">
+                            <TableRow key={user.orgUserId ?? user.invitationId ?? user.email} className="hover:bg-muted/50">
                                 <TableCell className="pl-6 font-medium">
                                     <div className="flex flex-col gap-0.5">
                                         <span>{user.name}</span>
@@ -271,8 +271,12 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                                     ) : (
                                         <Select
                                             value={toApiRole(user.role)}
-                                            onValueChange={(role) => onChangeRole?.(user.id, role as 'admin' | 'manager' | 'member' | 'partner')}
-                                            disabled={isChangingRole}
+                                            onValueChange={(role) => {
+                                                if (user.orgUserId) {
+                                                    onChangeRole?.(user.orgUserId, role as 'admin' | 'manager' | 'member' | 'partner');
+                                                }
+                                            }}
+                                            disabled={isChangingRole || !user.orgUserId}
                                         >
                                             <SelectTrigger className="h-8 w-32">
                                                 <SelectValue />
@@ -296,10 +300,12 @@ export function UserManagement({ users, onRemove, onChangeRole, onInvite, isRemo
                                             className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                             onClick={() => {
                                                 if (window.confirm(`Delete ${user.name}? This action cannot be undone.`)) {
-                                                    onRemove?.(user.id);
+                                                    if (user.orgUserId) {
+                                                        onRemove?.(user.orgUserId);
+                                                    }
                                                 }
                                             }}
-                                            disabled={isRemoving}
+                                            disabled={isRemoving || !user.orgUserId}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

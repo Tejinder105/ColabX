@@ -183,7 +183,7 @@ async function getMembersForTeamIds(teamIds: string[]) {
 
     return db
         .select({
-            id: teamMember.teamMemberId,
+            teamMemberId: teamMember.teamMemberId,
             teamId: teamMember.teamId,
             userId: teamMember.userId,
             role: teamMember.role,
@@ -249,7 +249,7 @@ export async function deleteTeam(teamId: string) {
 
 export async function isOrgMember(organizationId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: orgUser.orgUserId })
+        .select({ orgUserId: orgUser.orgUserId })
         .from(orgUser)
         .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);
@@ -265,7 +265,7 @@ export async function getOrgMembershipsByUserIds(organizationId: string, userIds
 
     return db
         .select({
-            id: orgUser.orgUserId,
+            orgUserId: orgUser.orgUserId,
             userId: orgUser.userId,
             organizationId: orgUser.organizationId,
             role: orgUser.role,
@@ -291,7 +291,7 @@ export async function getOrgMemberUserIds(organizationId: string, userIds: strin
 export async function getOrgMembersByRoles(organizationId: string, roles: OrgRole[]) {
     return db
         .select({
-            id: orgUser.orgUserId,
+            orgUserId: orgUser.orgUserId,
             userId: orgUser.userId,
             role: orgUser.role,
             userName: user.name,
@@ -326,7 +326,7 @@ export async function getLeadMemberRecord(teamId: string) {
 
 export async function isTeamMember(teamId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: teamMember.teamMemberId })
+        .select({ teamMemberId: teamMember.teamMemberId })
         .from(teamMember)
         .where(and(eq(teamMember.teamId, teamId), eq(teamMember.userId, userId)))
         .limit(1);
@@ -393,7 +393,7 @@ export async function addTeamMember(
 export async function getTeamMembers(teamId: string) {
     return db
         .select({
-            id: teamMember.teamMemberId,
+            teamMemberId: teamMember.teamMemberId,
             teamId: teamMember.teamId,
             userId: teamMember.userId,
             role: teamMember.role,
@@ -559,7 +559,7 @@ export async function getPartnerIdsForTeams(teamIds: string[]): Promise<string[]
 export async function getTeamPartners(teamId: string, organizationId: string) {
     return db
         .select({
-            id: partner.partnerId,
+            partnerId: partner.partnerId,
             name: partner.name,
             type: partner.type,
             status: partner.status,
@@ -580,7 +580,7 @@ export async function getTeamPartners(teamId: string, organizationId: string) {
 export async function getPartnerTeamAssignment(partnerId: string, organizationId: string) {
     const [assignment] = await db
         .select({
-            id: teamPartner.teamPartnerId,
+            teamPartnerId: teamPartner.teamPartnerId,
             teamId: teamPartner.teamId,
             partnerId: teamPartner.partnerId,
             assignedAt: teamPartner.assignedAt,
@@ -598,7 +598,7 @@ export async function getPartnerTeamAssignment(partnerId: string, organizationId
 export async function getTeamDeals(teamId: string, organizationId: string) {
     return db
         .select({
-            id: deal.dealId,
+            dealId: deal.dealId,
             teamId: deal.teamId,
             partnerId: deal.partnerId,
             title: deal.title,
@@ -632,7 +632,7 @@ export async function getTeamObjectives(teamId: string, organizationId: string) 
 
     const objectives = await db
         .select({
-            id: objective.objectiveId,
+            objectiveId: objective.objectiveId,
             title: objective.title,
             startDate: objective.startDate,
             endDate: objective.endDate,
@@ -649,7 +649,7 @@ export async function getTeamObjectives(teamId: string, organizationId: string) 
             const keyResults = await db
                 .select()
                 .from(keyResult)
-                .where(eq(keyResult.objectiveId, obj.id));
+                .where(eq(keyResult.objectiveId, obj.objectiveId));
 
             let progress = 0;
             let status: "on_track" | "at_risk" | "off_track" = "on_track";
@@ -706,7 +706,7 @@ export async function getTeamActivity(teamId: string, organizationId: string) {
         );
     }
 
-    const dealIds = deals.map((dealRow) => dealRow.id);
+    const dealIds = deals.map((dealRow) => dealRow.dealId);
     if (dealIds.length > 0) {
         scopes.push(
             and(eq(activityLog.entityType, "deal"), inArray(activityLog.entityId, dealIds))
@@ -715,7 +715,7 @@ export async function getTeamActivity(teamId: string, organizationId: string) {
 
     return db
         .select({
-            id: activityLog.activityLogId,
+            activityLogId: activityLog.activityLogId,
             action: activityLog.action,
             entityType: activityLog.entityType,
             entityId: activityLog.entityId,

@@ -47,15 +47,36 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1775443200000,
-      "tag": "0010_contact_directory_foundation",
+      "when": 1775289600000,
+      "tag": "0006_add_partner_email_unique_constraint",
       "breakpoints": true
     },
     {
       "idx": 7,
       "version": "7",
-      "when": 1776274000000,
-      "tag": "0012_rename_columns_to_consistent_naming",
+      "when": 1775332800000,
+      "tag": "0007_add_invitation_partner_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775376000000,
+      "tag": "0008_team_ownership_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775419200000,
+      "tag": "0009_okr_assignment_upgrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775443200000,
+      "tag": "0010_contact_directory_foundation",
       "breakpoints": true
     }
   ]

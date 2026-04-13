@@ -274,7 +274,7 @@ export async function getObjectiveWithKeyResults(objectiveId: string) {
     const summary = calculateObjectiveSummary(keyResults);
     const activities = await db
         .select({
-            id: activityLog.activityLogId,
+            activityLogId: activityLog.activityLogId,
             action: activityLog.action,
             createdAt: activityLog.createdAt,
             userId: activityLog.userId,
@@ -418,11 +418,11 @@ async function calculatePartnerScoreSnapshot(partnerId: string) {
     sinceDate.setDate(sinceDate.getDate() - 90);
 
     const [partnerObjectives, partnerDeals, recentActivities] = await Promise.all([
-        db.select({ id: objective.objectiveId })
+        db.select({ objectiveId: objective.objectiveId })
             .from(objective)
             .where(eq(objective.partnerId, partnerId)),
         db.select({
-            id: deal.dealId,
+            dealId: deal.dealId,
             stage: deal.stage,
             value: deal.value,
         })
@@ -433,7 +433,7 @@ async function calculatePartnerScoreSnapshot(partnerId: string) {
             .where(and(eq(activityLog.entityId, partnerId), gte(activityLog.createdAt, sinceDate))),
     ]);
 
-    const objectiveIds = partnerObjectives.map((objectiveRow) => objectiveRow.id);
+    const objectiveIds = partnerObjectives.map((objectiveRow) => objectiveRow.objectiveId);
     const objectiveKeyResults = objectiveIds.length > 0
         ? await db.select().from(keyResult).where(inArray(keyResult.objectiveId, objectiveIds))
         : [];

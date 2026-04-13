@@ -100,7 +100,7 @@ export async function getPartnerWithTeams(partnerId: string) {
 
     const teams = await db
         .select({
-            id: team.teamId,
+            teamId: team.teamId,
             organizationId: team.organizationId,
             name: team.name,
             description: team.description,
@@ -155,7 +155,7 @@ export async function hardDeletePartner(partnerId: string) {
 
 export async function isOrgMember(organizationId: string, userId: string): Promise<boolean> {
     const [result] = await db
-        .select({ id: orgUser.orgUserId })
+        .select({ orgUserId: orgUser.orgUserId })
         .from(orgUser)
         .where(and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, userId)))
         .limit(1);

@@ -2,7 +2,8 @@ export type UserRole = 'Admin' | 'Manager' | 'Partner' | 'User';
 export type UserStatus = 'Active' | 'Invited' | 'Suspended';
 
 export interface OrgUser {
-    id: string;
+    orgUserId?: string;
+    invitationId?: string;
     name: string;
     email: string;
     role: UserRole;
@@ -26,7 +27,7 @@ export interface PermissionMatrix {
 }
 
 export interface AuditLogEntry {
-    id: string;
+    activityLogId: string;
     timestamp: string;
     user: string;
     action: string;

@@ -33,7 +33,7 @@ async function generateUniqueToken(maxRetries = 3): Promise<string> {
     
     // Check if token already exists
     const [existing] = await db
-      .select({ id: invitation.invitationId })
+      .select({ invitationId: invitation.invitationId })
       .from(invitation)
       .where(eq(invitation.token, token))
       .limit(1);
@@ -97,7 +97,7 @@ export async function createInvitation(
 
     // Check if target email is already a member (case-insensitive)
     const [existingUser] = await db
-      .select({ id: user.id })
+      .select({ userId: user.id })
       .from(user)
       .where(sql`lower(${user.email}) = ${email}`)
       .limit(1);
@@ -107,7 +107,7 @@ export async function createInvitation(
         .select()
         .from(orgUser)
         .where(
-          and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, existingUser.id)),
+          and(eq(orgUser.organizationId, organizationId), eq(orgUser.userId, existingUser.userId)),
         )
         .limit(1);
 
@@ -118,7 +118,7 @@ export async function createInvitation(
         return;
       }
 
-      const assignmentCheck = await ensureRoleAssignmentAllowed(existingUser.id, role, {
+      const assignmentCheck = await ensureRoleAssignmentAllowed(existingUser.userId, role, {
         organizationId,
       });
 
@@ -251,7 +251,7 @@ export async function validateInvitation(
 
     const [invite] = await db
       .select({
-        id: invitation.invitationId,
+        invitationId: invitation.invitationId,
         email: invitation.email,
         role: invitation.role,
         expiresAt: invitation.expiresAt,
@@ -286,7 +286,7 @@ export async function validateInvitation(
         email: invite.email,
         role: invite.role,
         organization: {
-          id: invite.organizationId,
+          organizationId: invite.organizationId,
           name: invite.orgName,
           slug: invite.orgSlug,
         },
@@ -444,7 +444,7 @@ export async function getPendingInvitations(
 
     const pendingInvites = await db
       .select({
-        id: invitation.invitationId,
+        invitationId: invitation.invitationId,
         email: invitation.email,
         role: invitation.role,
         expiresAt: invitation.expiresAt,

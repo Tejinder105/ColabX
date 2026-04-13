@@ -89,7 +89,7 @@ export function AlertsWidget({ partnerId }: AlertsWidgetProps) {
                     <div className="space-y-3">
                         {alerts.map((alert) => (
                             <div
-                                key={alert.id}
+                                key={alert.notificationId}
                                 className={cn(
                                     "flex gap-3 rounded-lg border p-3 transition-colors",
                                     !alert.read ? "bg-accent/50" : "bg-muted/30"
@@ -121,7 +121,7 @@ export function AlertsWidget({ partnerId }: AlertsWidgetProps) {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => markAsRead.mutate(alert.id)}
+                                                onClick={() => markAsRead.mutate(alert.notificationId)}
                                                 className="ml-2 flex-shrink-0"
                                             >
                                                 Mark read

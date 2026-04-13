@@ -92,7 +92,7 @@ export async function requireDealAccess(
             getPartnerForUserInOrg(req.org.organizationId, req.user.id),
         ]);
 
-        const canAccessViaPartner = linkedPartner?.id === req.deal.partnerId;
+        const canAccessViaPartner = linkedPartner?.partnerId === req.deal.partnerId;
 
         if (!isAssigned && !canAccessViaPartner) {
             res.status(403).json({ error: "Access denied to this deal" });

@@ -36,9 +36,9 @@ async function apiPost<T>(orgId: string, path: string): Promise<T> {
 }
 
 export interface Notification {
-    id: string;
-    orgId: string;
-    recipientId: string;
+    notificationId: string;
+    organizationId: string;
+    recipientUserId: string;
     partnerId?: string;
     alertType: "missed_deadline" | "low_okr" | "pending_action";
     title: string;
