@@ -12,6 +12,7 @@ import {
 } from "../org/org-membership.service.js";
 import { isInternalOrgRole, type OrgRole } from "../org/org.constants.js";
 import { team, teamMember, teamPartner } from "../teams/teams.schema.js";
+import { partner } from "../partners/partners.schema.js";
 
 // Generate slug from name
 function generateSlug(name: string): string {
@@ -625,11 +626,11 @@ export async function getOrganizationIntegrityReport(
         .select({
           partnerId: teamPartner.partnerId,
           teamId: teamPartner.teamId,
-          partnerName: user.name,
+          partnerName: partner.name,
         })
         .from(teamPartner)
         .innerJoin(team, eq(teamPartner.teamId, team.teamId))
-        .leftJoin(orgUser, and(eq(orgUser.organizationId, team.organizationId), eq(orgUser.userId, teamPartner.assignedByUserId)))
+        .innerJoin(partner, eq(teamPartner.partnerId, partner.partnerId))
         .where(eq(team.organizationId, req.org.organizationId)),
       db.select({ teamId: team.teamId, name: team.name }).from(team).where(eq(team.organizationId, req.org.organizationId)),
       db
