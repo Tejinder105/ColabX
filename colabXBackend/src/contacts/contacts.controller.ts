@@ -20,7 +20,6 @@ export async function createContactHandler(
         }
 
         const created = await createContact(
-            req.org.organizationId,
             req.partner.partnerId,
             req.user.id,
             req.body

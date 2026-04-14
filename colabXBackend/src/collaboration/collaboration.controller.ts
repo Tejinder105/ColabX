@@ -26,7 +26,6 @@ export async function createCommunicationHandler(
         }
 
         const created = await createCommunication(
-            req.org.organizationId,
             req.partner.partnerId,
             req.user.id,
             req.body.message
@@ -71,7 +70,6 @@ export async function createDocumentHandler(
         }
 
         const created = await createDocument(
-            req.org.organizationId,
             req.partner.partnerId,
             req.user.id,
             req.body

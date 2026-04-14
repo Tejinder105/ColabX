@@ -1,9 +1,9 @@
 import { eq, and } from "drizzle-orm";
 import db from "../db/index.js";
 import { contact } from "./contacts.schema.js";
+import { partner } from "../partners/partners.schema.js";
 
 export async function createContact(
-    organizationId: string,
     partnerId: string,
     userId: string,
     data: {
@@ -18,7 +18,6 @@ export async function createContact(
         .insert(contact)
         .values({
             contactId: crypto.randomUUID(),
-            organizationId,
             partnerId,
             name: data.name,
             email: data.email,
@@ -41,9 +40,21 @@ export async function getPartnerContacts(partnerId: string) {
 
 export async function getContactById(contactId: string, organizationId: string) {
     const [result] = await db
-        .select()
+        .select({
+            contactId: contact.contactId,
+            partnerId: contact.partnerId,
+            name: contact.name,
+            email: contact.email,
+            phone: contact.phone,
+            role: contact.role,
+            isPrimary: contact.isPrimary,
+            createdByUserId: contact.createdByUserId,
+            createdAt: contact.createdAt,
+            updatedAt: contact.updatedAt,
+        })
         .from(contact)
-        .where(and(eq(contact.contactId, contactId), eq(contact.organizationId, organizationId)))
+        .innerJoin(partner, eq(contact.partnerId, partner.partnerId))
+        .where(and(eq(contact.contactId, contactId), eq(partner.organizationId, organizationId)))
         .limit(1);
 
     return result;

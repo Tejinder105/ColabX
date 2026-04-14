@@ -7,7 +7,6 @@ import { partner } from "../partners/partners.schema.js";
 // Communications ->
 
 export async function createCommunication(
-    organizationId: string,
     partnerId: string,
     senderUserId: string,
     message: string
@@ -16,7 +15,6 @@ export async function createCommunication(
         .insert(communication)
         .values({
             communicationId: crypto.randomUUID(),
-            organizationId,
             partnerId,
             senderUserId,
             message,
@@ -45,7 +43,6 @@ export async function getPartnerCommunications(partnerId: string) {
 // Documents ->
 
 export async function createDocument(
-    organizationId: string,
     partnerId: string,
     uploadedByUserId: string,
     data: {
@@ -58,7 +55,6 @@ export async function createDocument(
         .insert(document)
         .values({
             documentId: crypto.randomUUID(),
-            organizationId,
             partnerId,
             uploadedByUserId,
             fileName: data.fileName,
@@ -91,7 +87,7 @@ export async function getPartnerDocuments(partnerId: string) {
 }
 
 export async function getOrgDocuments(organizationId: string, visibilityFilter?: string) {
-    const conditions = [eq(document.organizationId, organizationId)];
+    const conditions = [eq(partner.organizationId, organizationId)];
     if (visibilityFilter) {
         conditions.push(eq(document.visibility, visibilityFilter));
     }
@@ -109,7 +105,7 @@ export async function getOrgDocuments(organizationId: string, visibilityFilter?:
             uploaderName: user.name,
         })
         .from(document)
-        .leftJoin(partner, eq(document.partnerId, partner.partnerId))
+        .innerJoin(partner, eq(document.partnerId, partner.partnerId))
         .leftJoin(user, eq(document.uploadedByUserId, user.id))
         .where(and(...conditions))
         .orderBy(desc(document.uploadedAt));
@@ -117,9 +113,18 @@ export async function getOrgDocuments(organizationId: string, visibilityFilter?:
 
 export async function getDocumentById(documentId: string, organizationId: string) {
     const [result] = await db
-        .select()
+        .select({
+            documentId: document.documentId,
+            partnerId: document.partnerId,
+            uploadedByUserId: document.uploadedByUserId,
+            fileName: document.fileName,
+            fileUrl: document.fileUrl,
+            visibility: document.visibility,
+            uploadedAt: document.uploadedAt,
+        })
         .from(document)
-        .where(and(eq(document.documentId, documentId), eq(document.organizationId, organizationId)))
+        .innerJoin(partner, eq(document.partnerId, partner.partnerId))
+        .where(and(eq(document.documentId, documentId), eq(partner.organizationId, organizationId)))
         .limit(1);
 
     return result;

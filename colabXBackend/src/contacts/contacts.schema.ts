@@ -6,7 +6,6 @@ import {
     index,
     boolean,
 } from "drizzle-orm/pg-core";
-import { organization } from "../schemas/orgSchema.js";
 import { partner } from "../partners/partners.schema.js";
 import { user } from "../schemas/authSchema.js";
 
@@ -15,9 +14,6 @@ export const contact = pgTable(
     "contact",
     {
         contactId: text("contactId").primaryKey(),
-        organizationId: text("organizationId")
-            .notNull()
-            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
             .references(() => partner.partnerId, { onDelete: "cascade" }),
@@ -36,17 +32,12 @@ export const contact = pgTable(
             .notNull(),
     },
     (table) => [
-        index("contact_organizationId_idx").on(table.organizationId),
         index("contact_partnerId_idx").on(table.partnerId),
     ]
 );
 
 // Relations
 export const contactRelations = relations(contact, ({ one }) => ({
-    organization: one(organization, {
-        fields: [contact.organizationId],
-        references: [organization.organizationId],
-    }),
     partner: one(partner, {
         fields: [contact.partnerId],
         references: [partner.partnerId],

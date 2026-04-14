@@ -8,9 +8,6 @@ export const communication = pgTable(
     "communication",
     {
         communicationId: text("communicationId").primaryKey(),
-        organizationId: text("organizationId")
-            .notNull()
-            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
             .references(() => partner.partnerId, { onDelete: "cascade" }),
@@ -21,7 +18,6 @@ export const communication = pgTable(
         createdAt: timestamp("createdAt").defaultNow().notNull(),
     },
     (table) => [
-        index("communication_organizationId_idx").on(table.organizationId),
         index("communication_partnerId_idx").on(table.partnerId),
         index("communication_senderUserId_idx").on(table.senderUserId),
     ]
@@ -31,9 +27,6 @@ export const document = pgTable(
     "document",
     {
         documentId: text("documentId").primaryKey(),
-        organizationId: text("organizationId")
-            .notNull()
-            .references(() => organization.organizationId, { onDelete: "cascade" }),
         partnerId: text("partnerId")
             .notNull()
             .references(() => partner.partnerId, { onDelete: "cascade" }),
@@ -46,7 +39,6 @@ export const document = pgTable(
         uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
     },
     (table) => [
-        index("document_organizationId_idx").on(table.organizationId),
         index("document_partnerId_idx").on(table.partnerId),
         index("document_uploadedByUserId_idx").on(table.uploadedByUserId),
     ]
@@ -75,10 +67,6 @@ export const activityLog = pgTable(
 );
 
 export const communicationRelations = relations(communication, ({ one }) => ({
-    organization: one(organization, {
-        fields: [communication.organizationId],
-        references: [organization.organizationId],
-    }),
     partner: one(partner, {
         fields: [communication.partnerId],
         references: [partner.partnerId],
@@ -90,10 +78,6 @@ export const communicationRelations = relations(communication, ({ one }) => ({
 }));
 
 export const documentRelations = relations(document, ({ one }) => ({
-    organization: one(organization, {
-        fields: [document.organizationId],
-        references: [organization.organizationId],
-    }),
     partner: one(partner, {
         fields: [document.partnerId],
         references: [partner.partnerId],
