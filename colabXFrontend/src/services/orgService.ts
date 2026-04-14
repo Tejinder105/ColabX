@@ -351,7 +351,13 @@ export async function createInvite(
         method: 'POST',
         credentials: 'include',
         headers: buildHeaders(input.orgId),
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+            organizationId: input.orgId,
+            email: input.email,
+            role: input.role,
+            partnerType: input.partnerType,
+            partnerIndustry: input.partnerIndustry,
+        }),
     });
 
     if (!response.ok) {
