@@ -66,7 +66,7 @@ export function RecentActivity({ activities }: RecentActivityProps) {
                                 <span className="font-bold">{item.user}</span> {item.action}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                {item.details} • {item.time}
+                                {item.time}
                             </p>
                         </div>
                     </div>

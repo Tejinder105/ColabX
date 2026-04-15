@@ -47,6 +47,10 @@ function scoreFromKeyResults(keyResults: KeyResult[]): number {
 }
 
 function mapStatus(progress: number, statuses: ApiKeyResultStatus[]): UiObjectiveStatus {
+    if (statuses.length === 0 && progress === 0) {
+        return 'Behind';
+    }
+
     if (progress >= 100) {
         return 'Completed';
     }

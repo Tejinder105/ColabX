@@ -244,7 +244,7 @@ function DashboardPage() {
         return {
             user: log.userName ?? log.userEmail ?? "System",
             action: log.action,
-            details: `${log.entityType}:${log.entityId}`,
+            details: "",
             time: relativeTime(log.createdAt),
             icon,
         }

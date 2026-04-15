@@ -106,7 +106,7 @@ export default function OkrsPage() {
             <OkrKpiStrip data={kpis} />
 
             <Tabs defaultValue="objectives" className="w-full mt-6">
-                <TabsList className={`grid w-full h-auto max-w-[400px] ${canViewPartnerPerformance ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <TabsList className={`grid w-full h-auto ${canViewPartnerPerformance ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <TabsTrigger value="objectives" className="py-2">Objectives List</TabsTrigger>
                     {canViewPartnerPerformance && (
                         <TabsTrigger value="performance" className="py-2">Partner Performance</TabsTrigger>

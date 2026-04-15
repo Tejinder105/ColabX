@@ -122,11 +122,11 @@ export function PartnershipOverview({ activePartners, atRiskPartners, onboarding
                     <div className="flex w-full justify-center gap-6 mt-2 text-sm">
                         <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-chart-4" />
-                            <span className="font-bold text-chart-4">8 At Risk</span>
+                            <span className="font-bold text-chart-4">{atRiskPartners} At Risk</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-chart-2" />
-                            <span className="font-medium text-chart-2">7 Onboarding</span>
+                            <span className="font-medium text-chart-2">{onboardingPartners} Onboarding</span>
                         </div>
                     </div>
                 </div>
