@@ -4,9 +4,7 @@ import type { AuthRequest } from "../middlewares/authMiddleware.js";
 import { getOrgPartnersForUser } from "../partners/partners.service.js";
 import { getPartnerIdsForTeams, getScopedTeamIdsForUser } from "../teams/teams.service.js";
 
-// Verifies the objective exists and belongs to the current org.
-// Must run AFTER requireOrganization (requires req.org to be set).
-// Attaches req.objective on success.
+
 export async function requireObjective(
     req: AuthRequest,
     res: Response,
@@ -47,9 +45,7 @@ export async function requireObjective(
     }
 }
 
-// Verifies the key result exists and its parent objective belongs to the current org.
-// Must run AFTER requireOrganization (requires req.org to be set).
-// Attaches req.keyResult on success.
+
 export async function requireKeyResult(
     req: AuthRequest,
     res: Response,
@@ -102,12 +98,12 @@ export async function requireObjectiveAccess(
             return;
         }
 
-        if (req.membership.role === "admin") {
+        if (req.membership.role === "admin" || req.membership.role === "manager") {
             next();
             return;
         }
 
-        if (req.membership.role === "manager" || req.membership.role === "member") {
+        if (req.membership.role === "member") {
             const scopedTeamIds = await getScopedTeamIdsForUser(
                 req.org.organizationId,
                 req.user.id,
@@ -168,7 +164,7 @@ export async function requireKeyResultAccess(
             return;
         }
 
-        if (req.membership.role === "admin") {
+        if (req.membership.role === "admin" || req.membership.role === "manager") {
             next();
             return;
         }
@@ -179,7 +175,7 @@ export async function requireKeyResultAccess(
             return;
         }
 
-        if (req.membership.role === "manager" || req.membership.role === "member") {
+        if (req.membership.role === "member") {
             const scopedTeamIds = await getScopedTeamIdsForUser(
                 req.org.organizationId,
                 req.user.id,
