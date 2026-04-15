@@ -55,9 +55,14 @@ export function OkrKpiStrip({ data }: { data: OKRKpiMetrics }) {
                     <BarChart2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{data.averagePartnerScore}</div>
+                    <div className="text-2xl font-bold">
+                        {data.averagePartnerScore > 0 ? data.averagePartnerScore : '—'}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                        Across all active partners
+                        {data.averagePartnerScore > 0
+                            ? 'Across all active partners'
+                            : 'No partner data available'
+                        }
                     </p>
                 </CardContent>
             </Card>

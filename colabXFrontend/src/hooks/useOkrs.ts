@@ -166,7 +166,7 @@ export function useOkrsDashboard() {
                     partnerPerformance.reduce((sum, item) => sum + item.score, 0) /
                     partnerPerformance.length
                 )
-                : 0;
+                : null;  // Return null when no partners, instead of 0
 
             const months = getLastSixMonths();
             const chartBuckets = new Map<string, { revenue: number; total: number; won: number }>();

@@ -28,7 +28,7 @@ export interface OKRKpiMetrics {
     activeObjectives: number;
     completedObjectives: number;
     atRiskObjectives: number;
-    averagePartnerScore: number;
+    averagePartnerScore: number | null;
 }
 
 export interface PerformanceChartData {
