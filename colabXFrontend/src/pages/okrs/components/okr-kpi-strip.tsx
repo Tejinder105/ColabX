@@ -56,10 +56,10 @@ export function OkrKpiStrip({ data }: { data: OKRKpiMetrics }) {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">
-                        {data.averagePartnerScore > 0 ? data.averagePartnerScore : '—'}
+                        {data.averagePartnerScore !== null && data.averagePartnerScore > 0 ? data.averagePartnerScore : '—'}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                        {data.averagePartnerScore > 0
+                        {data.averagePartnerScore !== null && data.averagePartnerScore > 0
                             ? 'Across all active partners'
                             : 'No partner data available'
                         }
